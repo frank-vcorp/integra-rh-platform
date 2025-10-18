@@ -1,0 +1,4 @@
+# 🌐 Plantilla Universal Checkpoint Multi‑IA
+Fecha: 2025-10-18
+
+Estructura estándar de checkpoints interoperables (Gemini, ChatGPT, Manus).

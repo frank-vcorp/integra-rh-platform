@@ -1,0 +1,33 @@
+.gitignore
+.vscode/
+  launch.json
+  settings.json
+  tasks.json
+Contexto/
+  Brief_del_cliente/
+  Documentos_originales/
+  Fichas_tecnicas/
+  Imagenes/
+Contexto_Tecnico/
+  config/
+    .env.example
+    firebase.json
+    firestore.rules
+    storage.rules
+  context/
+    identity_card.json
+  docs/
+    CHANGELOG.md
+    Checkpoint_1.0_Starter.txt
+    Plantilla_Universal_Checkpoint_MultiIA.txt
+    naming_conventions.md
+  modules/
+    backend/
+    frontend/
+    ia_dictamen/
+Entregables/
+  Documentos_finales/
+  Versiones_publicadas/
+README_MultiIA.md
+Temp/
+_TREE.txt

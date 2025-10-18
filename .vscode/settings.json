@@ -1,0 +1,9 @@
+{
+  "workbench.editor.showTabs": "multiple",
+  "workbench.sideBar.location": "left",
+  "editor.minimap.enabled": true,
+  "files.autoSave": "afterDelay",
+  "editor.formatOnSave": true,
+  "window.newWindowDimensions": "maximized",
+  "workbench.layoutControl.enabled": true
+}

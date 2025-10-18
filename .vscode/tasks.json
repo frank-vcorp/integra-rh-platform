@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Gemini: Analizar checkpoint",
+      "type": "shell",
+      "command": "gemini run --model gemini-1.5-pro --context ./Contexto_Tecnico/docs/Checkpoint_1.0_Starter.txt --input \"Analiza el módulo activo y propone mejoras.\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "ChatGPT: Recordatorio de checkpoint",
+      "type": "shell",
+      "command": "echo \"Usa ChatGPT Codex para actualizar el Checkpoint actual con los cambios.\""
+    },
+    {
+      "label": "Crear Checkpoint ahora",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/create-checkpoint.ps1"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

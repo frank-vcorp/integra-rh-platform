@@ -1,0 +1,9 @@
+{
+    "projectName": "INTEGRA-RH",
+    "contextFiles": [
+        "Contexto_Tecnico/docs/Checkpoint_1.1.txt",
+        "Contexto_Tecnico/docs/Plantilla_Universal_Checkpoint_MultiIA.txt"
+    ],
+    "autoSuggestCheckpoints": true,
+    "checkpointDir": "Contexto_Tecnico/docs"
+}

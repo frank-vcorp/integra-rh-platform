@@ -2,21 +2,28 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>INTEGRA RH</title>
+  <title>Dashboard - INTEGRA RH</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; background-color: #f4f6f8; }
-    .container { max-width: 1200px; margin: auto; }
+    body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background-color: #f4f6f8; }
+    .container { max-width: 1400px; margin: auto; width: 100%;}
     #login-container { max-width: 400px; margin: 100px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     #dashboard-container { display: none; }
-    #dashboard-header { display: flex; justify-content: space-between; align-items: center; }
+    #dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 20px;}
     #dashboard-panels { display: flex; gap: 20px; }
-    .panel { flex: 1; background: white; border: 1px solid #ccc; padding: 0 20px; border-radius: 8px; }
-    h1, h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    .panel { flex: 1; background: white; border: 1px solid #ccc; padding: 0 20px 20px 20px; border-radius: 8px; }
+    #details-panel { flex: 2; }
     ul { list-style-type: none; padding: 0; }
-    li { background-color: #f9f9f9; padding: 10px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    input { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+    li { padding: 10px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #eee; cursor: pointer; }
+    li:hover { background-color: #f0f0f0; }
+    li.selected { background-color: #007bff; color: white; }
+    .detail-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
+    .detail-section h4 { margin: 0 0 10px 0; }
+    .detail-section-content div { border-bottom: 1px solid #f5f5f5; padding: 8px 0; font-size: 14px; }
+    #add-work-history-form input { width: 100%; padding: 8px; margin-bottom: 5px; box-sizing: border-box; }
     button { border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; color: white; }
-    .btn-asignar { background-color: #007bff; width: 100%;}
+    .btn-login { background-color: #007bff; width: 100%;}
+    .btn-save { background-color: #28a745; width: 100%; margin-top: 10px;}
+    .btn-asignar { background-color: #007bff; }
     .btn-reenviar { background-color: #ffc107; color: black; }
     #logoutBtn { width: auto; background-color: #dc3545; }
     pre { background-color: #eee; padding: 10px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px; margin-top: 10px; max-height: 150px; overflow-y: auto;}
@@ -25,19 +32,33 @@
 </head>
 <body>
   <div class="container">
-    <div id="login-container">
-      <h2>Iniciar Sesión - INTEGRA RH</h2>
-      <div id="login-error" class="error-msg"></div>
-      <input type="email" id="email" placeholder="Correo electrónico">
-      <input type="password" id="password" placeholder="Contraseña">
-      <button id="loginBtn" class="btn-asignar">Ingresar</button>
-    </div>
+    <div id="login-container"><h2>Iniciar Sesión</h2><div id="login-error" class="error-msg"></div><input type="email" id="email" placeholder="Correo electrónico"><input type="password" id="password" placeholder="Contraseña"><button id="loginBtn" class="btn-login">Ingresar</button></div>
     <div id="dashboard-container">
-      <div id="dashboard-header"><h1>Dashboard INTEGRA RH</h1><div><span id="user-email"></span><button id="logoutBtn">Cerrar Sesión</button></div></div>
+      <div id="dashboard-header"><h1>Dashboard INTEGRA RH</h1><div><span id="user-email"></span> <button id="logoutBtn">Cerrar Sesión</button></div></div>
       <div id="dashboard-panels">
         <div class="panel"><h2>Clientes</h2><ul id="clients-list"></ul></div>
-        <div class="panel"><h2>Puestos</h2><ul id="posts-list"></ul></div>
-        <div class="panel"><h2>Candidatos</h2><ul id="candidates-list"></ul><h3>Respuesta:</h3><pre id="response-container"></pre></div>
+        <div class="panel"><h2>Candidatos</h2><ul id="candidates-list"></ul></div>
+        <div class="panel" id="details-panel">
+          <h2>Detalles del Candidato</h2>
+          <div id="candidate-details"><p><em>Selecciona un candidato.</em></p></div>
+          
+          <div id="psicometricos-section" class="detail-section" style="display: none;">
+            <h4>Psicométricos</h4>
+            <div id="psicometricos-content"></div>
+            <h5>Respuesta de la API:</h5>
+            <pre id="response-container"></pre>
+          </div>
+
+          <div id="process-list" class="detail-section"><h4>Procesos</h4><div id="process-items"></div></div>
+          <div id="work-history-section" class="detail-section">
+            <h4>Historial Laboral</h4><div id="work-history-list"></div>
+            <div id="add-work-history-form" style="display: none;">
+              <h4>Añadir Empleo</h4>
+              <input type="text" id="wh-empresa" placeholder="Empresa"><input type="text" id="wh-puestoOcupado" placeholder="Puesto"><input type="text" id="wh-tiempoTrabajado" placeholder="Tiempo"><input type="text" id="wh-contactoReferencia" placeholder="Contacto Ref."><input type="text" id="wh-telefonoReferencia" placeholder="Teléfono Ref."><input type="text" id="wh-correoReferencia" placeholder="Correo Ref."><input type="text" id="wh-resultadoVerificacion" placeholder="Verificación"><input type="text" id="wh-observaciones" placeholder="Observaciones">
+              <button id="save-job-btn" class="btn-save">Guardar Historial</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -47,16 +68,28 @@
   <script src="/__/firebase/8.10.1/firebase-firestore.js"></script>
   <script src="/__/firebase/8.10.1/firebase-functions.js"></script>
   <script src="/__/firebase/init.js"></script>
-
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      // --- INICIALIZACIÓN ---
       const auth = firebase.auth();
       const db = firebase.firestore();
       const functions = firebase.functions();
+      
       const loginContainer = document.getElementById('login-container');
       const dashboardContainer = document.getElementById('dashboard-container');
       const userEmailSpan = document.getElementById('user-email');
+      const clientsList = document.getElementById('clients-list');
+      const candidatesList = document.getElementById('candidates-list');
+      const candidateDetailsDiv = document.getElementById('candidate-details');
+      const psicometricosSection = document.getElementById('psicometricos-section');
+      const psicometricosContent = document.getElementById('psicometricos-content');
+      const responseContainer = document.getElementById('response-container');
+      const processItemsDiv = document.getElementById('process-items');
+      const workHistoryListDiv = document.getElementById('work-history-list');
+      const addWorkHistoryForm = document.getElementById('add-work-history-form');
+      let activeCandidateId = null;
 
+      // --- AUTENTICACIÓN ---
       auth.onAuthStateChanged(user => {
         if (user) {
           loginContainer.style.display = 'none';
@@ -66,79 +99,110 @@
         } else {
           loginContainer.style.display = 'block';
           dashboardContainer.style.display = 'none';
-          userEmailSpan.textContent = '';
         }
       });
-
-      document.getElementById('loginBtn').addEventListener('click', () => {
-        auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value)
-        .catch(err => { document.getElementById('login-error').textContent = 'Error: Credenciales incorrectas.'; });
-      });
-
+      document.getElementById('loginBtn').addEventListener('click', () => { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(err => { document.getElementById('login-error').textContent = 'Error: Credenciales incorrectas.'; }); });
       document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
 
+      // --- CARGA DE LISTAS PRINCIPALES ---
       function cargarDatosDelDashboard() {
-        const clientsList = document.getElementById('clients-list');
-        const postsList = document.getElementById('posts-list');
-        const candidatesList = document.getElementById('candidates-list');
-        const responseContainer = document.getElementById('response-container');
+        db.collection("clients").onSnapshot(snap => {
+            clientsList.innerHTML = ''; snap.forEach(doc => { clientsList.innerHTML += `<li>${doc.data().nombreEmpresa}</li>`; });
+        });
+        db.collection("candidates").onSnapshot(snap => {
+            candidatesList.innerHTML = '';
+            snap.forEach(doc => {
+                const candidateId = doc.id; const listItem = document.createElement('li'); listItem.textContent = doc.data().nombreCompleto; listItem.dataset.id = candidateId;
+                listItem.onclick = () => { document.querySelectorAll('#candidates-list li').forEach(el => el.classList.remove('selected')); listItem.classList.add('selected'); activeCandidateId = candidateId; showCandidateDetails(candidateId); };
+                candidatesList.appendChild(listItem);
+            });
+        });
+      }
+
+      // --- MUESTRA LOS DETALLES DE UN CANDIDATO AL HACER CLIC ---
+      function showCandidateDetails(candidateId) {
+        psicometricosSection.style.display = 'block';
+        addWorkHistoryForm.style.display = 'block';
+
+        // Escuchar cambios en el documento del candidato para actualizar todo en tiempo real
+        db.collection("candidates").doc(candidateId).onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            const data = doc.data();
+
+            // Cargar detalles básicos
+            candidateDetailsDiv.innerHTML = `<h3>${data.nombreCompleto}</h3><p><strong>Email:</strong> ${data.email || 'N/A'}</p>`;
+            
+            // Cargar sección de Psicométricos
+            renderPsicometricos(candidateId, data);
+
+            // Cargar Procesos
+            const processQuery = await db.collection("processes").where("candidatoId", "==", candidateId).get();
+            processItemsDiv.innerHTML = '';
+            processQuery.forEach(doc => {
+                const process = doc.data();
+                processItemsDiv.innerHTML += `<div><strong>Tipo:</strong> ${process.tipoProducto} | <strong>Calificación:</strong> ${process.calificacionFinal}</div>`;
+            });
+
+            // Cargar Historial Laboral
+            const historyQuery = await db.collection("candidates").doc(candidateId).collection("workHistory").orderBy("createdAt", "desc").get();
+            workHistoryListDiv.innerHTML = '';
+            historyQuery.forEach(doc => {
+                const job = doc.data();
+                workHistoryListDiv.innerHTML += `<div><h4>${job.puestoOcupado || ''} en ${job.empresa || ''}</h4><p><strong>Observaciones:</strong> ${job.observaciones || 'N/A'}</p></div>`;
+            });
+        });
+      }
+      
+      // --- RENDERIZA LA SECCIÓN DE PSICOMÉTRICOS ---
+      function renderPsicometricos(candidateId, candidateData) {
+        psicometricosContent.innerHTML = '';
         const asignarPruebas = functions.httpsCallable('asignarPruebasPsicometricas');
         const reenviarInvitacion = functions.httpsCallable('reenviarInvitacion');
 
-        db.collection("clients").onSnapshot(snap => {
-          clientsList.innerHTML = '';
-          snap.forEach(doc => { clientsList.innerHTML += `<li>${doc.data().nombreEmpresa}</li>`; });
-        });
-        db.collection("posts").onSnapshot(snap => {
-          postsList.innerHTML = '';
-          snap.forEach(doc => { postsList.innerHTML += `<li>${doc.data().nombreDelPuesto}</li>`; });
-        });
-
-        db.collection("candidates").onSnapshot(snap => {
-          candidatesList.innerHTML = '';
-          snap.forEach(async (doc) => {
-            const candidate = doc.data();
-            const candidateId = doc.id;
-            let clientName = '...';
-            if (candidate.clienteAsociadoId) {
-              const clientDoc = await db.collection("clients").doc(candidate.clienteAsociadoId).get();
-              clientName = clientDoc.exists ? clientDoc.data().nombreEmpresa : 'ID no encontrado';
-            }
-            const listItem = document.createElement('li');
-            listItem.innerHTML = `<span>${candidate.nombreCompleto}<br><small><em>Cliente: ${clientName}</em></small></span>`;
-            
-            if (!candidate.psicometricos) {
-              const button = document.createElement('button');
-              button.textContent = 'Asignar';
-              button.className = 'btn-asignar';
-              button.onclick = async () => {
-                responseContainer.textContent = `Asignando a ${candidate.nombreCompleto}...`;
+        if (!candidateData.psicometricos) {
+            const button = document.createElement('button');
+            button.textContent = 'Asignar Pruebas'; button.className = 'btn-asignar';
+            button.onclick = async () => {
+                responseContainer.textContent = `Asignando a ${candidateData.nombreCompleto}...`;
                 try {
                     const result = await asignarPruebas({ candidatoId: candidateId, tests: "1,7" });
                     responseContainer.textContent = JSON.stringify(result.data, null, 2);
                 } catch(error) { responseContainer.textContent = `Error: ${error.message}`; }
-              };
-              listItem.appendChild(button);
-            } else {
-              const statusSpan = document.createElement('span');
-              statusSpan.textContent = `✅ ${candidate.psicometricos.estatus}`;
-              listItem.appendChild(statusSpan);
-              const button = document.createElement('button');
-              button.textContent = 'Reenviar';
-              button.className = 'btn-reenviar';
-              button.onclick = async () => {
-                responseContainer.textContent = `Reenviando a ${candidate.nombreCompleto}...`;
+            };
+            psicometricosContent.appendChild(button);
+        } else {
+            const statusDiv = document.createElement('div');
+            statusDiv.innerHTML = `<p><strong>Estatus:</strong> ${candidateData.psicometricos.estatus}</p>`;
+            psicometricosContent.appendChild(statusDiv);
+            
+            const button = document.createElement('button');
+            button.textContent = 'Reenviar Invitación'; button.className = 'btn-reenviar';
+            button.onclick = async () => {
+                responseContainer.textContent = `Reenviando a ${candidateData.nombreCompleto}...`;
                 try {
                     const result = await reenviarInvitacion({ candidatoId: candidateId });
                     responseContainer.textContent = JSON.stringify(result.data, null, 2);
                 } catch(error) { responseContainer.textContent = `Error: ${error.message}`; }
-              };
-              listItem.appendChild(button);
-            }
-            candidatesList.appendChild(listItem);
-          });
-        });
+            };
+            psicometricosContent.appendChild(button);
+        }
       }
+
+      // --- LÓGICA PARA GUARDAR HISTORIAL LABORAL ---
+      document.getElementById('save-job-btn').addEventListener('click', async () => {
+        if (!activeCandidateId) return alert("Selecciona un candidato.");
+        const newJob = {
+          empresa: document.getElementById('wh-empresa').value, puestoOcupado: document.getElementById('wh-puestoOcupado').value,
+          tiempoTrabajado: document.getElementById('wh-tiempoTrabajado').value, contactoReferencia: document.getElementById('wh-contactoReferencia').value,
+          telefonoReferencia: document.getElementById('wh-telefonoReferencia').value, correoReferencia: document.getElementById('wh-correoReferencia').value,
+          resultadoVerificacion: document.getElementById('wh-resultadoVerificacion').value, observaciones: document.getElementById('wh-observaciones').value,
+          createdAt: new Date()
+        };
+        try {
+          await db.collection("candidates").doc(activeCandidateId).collection("workHistory").add(newJob);
+          addWorkHistoryForm.querySelectorAll('input').forEach(input => input.value = '');
+        } catch (error) { console.error("Error al guardar historial:", error); alert("Error al guardar."); }
+      });
     });
   </script>
 </body>
