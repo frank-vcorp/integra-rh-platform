@@ -50,15 +50,15 @@ Desarrollar plataforma completa de gestión de RRHH para la consultora Paula Le�
 - [ ] Cálculo automático de consecutivo
 
 ### 5. Gestión de Candidatos
-- [ ] Vista de detalle de candidato
-- [ ] Sección: Información personal
-- [ ] Sección: Historial laboral
-- [ ] Formulario: Añadir empleo al historial
-- [ ] Formulario: Editar empleo del historial
+- [x] Vista de detalle de candidato
+- [x] Sección: Información personal
+- [x] Sección: Historial laboral
+- [x] Formulario: Añadir empleo al historial
+- [x] Formulario: Editar empleo del historial
+- [x] Sección: Comentarios internos
 - [ ] Sección: Procesos asociados
 - [ ] Sección: Pruebas psicométricas
 - [ ] Sección: Documentos
-- [ ] Sección: Comentarios internos
 
 ### 6. Integración con API de Psicométricas
 - [ ] Cloud Function: Asignar batería de pruebas

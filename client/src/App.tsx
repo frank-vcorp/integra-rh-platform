@@ -12,6 +12,7 @@ import Candidatos from "./pages/Candidatos";
 import Procesos from "./pages/Procesos";
 import Encuestadores from "./pages/Encuestadores";
 import Pagos from "./pages/Pagos";
+import CandidatoDetalle from "./pages/CandidatoDetalle";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/clientes" component={Clientes} />
         <Route path="/puestos" component={Puestos} />
         <Route path="/candidatos" component={Candidatos} />
+        <Route path="/candidatos/:id" component={CandidatoDetalle} />
         <Route path="/procesos" component={Procesos} />
         <Route path="/encuestadores" component={Encuestadores} />
         <Route path="/pagos" component={Pagos} />
