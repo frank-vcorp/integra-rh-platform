@@ -5,6 +5,8 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { TRPCError } from "@trpc/server";
+import * as psicometricas from "./integrations/psicometricas";
+import * as sendgrid from "./integrations/sendgrid";
 
 // ============================================================================
 // HELPER: Admin-only procedure
@@ -599,6 +601,113 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await db.deleteDocument(input.id);
         return { success: true };
+      }),
+  }),
+
+  // ==========================================================================
+  // INTEGRACIONES EXTERNAS
+  // ==========================================================================
+
+  psicometricas: router({
+    asignarBateria: adminProcedure
+      .input(z.object({
+        candidatoId: z.number(),
+        bateria: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const candidate = await db.getCandidateById(input.candidatoId);
+        if (!candidate) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Candidato no encontrado' });
+        }
+
+        const result = await psicometricas.asignarBateriaPsicometrica({
+          nombre: candidate.nombreCompleto,
+          email: candidate.email || '',
+          telefono: candidate.telefono || undefined,
+          bateria: input.bateria,
+        });
+
+        // Enviar correo de invitación
+        if (candidate.email) {
+          const client = candidate.clienteId ? await db.getClientById(candidate.clienteId) : null;
+          const post = candidate.puestoId ? await db.getPostById(candidate.puestoId) : null;
+
+          await sendgrid.enviarInvitacionPsicometrica({
+            candidatoNombre: candidate.nombreCompleto,
+            candidatoEmail: candidate.email,
+            invitacionUrl: result.invitacionUrl,
+            nombrePuesto: post?.nombreDelPuesto || 'Sin especificar',
+            nombreEmpresa: client?.nombreEmpresa || 'Sin especificar',
+          });
+        }
+
+        return result;
+      }),
+
+    reenviarInvitacion: adminProcedure
+      .input(z.object({ asignacionId: z.string() }))
+      .mutation(async ({ input }) => {
+        return psicometricas.reenviarInvitacion(input.asignacionId);
+      }),
+
+    consultarResultados: adminProcedure
+      .input(z.object({ asignacionId: z.string() }))
+      .query(async ({ input }) => {
+        return psicometricas.consultarResultados(input.asignacionId);
+      }),
+  }),
+
+  email: router({
+    enviarInvitacionPsicometrica: adminProcedure
+      .input(z.object({
+        candidatoId: z.number(),
+        invitacionUrl: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const candidate = await db.getCandidateById(input.candidatoId);
+        if (!candidate || !candidate.email) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Candidato sin email' });
+        }
+
+        const client = candidate.clienteId ? await db.getClientById(candidate.clienteId) : null;
+        const post = candidate.puestoId ? await db.getPostById(candidate.puestoId) : null;
+
+        const success = await sendgrid.enviarInvitacionPsicometrica({
+          candidatoNombre: candidate.nombreCompleto,
+          candidatoEmail: candidate.email,
+          invitacionUrl: input.invitacionUrl,
+          nombrePuesto: post?.nombreDelPuesto || 'Sin especificar',
+          nombreEmpresa: client?.nombreEmpresa || 'Sin especificar',
+        });
+
+        return { success };
+      }),
+
+    notificarProcesoCompletado: adminProcedure
+      .input(z.object({ procesoId: z.number() }))
+      .mutation(async ({ input }) => {
+        const process = await db.getProcessById(input.procesoId);
+        if (!process) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+
+        const client = await db.getClientById(process.clienteId);
+        const candidate = await db.getCandidateById(process.candidatoId);
+        const post = await db.getPostById(process.puestoId);
+
+        if (!client || !client.email) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cliente sin email' });
+        }
+
+        const success = await sendgrid.notificarProcesoCompletado({
+          clienteNombre: client.nombreEmpresa,
+          clienteEmail: client.email,
+          candidatoNombre: candidate?.nombreCompleto || 'Sin nombre',
+          nombrePuesto: post?.nombreDelPuesto || 'Sin especificar',
+          claveProceso: process.clave,
+        });
+
+        return { success };
       }),
   }),
 });

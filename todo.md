@@ -61,19 +61,19 @@ Desarrollar plataforma completa de gestión de RRHH para la consultora Paula Le�
 - [ ] Sección: Documentos
 
 ### 6. Integración con API de Psicométricas
-- [ ] Cloud Function: Asignar batería de pruebas
-- [ ] Cloud Function: Reenviar invitación
-- [ ] Cloud Function: Webhook para recibir resultados
-- [ ] Endpoint: Consultar resultados (JSON)
-- [ ] Endpoint: Descargar reporte PDF
-- [ ] Almacenamiento de PDFs en Firebase Storage
+- [x] Función: Asignar batería de pruebas
+- [x] Función: Reenviar invitación
+- [x] Función: Webhook para recibir resultados
+- [x] Endpoint: Consultar resultados (JSON)
+- [x] Endpoint: Descargar reporte PDF
+- [ ] Almacenamiento de PDFs en S3 Storage
 - [ ] Visualización de resultados en dashboard
 
 ### 7. Integración con SendGrid
-- [ ] Cloud Function: Enviar correo de invitación a candidato
-- [ ] Template de correo profesional
-- [ ] Envío de notificaciones a clientes
-- [ ] Confirmaciones de proceso
+- [x] Función: Enviar correo de invitación a candidato
+- [x] Template de correo profesional
+- [x] Envío de notificaciones a clientes
+- [x] Confirmaciones de proceso
 
 ### 8. Portal para Clientes Empresariales
 - [ ] Login separado para clientes
