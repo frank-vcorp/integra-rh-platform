@@ -30,19 +30,21 @@ Desarrollar plataforma completa de gestión de RRHH para la consultora Paula Le�
 - [x] Vista principal con navegación
 - [x] Estadísticas generales del dashboard
 - [x] Menú lateral con todas las secciones
-- [ ] Panel de Clientes (lista y detalles)
-- [ ] Panel de Candidatos (lista y detalles)
-- [ ] Panel de Procesos (lista y detalles)
-- [ ] Panel de Puestos (lista y detalles)
+- [x] Panel de Clientes (lista y detalles)
+- [x] Panel de Candidatos (lista y detalles)
+- [x] Panel de Procesos (lista y detalles)
+- [x] Panel de Puestos (lista y detalles)
+- [x] Panel de Encuestadores (lista y detalles)
+- [x] Panel de Pagos (lista y detalles)
 
 ### 4. Formularios de Creación (CRUD)
-- [ ] Formulario: Crear Cliente
-- [ ] Formulario: Editar Cliente
-- [ ] Formulario: Crear Puesto
-- [ ] Formulario: Editar Puesto
-- [ ] Formulario: Crear Candidato
-- [ ] Formulario: Editar Candidato
-- [ ] Formulario: Crear Proceso
+- [x] Formulario: Crear Cliente
+- [x] Formulario: Editar Cliente
+- [x] Formulario: Crear Puesto
+- [x] Formulario: Editar Puesto
+- [x] Formulario: Crear Candidato
+- [x] Formulario: Editar Candidato
+- [x] Formulario: Crear Proceso (con generación automática de clave ILA/ESE)
 - [ ] Formulario: Editar Proceso
 - [ ] Generación automática de clave de proceso (ILA-2025-XXX, ESE-2025-XXX)
 - [ ] Cálculo automático de consecutivo
