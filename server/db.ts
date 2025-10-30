@@ -1,6 +1,29 @@
-import { eq } from "drizzle-orm";
+import { eq, and, desc, asc, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import {
+  InsertUser,
+  users,
+  clients,
+  InsertClient,
+  posts,
+  InsertPost,
+  candidates,
+  InsertCandidate,
+  workHistory,
+  InsertWorkHistory,
+  candidateComments,
+  InsertCandidateComment,
+  processes,
+  InsertProcess,
+  processComments,
+  InsertProcessComment,
+  surveyors,
+  InsertSurveyor,
+  payments,
+  InsertPayment,
+  documents,
+  InsertDocument,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -17,6 +40,10 @@ export async function getDb() {
   }
   return _db;
 }
+
+// ============================================================================
+// USUARIOS
+// ============================================================================
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
@@ -59,6 +86,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = 'admin';
       updateSet.role = 'admin';
     }
+    if (user.clientId !== undefined) {
+      values.clientId = user.clientId;
+      updateSet.clientId = user.clientId;
+    }
 
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
@@ -85,8 +116,361 @@ export async function getUserByOpenId(openId: string) {
   }
 
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ============================================================================
+// CLIENTES
+// ============================================================================
+
+export async function getAllClients() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(clients).orderBy(desc(clients.createdAt));
+}
+
+export async function getClientById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createClient(data: InsertClient) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(clients).values(data);
+  return result[0].insertId;
+}
+
+export async function updateClient(id: number, data: Partial<InsertClient>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(clients).set(data).where(eq(clients.id, id));
+}
+
+export async function deleteClient(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(clients).where(eq(clients.id, id));
+}
+
+// ============================================================================
+// PUESTOS
+// ============================================================================
+
+export async function getAllPosts() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(posts).orderBy(desc(posts.createdAt));
+}
+
+export async function getPostsByClient(clienteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(posts).where(eq(posts.clienteId, clienteId)).orderBy(desc(posts.createdAt));
+}
+
+export async function getPostById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createPost(data: InsertPost) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(posts).values(data);
+  return result[0].insertId;
+}
+
+export async function updatePost(id: number, data: Partial<InsertPost>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(posts).set(data).where(eq(posts.id, id));
+}
+
+export async function deletePost(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(posts).where(eq(posts.id, id));
+}
+
+// ============================================================================
+// CANDIDATOS
+// ============================================================================
+
+export async function getAllCandidates() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(candidates).orderBy(desc(candidates.createdAt));
+}
+
+export async function getCandidatesByClient(clienteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(candidates).where(eq(candidates.clienteId, clienteId)).orderBy(desc(candidates.createdAt));
+}
+
+export async function getCandidateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(candidates).where(eq(candidates.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createCandidate(data: InsertCandidate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(candidates).values(data);
+  return result[0].insertId;
+}
+
+export async function updateCandidate(id: number, data: Partial<InsertCandidate>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(candidates).set(data).where(eq(candidates.id, id));
+}
+
+export async function deleteCandidate(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(candidates).where(eq(candidates.id, id));
+}
+
+// ============================================================================
+// HISTORIAL LABORAL
+// ============================================================================
+
+export async function getWorkHistoryByCandidate(candidatoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(workHistory).where(eq(workHistory.candidatoId, candidatoId)).orderBy(desc(workHistory.createdAt));
+}
+
+export async function createWorkHistory(data: InsertWorkHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(workHistory).values(data);
+  return result[0].insertId;
+}
+
+export async function updateWorkHistory(id: number, data: Partial<InsertWorkHistory>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(workHistory).set(data).where(eq(workHistory.id, id));
+}
+
+export async function deleteWorkHistory(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(workHistory).where(eq(workHistory.id, id));
+}
+
+// ============================================================================
+// COMENTARIOS DE CANDIDATOS
+// ============================================================================
+
+export async function getCandidateComments(candidatoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(candidateComments).where(eq(candidateComments.candidatoId, candidatoId)).orderBy(desc(candidateComments.createdAt));
+}
+
+export async function createCandidateComment(data: InsertCandidateComment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(candidateComments).values(data);
+  return result[0].insertId;
+}
+
+// ============================================================================
+// PROCESOS
+// ============================================================================
+
+export async function getAllProcesses() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(processes).orderBy(desc(processes.createdAt));
+}
+
+export async function getProcessesByClient(clienteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(processes).where(eq(processes.clienteId, clienteId)).orderBy(desc(processes.createdAt));
+}
+
+export async function getProcessesByCandidate(candidatoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(processes).where(eq(processes.candidatoId, candidatoId)).orderBy(desc(processes.createdAt));
+}
+
+export async function getProcessById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(processes).where(eq(processes.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getProcessByClave(clave: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(processes).where(eq(processes.clave, clave)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getNextConsecutive(tipoProducto: "ILA" | "ESE", year: number) {
+  const db = await getDb();
+  if (!db) return 1;
+  
+  const result = await db
+    .select({ maxConsecutivo: sql<number>`MAX(${processes.consecutivo})` })
+    .from(processes)
+    .where(
+      and(
+        eq(processes.tipoProducto, tipoProducto),
+        sql`YEAR(${processes.fechaRecepcion}) = ${year}`
+      )
+    );
+  
+  const max = result[0]?.maxConsecutivo;
+  return max ? max + 1 : 1;
+}
+
+export async function createProcess(data: InsertProcess) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(processes).values(data);
+  return result[0].insertId;
+}
+
+export async function updateProcess(id: number, data: Partial<InsertProcess>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(processes).set(data).where(eq(processes.id, id));
+}
+
+export async function deleteProcess(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(processes).where(eq(processes.id, id));
+}
+
+// ============================================================================
+// COMENTARIOS DE PROCESOS
+// ============================================================================
+
+export async function getProcessComments(procesoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(processComments).where(eq(processComments.procesoId, procesoId)).orderBy(desc(processComments.createdAt));
+}
+
+export async function createProcessComment(data: InsertProcessComment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(processComments).values(data);
+  return result[0].insertId;
+}
+
+// ============================================================================
+// ENCUESTADORES
+// ============================================================================
+
+export async function getAllSurveyors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(surveyors).orderBy(asc(surveyors.nombre));
+}
+
+export async function getActiveSurveyors() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(surveyors).where(eq(surveyors.activo, true)).orderBy(asc(surveyors.nombre));
+}
+
+export async function getSurveyorById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(surveyors).where(eq(surveyors.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createSurveyor(data: InsertSurveyor) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(surveyors).values(data);
+  return result[0].insertId;
+}
+
+export async function updateSurveyor(id: number, data: Partial<InsertSurveyor>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(surveyors).set(data).where(eq(surveyors.id, id));
+}
+
+// ============================================================================
+// PAGOS
+// ============================================================================
+
+export async function getAllPayments() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(payments).orderBy(desc(payments.createdAt));
+}
+
+export async function getPaymentsByProcess(procesoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(payments).where(eq(payments.procesoId, procesoId)).orderBy(desc(payments.createdAt));
+}
+
+export async function getPaymentsBySurveyor(encuestadorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(payments).where(eq(payments.encuestadorId, encuestadorId)).orderBy(desc(payments.createdAt));
+}
+
+export async function createPayment(data: InsertPayment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(payments).values(data);
+  return result[0].insertId;
+}
+
+export async function updatePayment(id: number, data: Partial<InsertPayment>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(payments).set(data).where(eq(payments.id, id));
+}
+
+// ============================================================================
+// DOCUMENTOS
+// ============================================================================
+
+export async function getDocumentsByCandidate(candidatoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(documents).where(eq(documents.candidatoId, candidatoId)).orderBy(desc(documents.createdAt));
+}
+
+export async function getDocumentsByProcess(procesoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(documents).where(eq(documents.procesoId, procesoId)).orderBy(desc(documents.createdAt));
+}
+
+export async function createDocument(data: InsertDocument) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(documents).values(data);
+  return result[0].insertId;
+}
+
+export async function deleteDocument(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(documents).where(eq(documents.id, id));
+}

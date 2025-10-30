@@ -21,15 +21,26 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Building2, Briefcase, FileText, UserCheck, DollarSign } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+const adminMenuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Building2, label: "Clientes", path: "/clientes" },
+  { icon: Briefcase, label: "Puestos", path: "/puestos" },
+  { icon: Users, label: "Candidatos", path: "/candidatos" },
+  { icon: FileText, label: "Procesos", path: "/procesos" },
+  { icon: UserCheck, label: "Encuestadores", path: "/encuestadores" },
+  { icon: DollarSign, label: "Pagos", path: "/pagos" },
+];
+
+const clientMenuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Users, label: "Mis Candidatos", path: "/candidatos" },
+  { icon: FileText, label: "Mis Procesos", path: "/procesos" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -121,6 +132,7 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const menuItems = user?.role === 'admin' ? adminMenuItems : clientMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
 
