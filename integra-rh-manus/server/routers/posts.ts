@@ -1,15 +1,14 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
-import { db } from '../../scripts/db';
-import { posts } from '../../drizzle/schema';
-import { eq, desc } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
+import { getAllPosts, getPostsByClient, createPost, updatePost, deletePost } from '../db';
 
 export const postsRouter = router({
   /**
    * Lista global de puestos (ordenados por creación desc)
    */
   list: protectedProcedure.query(async () => {
-    return await db.select().from(posts).orderBy(desc(posts.createdAt));
+    return await getAllPosts();
   }),
 
   /**
@@ -23,7 +22,7 @@ export const postsRouter = router({
       })
     )
     .query(async ({ input }) => {
-      return await db.select().from(posts).where(eq(posts.clienteId, input.clientId));
+      return await getPostsByClient(input.clientId);
     }),
 
   /**
@@ -40,13 +39,36 @@ export const postsRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const res: any = await (db as any).insert(posts).values({
+      const id = await createPost({
         nombreDelPuesto: input.nombreDelPuesto,
         clienteId: input.clienteId,
-        descripcion: input.descripcion,
+        descripcion: input.descripcion ?? null,
         estatus: input.estatus ?? 'activo',
-      });
-      const insertId = Array.isArray(res) ? res[0]?.insertId : res?.insertId;
-      return { id: insertId } as const;
+      } as any);
+      return { id } as const;
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.number().int(),
+        data: z.object({
+          nombreDelPuesto: z.string().min(1).optional(),
+          clienteId: z.number().optional(),
+          descripcion: z.string().nullable().optional(),
+          estatus: z.enum(["activo", "cerrado", "pausado"]).optional(),
+        }),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await updatePost(input.id, input.data as any);
+      return { ok: true } as const;
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      await deletePost(input.id);
+      return { ok: true } as const;
     }),
 });
