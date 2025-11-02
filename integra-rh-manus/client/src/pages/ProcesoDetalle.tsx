@@ -29,7 +29,11 @@ export default function ProcesoDetalle() {
   const genDictamen = trpc.processes.generarDictamen.useMutation({
     onSuccess: () => utils.processes.getById.invalidate({ id: processId }),
   });
-  const surveyors = trpc.surveyors?.listActive?.useQuery ? trpc.surveyors.listActive.useQuery() : ({ data: [] } as any);
+  // Llamar hooks siempre en el mismo orden. Evitar condicionales.
+  const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery(undefined as any, {
+    // initialData asegura data consistente mientras carga
+    initialData: [],
+  } as any);
   const visitAssign = trpc.processes.visitAssign.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitSchedule = trpc.processes.visitSchedule.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitUpdate = trpc.processes.visitUpdate.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
@@ -71,9 +75,13 @@ export default function ProcesoDetalle() {
       toast.success('Enlace revocado');
     },
   });
-  const activeTokens = (process?.clienteId)
-    ? trpc.clientAccess.listActiveTokens.useQuery({ clientId: process.clienteId })
-    : ({ data: [] } as any);
+  const { data: activeTokens = [] } = trpc.clientAccess.listActiveTokens.useQuery(
+    { clientId: process?.clienteId ?? 0 } as any,
+    {
+      enabled: Boolean(process?.clienteId),
+      initialData: [],
+    } as any
+  );
 
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
