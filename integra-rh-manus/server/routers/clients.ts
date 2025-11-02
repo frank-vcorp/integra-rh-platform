@@ -52,4 +52,40 @@ export const clientsRouter = router({
       } as any);
       return { id } as const;
     }),
+
+  /** Actualizar cliente (solo administradores) */
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number().int(),
+      data: z.object({
+        nombreEmpresa: z.string().min(1).optional(),
+        rfc: z.string().optional(),
+        direccion: z.string().optional(),
+        telefono: z.string().optional(),
+        email: z.string().email().optional(),
+        nombreContacto: z.string().optional(),
+        puestoContacto: z.string().optional(),
+      }),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user?.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Solo administradores pueden actualizar clientes' });
+      }
+      const { id, data } = input;
+      const { updateClient } = await import('../db');
+      await updateClient(id, data as any);
+      return { ok: true } as const;
+    }),
+
+  /** Eliminar cliente (solo administradores) */
+  delete: protectedProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user?.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Solo administradores pueden eliminar clientes' });
+      }
+      const { deleteClient } = await import('../db');
+      await deleteClient(input.id);
+      return { ok: true } as const;
+    }),
 });
