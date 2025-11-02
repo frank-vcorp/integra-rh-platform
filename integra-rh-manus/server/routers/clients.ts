@@ -30,17 +30,11 @@ export const clientsRouter = router({
   create: protectedProcedure
     .input(z.object({
       nombreEmpresa: z.string().min(1),
-      // Campos UI actuales
       ubicacionPlaza: z.string().optional(),
       reclutador: z.string().optional(),
       contacto: z.string().optional(),
       telefono: z.string().optional(),
       email: z.string().email().optional(),
-      // Campos del esquema DB (también permitidos por compatibilidad)
-      rfc: z.string().optional(),
-      direccion: z.string().optional(),
-      nombreContacto: z.string().optional(),
-      puestoContacto: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       if (ctx.user?.role !== 'admin') {
@@ -48,13 +42,11 @@ export const clientsRouter = router({
       }
       const id = await createClient({
         nombreEmpresa: input.nombreEmpresa,
-        rfc: input.rfc ?? null,
-        // Mapear nombres del UI al esquema de DB
-        direccion: (input.direccion ?? input.ubicacionPlaza) ?? null,
+        ubicacionPlaza: input.ubicacionPlaza ?? null,
+        reclutador: input.reclutador ?? null,
+        contacto: input.contacto ?? null,
         telefono: input.telefono ?? null,
         email: input.email ?? null,
-        nombreContacto: (input.nombreContacto ?? input.contacto) ?? null,
-        puestoContacto: (input.puestoContacto ?? input.reclutador) ?? null,
       } as any);
       return { id } as const;
     }),
@@ -65,17 +57,11 @@ export const clientsRouter = router({
       id: z.number().int(),
       data: z.object({
         nombreEmpresa: z.string().min(1).optional(),
-        // UI
         ubicacionPlaza: z.string().optional(),
         reclutador: z.string().optional(),
         contacto: z.string().optional(),
         telefono: z.string().optional(),
         email: z.string().email().optional(),
-        // DB
-        rfc: z.string().optional(),
-        direccion: z.string().optional(),
-        nombreContacto: z.string().optional(),
-        puestoContacto: z.string().optional(),
       }),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -85,18 +71,13 @@ export const clientsRouter = router({
       const { id, data } = input;
       const { updateClient } = await import('../db');
       const payload: any = {
-        ...(['nombreEmpresa','rfc','telefono','email'].reduce((acc, k) => ({...acc, [k]: (data as any)[k]}), {} as any)),
+        nombreEmpresa: data.nombreEmpresa,
+        ubicacionPlaza: data.ubicacionPlaza ?? null,
+        reclutador: data.reclutador ?? null,
+        contacto: data.contacto ?? null,
+        telefono: data.telefono ?? null,
+        email: data.email ?? null,
       };
-      // Mapear y priorizar si vienen desde el UI
-      if (data.direccion !== undefined || data.ubicacionPlaza !== undefined) {
-        payload.direccion = (data.direccion ?? data.ubicacionPlaza) ?? null;
-      }
-      if (data.nombreContacto !== undefined || data.contacto !== undefined) {
-        payload.nombreContacto = (data.nombreContacto ?? data.contacto) ?? null;
-      }
-      if (data.puestoContacto !== undefined || data.reclutador !== undefined) {
-        payload.puestoContacto = (data.puestoContacto ?? data.reclutador) ?? null;
-      }
       await updateClient(id, payload);
       return { ok: true } as const;
     }),
