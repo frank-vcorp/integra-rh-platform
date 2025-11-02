@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, FileText, Eye } from "lucide-react";
+import { Plus, FileText, Eye, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -61,6 +61,16 @@ export default function Procesos() {
     },
     onError: (error) => {
       toast.error("Error al crear proceso: " + error.message);
+    },
+  });
+
+  const deleteMutation = trpc.processes.delete.useMutation({
+    onSuccess: () => {
+      utils.processes.list.invalidate();
+      toast.success("Proceso eliminado exitosamente");
+    },
+    onError: (error) => {
+      toast.error("Error al eliminar proceso: " + error.message);
     },
   });
 
@@ -213,11 +223,26 @@ export default function Procesos() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/procesos/${process.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link href={`/procesos/${process.id}`}>
+                          <Button variant="ghost" size="sm" aria-label="Ver detalle">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        {!isClient && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Eliminar proceso"
+                            onClick={() => {
+                              const ok = confirm(`¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`);
+                              if (ok) deleteMutation.mutate({ id: process.id });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

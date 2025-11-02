@@ -12,6 +12,7 @@ import Candidatos from "./pages/Candidatos";
 import Procesos from "./pages/Procesos";
 import ProcesoDetalle from "./pages/ProcesoDetalle";
 import Encuestadores from "./pages/Encuestadores";
+import EncuestadorDetalle from "./pages/EncuestadorDetalle";
 import Pagos from "./pages/Pagos";
 import CandidatoDetalle from "./pages/CandidatoDetalle";
 import ClienteFormularioIntegrado from "./pages/ClienteFormularioIntegrado";
@@ -125,6 +126,14 @@ function Router() {
         <ProtectedRoute>
           <DashboardLayout>
             <Route path="/encuestadores" component={Encuestadores} />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/encuestadores/:id">
+        <ProtectedRoute>
+          <DashboardLayout>
+            <Route path="/encuestadores/:id" component={EncuestadorDetalle} />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "nombre": "Berta Flores nuñes",
+    "telefono": "442 125 7895",
+    "email": "francisco.saavedra.marin@gmail.com",
+    "activo": 0,
+    "createdAt": "2025-11-02T13:21:36.000Z",
+    "updatedAt": "2025-11-03T04:51:34.000Z"
+  }
+]

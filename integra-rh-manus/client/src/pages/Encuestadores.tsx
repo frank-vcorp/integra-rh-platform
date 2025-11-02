@@ -9,8 +9,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, UserCheck, Pencil, Trash2 } from "lucide-react";
+import { Plus, UserCheck, Pencil, Trash2, Phone } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -27,13 +28,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Encuestadores() {
+  const { user } = useAuth();
+  const isClient = user?.role === "client";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSurveyor, setEditingSurveyor] = useState<any>(null);
   const [selectedActivo, setSelectedActivo] = useState<boolean>(true);
+  const [cobertura, setCobertura] = useState<'local'|'foraneo'|'ambos'>('local');
+  const [ciudadBase, setCiudadBase] = useState('');
+  const [estadosCobertura, setEstadosCobertura] = useState(''); // CSV simple
+  const [radioKm, setRadioKm] = useState<string>('');
+  const [vehiculo, setVehiculo] = useState<boolean>(false);
+  const [tarifaLocal, setTarifaLocal] = useState<string>('');
+  const [tarifaForanea, setTarifaForanea] = useState<string>('');
+  const [notas, setNotas] = useState<string>('');
 
   const { data: surveyors = [], isLoading } = trpc.surveyors.list.useQuery();
+  const { data: processes = [] } = trpc.processes.list.useQuery();
   const utils = trpc.useUtils();
 
   const createMutation = trpc.surveyors.create.useMutation({
@@ -59,7 +72,15 @@ export default function Encuestadores() {
     },
   });
 
-  // Delete no está disponible en el router
+  const deleteMutation = trpc.surveyors.delete.useMutation({
+    onSuccess: () => {
+      utils.surveyors.list.invalidate();
+      toast.success("Encuestador eliminado");
+    },
+    onError: (error) => {
+      toast.error("Error al eliminar: " + error.message);
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -68,6 +89,14 @@ export default function Encuestadores() {
       nombre: formData.get("nombre") as string,
       telefono: formData.get("telefono") as string || undefined,
       email: formData.get("email") as string || undefined,
+      cobertura,
+      ciudadBase: ciudadBase || undefined,
+      estadosCobertura: estadosCobertura ? estadosCobertura.split(',').map(s=>s.trim()).filter(Boolean) : undefined,
+      radioKm: radioKm ? parseInt(radioKm) : undefined,
+      vehiculo,
+      tarifaLocal: tarifaLocal ? Math.round(parseFloat(tarifaLocal) * 100) : undefined,
+      tarifaForanea: tarifaForanea ? Math.round(parseFloat(tarifaForanea) * 100) : undefined,
+      notas: notas || undefined,
       activo: selectedActivo,
     };
 
@@ -81,11 +110,29 @@ export default function Encuestadores() {
   const handleEdit = (surveyor: any) => {
     setEditingSurveyor(surveyor);
     setSelectedActivo(surveyor.activo);
+    setCobertura(surveyor.cobertura ?? 'local');
+    setCiudadBase(surveyor.ciudadBase ?? '');
+    setEstadosCobertura(((surveyor.estadosCobertura as string[] | undefined)?.join(', ')) ?? '');
+    setRadioKm(surveyor.radioKm != null ? String(surveyor.radioKm) : '');
+    setVehiculo(Boolean(surveyor.vehiculo));
+    setTarifaLocal(surveyor.tarifaLocal != null ? (surveyor.tarifaLocal/100).toFixed(2) : '');
+    setTarifaForanea(surveyor.tarifaForanea != null ? (surveyor.tarifaForanea/100).toFixed(2) : '');
+    setNotas(surveyor.notas ?? '');
     setDialogOpen(true);
   };
 
   const handleDelete = (id: number) => {
-    toast.error("Eliminar encuestadores no está disponible. Marca como inactivo en su lugar.");
+    if (confirm("¿Seguro que deseas eliminar este encuestador? Esta acción no se puede deshacer.")) {
+      deleteMutation.mutate({ id });
+    }
+  };
+
+  const handleToggleActive = (surveyor: any) => {
+    const next = !surveyor.activo;
+    if (!next && !confirm("¿Desactivar este encuestador?")) return;
+    updateMutation.mutate({ id: surveyor.id, data: { activo: next } });
+    if (next) toast.success("Encuestador activado");
+    else toast.success("Encuestador desactivado");
   };
 
   const handleOpenDialog = () => {
@@ -112,10 +159,12 @@ export default function Encuestadores() {
             Gestiona los encuestadores del sistema
           </p>
         </div>
-        <Button onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Encuestador
-        </Button>
+        {!isClient && (
+          <Button onClick={handleOpenDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Encuestador
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -143,6 +192,10 @@ export default function Encuestadores() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Visitas</TableHead>
+                  <TableHead>Comentarios</TableHead>
+                  <TableHead>Cobertura</TableHead>
+                  <TableHead>Base</TableHead>
                   <TableHead>Estatus</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -150,9 +203,31 @@ export default function Encuestadores() {
               <TableBody>
                 {surveyors.map((surveyor) => (
                   <TableRow key={surveyor.id}>
-                    <TableCell className="font-medium">{surveyor.nombre}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/encuestadores/${surveyor.id}`} className="text-blue-600 hover:underline">
+                        {surveyor.nombre}
+                      </Link>
+                    </TableCell>
                     <TableCell>{surveyor.telefono || "-"}</TableCell>
                     <TableCell>{surveyor.email || "-"}</TableCell>
+                    <TableCell className="text-xs">
+                      {(() => {
+                        const visits = (processes as any[]).filter((p:any) => p.visitStatus && p.visitStatus.encuestadorId === surveyor.id);
+                        if (visits.length === 0) return <span className="text-muted-foreground">—</span>;
+                        const upcoming = visits
+                          .filter((v:any) => v.visitStatus?.scheduledDateTime)
+                          .sort((a:any,b:any)=> new Date(a.visitStatus.scheduledDateTime).getTime() - new Date(b.visitStatus.scheduledDateTime).getTime())[0];
+                        return (
+                          <span>
+                            {visits.length} {visits.length === 1 ? 'visita' : 'visitas'}
+                            {upcoming ? ` • Próx: ${new Date(upcoming.visitStatus.scheduledDateTime).toLocaleString()}` : ''}
+                          </span>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate" title={(surveyor as any).notas || ''}>{(surveyor as any).notas || '—'}</TableCell>
+                    <TableCell>{surveyor.cobertura || 'local'}</TableCell>
+                    <TableCell>{surveyor.ciudadBase || '-'}</TableCell>
                     <TableCell>
                       <span
                         className={`badge ${
@@ -166,20 +241,49 @@ export default function Encuestadores() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(surveyor)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(surveyor.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {surveyor.telefono && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label="WhatsApp"
+                            onClick={() => {
+                              const digits = String(surveyor.telefono).replace(/[^0-9+]/g, '');
+                              const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
+                              const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+                              window.open(url, '_blank');
+                            }}
+                          >
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Link href={`/encuestadores/${surveyor.id}?section=visitas`}>
+                          <Button variant="ghost" size="sm">Ver</Button>
+                        </Link>
+                        {!isClient && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleActive(surveyor)}
+                            >
+                              {surveyor.activo ? "Inactivar" : "Activar"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(surveyor)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(surveyor.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -191,6 +295,7 @@ export default function Encuestadores() {
       </Card>
 
       {/* Dialog */}
+      {!isClient && (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -225,6 +330,42 @@ export default function Encuestadores() {
                   type="email"
                   defaultValue={editingSurveyor?.email}
                 />
+              </div>
+              <div>
+                <Label>Cobertura</Label>
+                <select className="mt-1 block w-full border rounded-md h-9 px-2" value={cobertura} onChange={e=> setCobertura(e.target.value as any)}>
+                  <option value="local">Local</option>
+                  <option value="foraneo">Foránea</option>
+                  <option value="ambos">Ambas</option>
+                </select>
+              </div>
+              <div>
+                <Label>Ciudad base</Label>
+                <Input value={ciudadBase} onChange={e=> setCiudadBase(e.target.value)} placeholder="Ej. Monterrey, NL" />
+              </div>
+              <div>
+                <Label>Estados de cobertura (CSV)</Label>
+                <Input value={estadosCobertura} onChange={e=> setEstadosCobertura(e.target.value)} placeholder="Ej. NL, TAMPS, COAH" />
+              </div>
+              <div>
+                <Label>Radio (km)</Label>
+                <Input type="number" min="0" value={radioKm} onChange={e=> setRadioKm(e.target.value)} placeholder="Ej. 50" />
+              </div>
+              <div>
+                <Label>Vehículo propio</Label>
+                <div className="mt-1"><input type="checkbox" checked={vehiculo} onChange={e=> setVehiculo(e.target.checked)} /> <span className="text-sm">Sí</span></div>
+              </div>
+              <div>
+                <Label>Tarifa local (MXN)</Label>
+                <Input type="number" min="0" step="0.01" value={tarifaLocal} onChange={e=> setTarifaLocal(e.target.value)} placeholder="Ej. 500.00" />
+              </div>
+              <div>
+                <Label>Tarifa foránea (MXN)</Label>
+                <Input type="number" min="0" step="0.01" value={tarifaForanea} onChange={e=> setTarifaForanea(e.target.value)} placeholder="Ej. 800.00" />
+              </div>
+              <div className="col-span-2">
+                <Label>Comentarios</Label>
+                <Textarea value={notas} onChange={e=> setNotas(e.target.value)} placeholder="Información adicional (horarios, restricciones, etc.)" rows={3} />
               </div>
               <div className="col-span-2">
                 <Label htmlFor="activo">Estatus</Label>
@@ -263,6 +404,7 @@ export default function Encuestadores() {
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

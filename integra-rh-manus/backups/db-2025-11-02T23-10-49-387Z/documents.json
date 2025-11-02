@@ -1,0 +1,54 @@
+[
+  {
+    "id": 1,
+    "candidatoId": 1,
+    "procesoId": null,
+    "tipoDocumento": "CV",
+    "nombreArchivo": "comprobante-TX-1761937516197-bqt687qn0.pdf",
+    "url": "https://storage.googleapis.com/integra-rh.firebasestorage.app/candidates/1/1762055320905-comprobante-TX-1761937516197-bqt687qn0.pdf?GoogleAccessId=firebase-adminsdk-fbsvc%40integra-rh.iam.gserviceaccount.com&Expires=1793591321&Signature=BtXIr4fDHtIp%2BNcoX%2FFvbobK7VhstoZqfHZTy696wAjKzGkRPX1AMuJKkHSASW33OjYzoieOybcgEQ%2B5RN80CCcxiwwL2%2B5OVvMUQx4KWV6NZRQjrd4dVrtaJcz5wgq%2F1BG9gdD2YU5uXoTEJu5379UdZKWVZybTHZCDhtM271TUju3vdWkxDwBUR39KozPJloHA%2B4tcob1r4zMqo4QoMgtrudnzhfQUq3m7k7EgqJ1r7OmCrTSnDCgulewMDVfTEmUvkNv2P62gdcQgtLU2WAOna29%2FmHI0GehlGYEEkJFTUmD0ScWpCXpiwKSgxT13huzEdtRDsKHDWCp4U718ig%3D%3D",
+    "fileKey": "candidates/1/1762055320905-comprobante-TX-1761937516197-bqt687qn0.pdf",
+    "mimeType": "application/pdf",
+    "tamanio": null,
+    "uploadedBy": "Frank Saavedra",
+    "createdAt": "2025-11-02T03:48:40.000Z"
+  },
+  {
+    "id": 2,
+    "candidatoId": 1,
+    "procesoId": null,
+    "tipoDocumento": "CURP",
+    "nombreArchivo": "Propuesta_Renovacion_Hosting_VictorPeralta.docx",
+    "url": "https://storage.googleapis.com/integra-rh.firebasestorage.app/candidates/1/1762055772430-Propuesta_Renovacion_Hosting_VictorPeralta.docx?GoogleAccessId=firebase-adminsdk-fbsvc%40integra-rh.iam.gserviceaccount.com&Expires=1793591772&Signature=Qm7IhFm2bu2GeU45MDr0%2Fxq2OWjeSfMoHQTKzVjUI6PxC4GAl3UFneHe%2FgFsb0Z3JS2aPTqqtv5sKgzxbDmfwniOTM59NwW3ObeGywg3Ilc83SrMVI8JWlYCeahORoqs4q5Lk2ekIT40nC5XqdrGBo9EwafzHSae%2BCQ8zYaPp2nJO%2FuNTouJw0gWFnaIRLvqGHTmwrQqoRVE8ptpohqTmw%2FvkG5w4OA1xkJA3QBAd6xY4VokXQ2fpZwWF4m8IqatWbg%2BW8vNijwDSmeoqgZ22D1dBzqL7qTbSH9oEIH1QUzR85aGPAmuLHz9MknYGA4%2B%2FD%2FBGpCgk1InmEFrXRyyoQ%3D%3D",
+    "fileKey": "candidates/1/1762055772430-Propuesta_Renovacion_Hosting_VictorPeralta.docx",
+    "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "tamanio": null,
+    "uploadedBy": "Frank Saavedra",
+    "createdAt": "2025-11-02T03:56:11.000Z"
+  },
+  {
+    "id": 3,
+    "candidatoId": 1,
+    "procesoId": null,
+    "tipoDocumento": "CV",
+    "nombreArchivo": "CODEX_PROMPT_UNIFICADO_v2.md",
+    "url": "https://storage.googleapis.com/integra-rh.firebasestorage.app/candidates/1/1762066694516-CODEX_PROMPT_UNIFICADO_v2.md?GoogleAccessId=firebase-adminsdk-fbsvc%40integra-rh.iam.gserviceaccount.com&Expires=1793602695&Signature=lE5mNXW8%2BZcT80RBFrl%2Bp%2FWAHWH1feJh%2B6qEVFSvwcfcZ6TFv9eu%2FahLAuj4Lfvve94AK7qi24ovd3SsdrgK%2BHYDJwTobIq8RJO1bqFYhFxuYJjupos3zIoTk8DEvfA%2BybhY56dAKSesa4CbApzjorVij6f5l%2FvGUy3l0%2Flztd7C19DvoI7bSOxArnmzgEQHuMWYBK4M%2Frm%2BderRWOApC0PvKrQmvh6otYUF330Fla%2BIU3IiW1xBHiwHVpoNOpj9cyukop2cB0E3i9Ruw3sThdJzFU8MQgBEjO%2FNGoNtivMrZpcEUWKbZKQoc03Z2N0mLpxrAl%2FB%2FnTak09rmicfkg%3D%3D",
+    "fileKey": "candidates/1/1762066694516-CODEX_PROMPT_UNIFICADO_v2.md",
+    "mimeType": "application/octet-stream",
+    "tamanio": null,
+    "uploadedBy": "Frank Saavedra",
+    "createdAt": "2025-11-02T06:58:14.000Z"
+  },
+  {
+    "id": 4,
+    "candidatoId": null,
+    "procesoId": 3,
+    "tipoDocumento": "DICTAMEN",
+    "nombreArchivo": "dictamen-ILA-2025-003.txt",
+    "url": "https://storage.googleapis.com/integra-rh.firebasestorage.app/processes/3/dictamen-recomendable-1762066728475.txt?GoogleAccessId=firebase-adminsdk-fbsvc%40integra-rh.iam.gserviceaccount.com&Expires=1793602728&Signature=kHBgJJ5amBqi6KrWapxx7NqcSK%2FvKz4S3oXp%2BWGHDl7TbI8OIl0k1ru7O8suIxcuB3AeWGkQZnE36ic2nPqKTqVWokG%2F1cwWo09vnLh9ytzGNsQczTJlbn2zfRjOtTP6Q%2FB7wJGI59Gfq5qgiehCis4k0h0lXqmJaofXBUY6qWocD8uVc2RfmGYPb6NGWSp77rzmOx9xKsDc8KBzH4gMNCZkvKmC4G87kGTEpudsM9YoN470wy5b0fAX7JxOns4lqjKbeMYQdeZhdmAwgm8hNnHP0oqdRg6%2FtTO4FV4a19J46R94Rqq2luIkh9EXIQSwkvqanrQ0sNYKorni0jUHgw%3D%3D",
+    "fileKey": "processes/3/dictamen-recomendable-1762066728475.txt",
+    "mimeType": "text/plain",
+    "tamanio": null,
+    "uploadedBy": "frank@vcorp.mx",
+    "createdAt": "2025-11-02T06:58:47.000Z"
+  }
+]

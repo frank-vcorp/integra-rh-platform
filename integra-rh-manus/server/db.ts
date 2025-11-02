@@ -23,6 +23,8 @@ import {
   InsertPayment,
   documents,
   InsertDocument,
+  surveyorMessages,
+  InsertSurveyorMessage,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { sql } from 'drizzle-orm';
@@ -465,6 +467,12 @@ export async function updateSurveyor(id: number, data: Partial<InsertSurveyor>) 
   await db.update(surveyors).set(data).where(eq(surveyors.id, id));
 }
 
+export async function deleteSurveyor(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(surveyors).where(eq(surveyors.id, id));
+}
+
 // ============================================================================
 // PAGOS
 // ============================================================================
@@ -498,6 +506,23 @@ export async function updatePayment(id: number, data: Partial<InsertPayment>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(payments).set(data).where(eq(payments.id, id));
+}
+
+// ============================================================================
+// MENSAJES A ENCUESTADORES
+// ============================================================================
+
+export async function createSurveyorMessage(data: InsertSurveyorMessage) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(surveyorMessages).values(data);
+  return result[0].insertId;
+}
+
+export async function getSurveyorMessagesBySurveyor(encuestadorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(surveyorMessages).where(eq(surveyorMessages.encuestadorId, encuestadorId)).orderBy(desc(surveyorMessages.createdAt));
 }
 
 // ============================================================================

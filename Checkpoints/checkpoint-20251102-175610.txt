@@ -1,0 +1,15 @@
+﻿Checkpoint Integra RH
+Fecha: 2025-11-02T17:56:10.3408658-06:00
+Resumen:
+- Visitas: programar/reagendar/cancelar; WhatsApp, Google Calendar, .ics; sugerencias por cercanía.
+- Procesos: eliminar con confirmación; botón avisar encuestadores.
+- Encuestadores: CRUD extendido (cobertura/base/estados/radio/vehículo/tarifas/comentarios); detalle con pagos/visitas/mensajes y filtros; lista con Visitas/Comentarios.
+- Pagos: importar CSV; exportar XLSX (detalle + reporte por periodo); vinculado a proceso y encuestador.
+- Mensajes: tabla surveyorMessages y log automático en envíos.
+- Migraciones drizzle aplicadas: nuevas columnas surveyors y tabla surveyorMessages.
+Archivos clave tocados:
+  - client/src/pages: Visitas.tsx, Procesos.tsx, ProcesoDetalle.tsx, Encuestadores.tsx, EncuestadorDetalle.tsx, Pagos.tsx
+  - server/routers: processes.ts, surveyors.ts, payments.ts, surveyorMessages.ts, index.ts
+  - server/db.ts, drizzle/schema.ts
+  - scripts/db-backup.ts (backup JSON por tabla)
+Entorno: .env con VITE_FIREBASE_*, FIREBASE_PROJECT_ID y VITE_API_URL=/api/trpc

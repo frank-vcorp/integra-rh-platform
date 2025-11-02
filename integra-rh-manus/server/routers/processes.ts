@@ -202,4 +202,14 @@ export const processesRouter = router({
       await db.updateProcess(input.id, { visitStatus: { ...prev, status: 'no_asignada', scheduledDateTime: undefined, observaciones: input.motivo ?? prev.observaciones } } as any);
       return { ok: true } as const;
     }),
+
+  // ==========================
+  // ELIMINAR PROCESO
+  // ==========================
+  delete: adminProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      await db.deleteProcess(input.id);
+      return { ok: true } as const;
+    }),
 });

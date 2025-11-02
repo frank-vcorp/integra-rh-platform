@@ -1,0 +1,13 @@
+[
+  {
+    "id": 7,
+    "nombreEmpresa": "syscom",
+    "ubicacionPlaza": "Queretaro",
+    "reclutador": "Paula",
+    "contacto": "Frank Saavedra",
+    "telefono": "4422221713",
+    "email": "ningun@outlook.com",
+    "createdAt": "2025-11-02T22:03:49.000Z",
+    "updatedAt": "2025-11-02T22:21:59.000Z"
+  }
+]

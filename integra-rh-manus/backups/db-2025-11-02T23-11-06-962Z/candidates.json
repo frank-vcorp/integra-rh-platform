@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "nombreCompleto": "Juan Pablo Gonzalez Bocanegra",
+    "email": "gonzalez@gmail.com",
+    "telefono": "442 125 7895",
+    "medioDeRecepcion": "Proporcionado por el cliente",
+    "clienteId": 7,
+    "puestoId": 7,
+    "psicometricos": null,
+    "createdAt": "2025-11-01T19:57:37.000Z",
+    "updatedAt": "2025-11-02T22:30:04.000Z"
+  }
+]

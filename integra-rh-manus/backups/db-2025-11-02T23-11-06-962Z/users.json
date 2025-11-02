@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "openId": "cFgEjgwUJuOApwmGCulGRS0UIJt1",
+    "name": "Frank Saavedra",
+    "email": "frank@vcorp.mx",
+    "loginMethod": "google",
+    "role": "admin",
+    "clientId": null,
+    "createdAt": "2025-11-02T01:51:44.000Z",
+    "updatedAt": "2025-11-02T01:51:44.000Z",
+    "lastSignedIn": "2025-11-02T01:51:46.000Z"
+  }
+]

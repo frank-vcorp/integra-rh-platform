@@ -1,0 +1,4 @@
+Checkpoint posterior a migración de surveyors (cobertura/operación)
+Fecha: 2025-11-02T17:11:24.0421723-06:00
+Migración aplicada: drizzle/0010_mute_colonel_america.sql
+Backup previo en ./backups

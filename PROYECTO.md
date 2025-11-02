@@ -32,7 +32,10 @@
 - `[✓]` PVM-API-01: Scaffold API tRPC + Zod
 - `[✓]` PVM-HIS-01: tRPC — workHistory get/create/update/delete
 - `[✓]` PVM-COM-01: tRPC — candidateComments get/create
-- `[ ]` PVM-PRC-01: tRPC — processes.* (listar, detalle, crear)
+- `[>]` PVM-PRC-01: tRPC — processes.* (listar, detalle, crear)
+  - `[✓]` Corrección en UI: ProcesoDetalle sin hooks condicionales (estable)
+  - `[>]` Alinear queries/mutations (list/getById/update) con el front actual
+  - `[ ]` Crear proceso (endpoint + UI)
 - `[✓]` PVM-INT-API-01: Psicométricas — asignar/reenviar/consultar (tRPC)
 - `[✓]` PVM-INT-API-02: Email — invitación psicométrica (tRPC)
 - `[✓]` PVM-WHB-01: Webhook Psicométricas `POST /api/webhooks/psicometricas`

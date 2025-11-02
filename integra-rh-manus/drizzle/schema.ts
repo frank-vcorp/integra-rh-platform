@@ -266,6 +266,15 @@ export const surveyors = mysqlTable("surveyors", {
   nombre: varchar("nombre", { length: 255 }).notNull(),
   telefono: varchar("telefono", { length: 50 }),
   email: varchar("email", { length: 320 }),
+  // Cobertura y atributos operativos
+  cobertura: mysqlEnum("cobertura", ["local", "foraneo", "ambos"]).default("local").notNull(),
+  ciudadBase: varchar("ciudadBase", { length: 255 }),
+  estadosCobertura: json("estadosCobertura").$type<string[]>(),
+  radioKm: int("radioKm"),
+  vehiculo: boolean("vehiculo").default(false).notNull(),
+  tarifaLocal: int("tarifaLocal"), // en centavos
+  tarifaForanea: int("tarifaForanea"), // en centavos
+  notas: text("notas"),
   activo: boolean("activo").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -290,6 +299,22 @@ export const payments = mysqlTable("payments", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+
+// ============================================================================
+// MENSAJES A ENCUESTADORES (log de avisos)
+// ============================================================================
+
+export const surveyorMessages = mysqlTable("surveyorMessages", {
+  id: int("id").autoincrement().primaryKey(),
+  encuestadorId: int("encuestadorId").notNull(),
+  procesoId: int("procesoId"),
+  canal: mysqlEnum("canal", ["whatsapp", "email", "sms", "otro"]).default("whatsapp").notNull(),
+  contenido: text("contenido"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SurveyorMessage = typeof surveyorMessages.$inferSelect;
+export type InsertSurveyorMessage = typeof surveyorMessages.$inferInsert;
 
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;

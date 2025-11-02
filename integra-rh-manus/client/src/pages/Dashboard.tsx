@@ -195,20 +195,22 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-3">
               {recentProcesses.map((process) => (
-                <Link key={process.id} href={`/procesos/${process.id}`}>
-                  <a className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{process.clave}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(process.fechaRecepcion).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <span className={`badge ${getStatusBadgeClass(process.estatusProceso)}`}>
-                        {getStatusLabel(process.estatusProceso)}
-                      </span>
-                    </div>
-                  </a>
+                <Link
+                  key={process.id}
+                  href={`/procesos/${process.id}`}
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">{process.clave}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(process.fechaRecepcion).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`badge ${getStatusBadgeClass(process.estatusProceso)}`}>
+                      {getStatusLabel(process.estatusProceso)}
+                    </span>
+                  </div>
                 </Link>
               ))}
             </div>

@@ -39,6 +39,98 @@ export default function ProcesoDetalle() {
   const visitUpdate = trpc.processes.visitUpdate.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitDone = trpc.processes.visitMarkDone.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitCancel = trpc.processes.visitCancel.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
+  const [visitForm, setVisitForm] = useState<{ encuestadorId: string; fechaHora: string; direccion: string; observaciones: string }>({ encuestadorId: "", fechaHora: "", direccion: "", observaciones: "" });
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [notifySelected, setNotifySelected] = useState<number[]>([]);
+  const [suggested, setSuggested] = useState<any[]>([]);
+  const getSurveyor = (id?: number) => surveyors.find((s: any) => s.id === id);
+  const getCandidate = () => candidates.find((c:any)=> c.id === process?.candidatoId);
+  const getClient = () => clients.find((c:any)=> c.id === process?.clienteId);
+  const buildMapsUrl = (address?: string) => address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '';
+  const buildVisitMessage = (opts: { encNombre?: string; procesoClave: string; tipo: string; cliente?: any; candidato?: any; fechaISO?: string; direccion?: string; observaciones?: string; puestoNombre?: string; }) => {
+    const fecha = opts.fechaISO ? new Date(opts.fechaISO).toLocaleString() : 'Por confirmar';
+    const line = (k:string,v?:string)=> v? `\n- ${k}: ${v}`: '';
+    const maps = buildMapsUrl(opts.direccion);
+    return (
+      `Hola ${opts.encNombre || ''}, te comparto los datos para la visita:` +
+      line('Proceso', `${opts.procesoClave} (${opts.tipo})`) +
+      line('Cliente', opts.cliente?.nombreEmpresa) +
+      line('Contacto cliente', opts.cliente?.contacto) +
+      line('Tel. cliente', opts.cliente?.telefono) +
+      line('Candidato', opts.candidato?.nombreCompleto) +
+      line('Tel. candidato', opts.candidato?.telefono) +
+      line('Email candidato', opts.candidato?.email) +
+      line('Puesto', opts.puestoNombre) +
+      line('Fecha/Hora', fecha) +
+      line('Dirección', opts.direccion) +
+      (maps ? `\n- Maps: ${maps}` : '') +
+      line('Observaciones', opts.observaciones) +
+      `\n\nGracias.`
+    );
+  };
+  const formatDateForCal = (dt: string) => {
+    const d = new Date(dt);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    const mm = pad(d.getUTCMonth() + 1);
+    const dd = pad(d.getUTCDate());
+    const hh = pad(d.getUTCHours());
+    const mi = pad(d.getUTCMinutes());
+    const ss = pad(d.getUTCSeconds());
+    return `${yyyy}${mm}${dd}T${hh}${mi}${ss}Z`;
+  };
+  const buildGoogleCalendarUrl = (title: string, startISO: string, durationMinutes: number, details: string, location?: string) => {
+    const start = formatDateForCal(startISO);
+    const end = formatDateForCal(new Date(new Date(startISO).getTime() + durationMinutes*60000).toISOString());
+    const params = new URLSearchParams({ text: title, dates: `${start}/${end}`, details, location: location || '' });
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&${params.toString()}`;
+  };
+  const buildICS = (title: string, startISO: string, durationMinutes: number, details: string, location?: string) => {
+    const dtStart = formatDateForCal(startISO);
+    const dtEnd = formatDateForCal(new Date(new Date(startISO).getTime() + durationMinutes*60000).toISOString());
+    const uid = `visita-${Date.now()}@integra-rh`;
+    return [
+      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Integra RH//Visitas//ES','BEGIN:VEVENT',
+      `UID:${uid}`,`DTSTAMP:${dtStart}`,`DTSTART:${dtStart}`,`DTEND:${dtEnd}`,
+      `SUMMARY:${title}`,`DESCRIPTION:${details.replace(/\n/g, '\\n')}`,
+      location ? `LOCATION:${location}` : '',
+      'END:VEVENT','END:VCALENDAR']
+      .filter(Boolean).join('\r\n');
+  };
+  const buildWhatsappUrl = (phone: string, text: string) => {
+    const digits = phone.replace(/[^0-9+]/g, '');
+    return `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(text)}`;
+  };
+  const extractStateTokens = (addr?: string) => {
+    if (!addr) return [] as string[];
+    const txt = addr.toLowerCase();
+    const tokens = [
+      'ags','aguascalientes','bc','baja california','bcs','baja california sur','camp','campeche','coah','coahuila','col','colima','chis','chiapas','chih','chihuahua','cdmx','ciudad de mexico','dgo','durango','gto','guanajuato','gro','guerrero','hgo','hidalgo','jal','jalisco','mex','edomex','estado de mexico','mich','michoacan','mor','morelos','nay','nayarit','nl','nuevo leon','oax','oaxaca','pue','puebla','qro','queretaro','q roo','quintana roo','slp','san luis potosi','sin','sinaloa','son','sonora','tab','tabasco','tamps','tamaulipas','tlax','tlaxcala','ver','veracruz','yuc','yucatan','zac','zacatecas'
+    ];
+    return tokens.filter(t => txt.includes(t));
+  };
+  const scoreSurveyor = (addr: string, s: any) => {
+    const a = (addr || '').toLowerCase();
+    let score = 0;
+    if (s.ciudadBase && a.includes(String(s.ciudadBase).toLowerCase())) score += 50;
+    const addrStates = new Set(extractStateTokens(addr));
+    const states: string[] = Array.isArray(s.estadosCobertura) ? s.estadosCobertura : [];
+    if (states.some((st: string)=> addrStates.has(st.toLowerCase()))) score += 30;
+    if (s.cobertura === 'local' && s.ciudadBase && a.includes(String(s.ciudadBase).toLowerCase())) score += 20;
+    if (s.cobertura === 'foraneo' && (!s.ciudadBase || !a.includes(String(s.ciudadBase).toLowerCase()))) score += 10;
+    if (s.vehiculo) score += 5;
+    return score;
+  };
+  const refreshSuggestions = (addr?: string) => {
+    const address = addr ?? visitForm.direccion;
+    if (!address) { setSuggested([]); return; }
+    const arr = [...surveyors].map(s => ({ s, score: scoreSurveyor(address, s) }))
+      .sort((x,y)=> y.score - x.score)
+      .filter(x=> x.score > 0)
+      .slice(0,5)
+      .map(x=> x.s);
+    setSuggested(arr);
+  };
   const ESTATUS = [
     { value: 'en_recepcion', label: 'En recepción' },
     { value: 'asignado', label: 'Asignado' },
@@ -219,6 +311,194 @@ export default function ProcesoDetalle() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Visitas */}
+      <Card>
+        <CardHeader className="flex items-center justify-between flex-row">
+          <CardTitle className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5"/> Visitas domiciliarias
+          </CardTitle>
+          {!isClientAuth && (
+            <Button size="sm" variant="outline" onClick={()=>{
+              // Preseleccionar todos los encuestadores activos
+              setNotifySelected(surveyors.map((s:any)=> s.id));
+              setNotifyOpen(true);
+            }}>Avisar encuestadores</Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Estatus: {process.visitStatus?.status || 'no_asignada'}
+              {process.visitStatus?.scheduledDateTime && ` • ${new Date(process.visitStatus.scheduledDateTime).toLocaleString()}`}
+              {process.visitStatus?.encuestadorId && (()=>{ const s = getSurveyor(process.visitStatus?.encuestadorId); return s ? ` • Encuestador: ${s.nombre}` : '' })()}
+              {process.visitStatus?.direccion && ` • ${process.visitStatus.direccion}`}
+            </div>
+            {!isClientAuth && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Encuestador</Label>
+                <select className="mt-1 block w-full border rounded-md h-9 px-2" value={visitForm.encuestadorId} onChange={e=>setVisitForm(f=>({ ...f, encuestadorId: e.target.value }))}>
+                  <option value="">Selecciona encuestador</option>
+                  {surveyors.map((s:any)=> (<option key={s.id} value={s.id}>{s.nombre}{s.telefono ? ` — ${s.telefono}` : ''}</option>))}
+                </select>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Sugeridos por cercanía: {suggested.length === 0 ? '—' : suggested.map((s:any, idx:number)=> (
+                    <button key={s.id} className="underline mr-2" onClick={(e)=>{ e.preventDefault(); setVisitForm(f=>({ ...f, encuestadorId: String(s.id) })); }}>{s.nombre}{idx < suggested.length-1 ? ',' : ''}</button>
+                  ))}
+                  <Button size="xs" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" variant="outline" disabled={!visitForm.encuestadorId || visitAssign.isPending} onClick={()=>{
+                    visitAssign.mutate({ id: processId, encuestadorId: parseInt(visitForm.encuestadorId) });
+                  }}>Asignar</Button>
+                </div>
+              </div>
+              <div>
+                <Label>Fecha y hora</Label>
+                <Input type="datetime-local" value={visitForm.fechaHora} onChange={e=>setVisitForm(f=>({ ...f, fechaHora: e.target.value }))} />
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <Button size="sm" disabled={!visitForm.encuestadorId || !visitForm.fechaHora || visitSchedule.isPending} onClick={()=>{
+                    visitSchedule.mutate({ id: processId, fechaHora: new Date(visitForm.fechaHora).toISOString(), direccion: visitForm.direccion || undefined, observaciones: visitForm.observaciones || undefined, encuestadorId: parseInt(visitForm.encuestadorId) });
+                  }}>Programar</Button>
+                  <Button size="sm" variant="outline" disabled={visitUpdate.isPending || !visitForm.fechaHora} onClick={()=>{
+                    visitUpdate.mutate({ id: processId, fechaHora: new Date(visitForm.fechaHora).toISOString(), direccion: visitForm.direccion || undefined, observaciones: visitForm.observaciones || undefined });
+                  }}>Reagendar</Button>
+                </div>
+              </div>
+              <div className="col-span-2">
+                <Label>Dirección</Label>
+                <Input value={visitForm.direccion} onChange={e=>{ const v=e.target.value; setVisitForm(f=>({ ...f, direccion: v })); }} onBlur={()=> refreshSuggestions()} placeholder="Calle, número, colonia, ciudad, estado" />
+              </div>
+              <div className="col-span-2">
+                <Label>Observaciones</Label>
+                <Textarea value={visitForm.observaciones} onChange={e=>setVisitForm(f=>({ ...f, observaciones: e.target.value }))} placeholder="Notas opcionales" />
+              </div>
+              <div className="col-span-2 flex gap-2">
+                <Button size="sm" variant="secondary" disabled={visitDone.isPending} onClick={()=> visitDone.mutate({ id: processId, observaciones: visitForm.observaciones || undefined })}>Marcar realizada</Button>
+                <Button size="sm" variant="destructive" disabled={visitCancel.isPending} onClick={()=>{
+                  if (confirm('¿Cancelar visita?')) visitCancel.mutate({ id: processId, motivo: 'Cancelada desde Proceso' });
+                }}>Cancelar</Button>
+              </div>
+            </div>
+            )}
+            {process.visitStatus?.scheduledDateTime && (
+              <div className="pt-2 border-t">
+                <div className="text-sm font-medium mb-2">Compartir</div>
+                <div className="flex gap-2">
+                  {(() => {
+                    const enc = getSurveyor(process.visitStatus?.encuestadorId);
+                    const title = `Visita: ${process.clave}`;
+                    const details = `Proceso: ${process.tipoProducto}\nEncuestador: ${enc?.nombre || ''}`;
+                    const gUrl = buildGoogleCalendarUrl(title, process.visitStatus?.scheduledDateTime, 60, details, process.visitStatus?.direccion);
+                    return (
+                      <>
+                        {enc?.telefono && (
+                          <Button size="sm" variant="outline" onClick={()=>{
+                            const cand = getCandidate();
+                            const cli = getClient();
+                            const puesto = posts.find((p:any)=> p.id === process.puestoId)?.nombreDelPuesto;
+                            const msg = buildVisitMessage({
+                              encNombre: enc.nombre,
+                              procesoClave: process.clave,
+                              tipo: process.tipoProducto,
+                              cliente: cli,
+                              candidato: cand,
+                              fechaISO: process.visitStatus?.scheduledDateTime,
+                              direccion: process.visitStatus?.direccion,
+                              observaciones: process.visitStatus?.observaciones,
+                              puestoNombre: puesto,
+                            });
+                            try { trpc.surveyorMessages.create.mutate({ encuestadorId: enc.id, procesoId: process.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
+                            window.open(buildWhatsappUrl(enc.telefono, msg), '_blank');
+                          }}>WhatsApp</Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={()=> window.open(gUrl, '_blank')}>Google Calendar</Button>
+                        <Button size="sm" variant="outline" onClick={()=>{
+                          const ics = buildICS(title, process.visitStatus?.scheduledDateTime, 60, details, process.visitStatus?.direccion);
+                          const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `visita-${process.clave}.ics`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}>Descargar .ics</Button>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Aviso a encuestadores */}
+      {!isClientAuth && (
+      <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
+        <DialogContent className="max-w-2xl" aria-describedby="notify-desc">
+          <DialogHeader>
+            <DialogTitle>Avisar encuestadores de cita disponible</DialogTitle>
+          </DialogHeader>
+          <p id="notify-desc" className="sr-only">Selecciona encuestadores y envía un mensaje por WhatsApp con los datos de la visita.</p>
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm text-muted-foreground mb-2">Seleccionar encuestadores</div>
+              <div className="grid grid-cols-2 gap-2 max-h-64 overflow-auto border rounded p-2">
+                {surveyors.map((s:any)=> (
+                  <label key={s.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={notifySelected.includes(s.id)}
+                      onChange={(e)=>{
+                        setNotifySelected(prev=> e.target.checked ? [...new Set([...prev, s.id])] : prev.filter(id=> id!==s.id));
+                      }}
+                    />
+                    <span>{s.nombre}{s.telefono ? ` — ${s.telefono}` : ''}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline" onClick={()=> setNotifySelected(surveyors.map((s:any)=> s.id))}>Seleccionar todos</Button>
+                <Button size="sm" variant="outline" onClick={()=> setNotifySelected([])}>Limpiar</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button variant="outline" onClick={()=> setNotifyOpen(false)}>Cerrar</Button>
+              <Button onClick={()=>{
+                if (!process) return;
+                const cand = getCandidate();
+                const cli = getClient();
+                const puesto = posts.find((p:any)=> p.id === process.puestoId)?.nombreDelPuesto;
+                const fechaISO = process.visitStatus?.scheduledDateTime; // puede ser undefined
+                const msgBase = (encNombre?: string) => buildVisitMessage({
+                  encNombre,
+                  procesoClave: process.clave,
+                  tipo: process.tipoProducto,
+                  cliente: cli,
+                  candidato: cand,
+                  fechaISO,
+                  direccion: process.visitStatus?.direccion,
+                  observaciones: process.visitStatus?.observaciones,
+                  puestoNombre: puesto,
+                }) + "\n¿Puedes atenderla?";
+
+                const targets = surveyors.filter((s:any)=> notifySelected.includes(s.id) && s.telefono);
+                if (targets.length === 0) { return; }
+                // Abrir pestañas de WhatsApp (el navegador puede bloquear múltiples; el usuario puede permitirlas)
+                targets.forEach((s:any, idx:number)=> {
+                  setTimeout(()=> {
+                    const url = buildWhatsappUrl(s.telefono, msgBase(s.nombre));
+                    window.open(url, '_blank');
+                  }, idx * 200);
+                });
+              }}>Enviar WhatsApp</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      )}
 
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">

@@ -1,0 +1,11 @@
+[
+  {
+    "id": 7,
+    "nombreDelPuesto": "Gerente de sucursal",
+    "clienteId": 7,
+    "descripcion": null,
+    "estatus": "activo",
+    "createdAt": "2025-11-02T05:52:00.000Z",
+    "updatedAt": "2025-11-02T22:27:38.000Z"
+  }
+]

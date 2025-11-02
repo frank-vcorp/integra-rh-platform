@@ -13,6 +13,8 @@ import { documentsRouter } from './documents';
 import { processCommentsRouter } from './processComments';
 import { surveyorsRouter } from './surveyors';
 import { usersRouter } from './users';
+import { paymentsRouter } from './payments';
+import { surveyorMessagesRouter } from './surveyorMessages';
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -54,6 +56,8 @@ export const appRouter = router({
   // Integraciones
   psicometricas: psicometricasRouter,
   users: usersRouter,
+  payments: paymentsRouter,
+  surveyorMessages: surveyorMessagesRouter,
 });
 
 // Exportamos el tipo del router. El cliente lo usará para tener autocompletado y tipado.

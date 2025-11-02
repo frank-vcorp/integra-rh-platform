@@ -32,7 +32,10 @@ export default function CandidatoDetalle() {
   const { data: comments = [] } = trpc.candidateComments.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: documents = [] } = trpc.documents.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: procesos = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId: candidateId });
-  const surveyors = (trpc as any).surveyors?.listActive?.useQuery ? (trpc as any).surveyors.listActive.useQuery() : { data: [] };
+  // Llamar incondicionalmente a los hooks; usar initialData/enabled para orden estable
+  const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery(undefined, {
+    initialData: [],
+  });
   const [createProcessOpen, setCreateProcessOpen] = useState(false);
   const postsByClient = trpc.posts.listByClient.useQuery(
     { clientId: candidate?.clienteId || 0 },
@@ -104,9 +107,10 @@ export default function CandidatoDetalle() {
     },
     onError: (e:any) => toast.error('Error: '+e.message)
   });
-  const activeTokens = (candidate?.clienteId)
-    ? trpc.clientAccess.listActiveTokens.useQuery({ clientId: candidate.clienteId })
-    : ({ data: [] } as any);
+  const { data: activeTokens = [] } = trpc.clientAccess.listActiveTokens.useQuery(
+    { clientId: candidate?.clienteId || 0 },
+    { enabled: Boolean(candidate?.clienteId), initialData: [] }
+  );
 
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
@@ -558,10 +562,11 @@ export default function CandidatoDetalle() {
           </div>
           {/* Modal resultados JSON */}
           <Dialog open={resultadosOpen} onOpenChange={setResultadosOpen}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-3xl" aria-describedby="resultados-desc">
               <DialogHeader>
                 <DialogTitle>Resultados Psicométricos</DialogTitle>
               </DialogHeader>
+              <p id="resultados-desc" className="sr-only">Vista de resultados psicométricos en formato JSON.</p>
               <pre className="text-xs bg-slate-100 p-3 rounded max-h-[60vh] overflow-auto">
                 {JSON.stringify(resultadosData, null, 2)}
               </pre>
@@ -591,10 +596,11 @@ export default function CandidatoDetalle() {
                   Generar enlace de acceso
                 </Button>
                 <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-                  <DialogContent>
+                  <DialogContent aria-describedby="email-desc">
                     <DialogHeader>
                       <DialogTitle>Enviar enlace de acceso al cliente</DialogTitle>
                     </DialogHeader>
+                    <p id="email-desc" className="sr-only">Formulario para enviar por correo un enlace de acceso temporal para el cliente.</p>
                     <div className="space-y-3">
                       <div>
                         <Label htmlFor="emailTo">Correo del cliente</Label>
@@ -711,10 +717,11 @@ export default function CandidatoDetalle() {
 
       {/* Crear Proceso */}
       <Dialog open={createProcessOpen} onOpenChange={setCreateProcessOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl" aria-describedby="crear-proceso-desc">
           <DialogHeader>
             <DialogTitle>Crear Proceso</DialogTitle>
           </DialogHeader>
+          <p id="crear-proceso-desc" className="sr-only">Formulario para crear un nuevo proceso asociado al candidato.</p>
           {!candidate?.clienteId ? (
             <div className="text-sm text-red-600">
               Este candidato no tiene un cliente asignado. Asigna un cliente para poder crear un proceso.
@@ -839,14 +846,15 @@ export default function CandidatoDetalle() {
       </Card>
 
       {/* Work History Dialog */}
-      <Dialog open={workHistoryDialogOpen} onOpenChange={setWorkHistoryDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingWorkHistory ? "Editar Historial Laboral" : "Agregar Historial Laboral"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleWorkHistorySubmit} className="space-y-4">
+    <Dialog open={workHistoryDialogOpen} onOpenChange={setWorkHistoryDialogOpen}>
+      <DialogContent className="max-w-2xl" aria-describedby="workhistory-desc">
+        <DialogHeader>
+          <DialogTitle>
+            {editingWorkHistory ? "Editar Historial Laboral" : "Agregar Historial Laboral"}
+          </DialogTitle>
+        </DialogHeader>
+        <p id="workhistory-desc" className="sr-only">Formulario para capturar o editar el historial laboral del candidato.</p>
+        <form onSubmit={handleWorkHistorySubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Label htmlFor="empresa">Empresa *</Label>

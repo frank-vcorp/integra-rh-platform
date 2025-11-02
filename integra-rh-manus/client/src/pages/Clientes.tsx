@@ -228,6 +228,8 @@ export default function Clientes() {
               {editingClient ? "Editar Cliente" : "Nuevo Cliente"}
             </DialogTitle>
           </DialogHeader>
+          {/* Descripción accesible para cumplir con Radix (oculta visualmente) */}
+          <p className="sr-only" id="cliente-dialog-description">Formulario para capturar o editar datos del cliente.</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -309,6 +311,7 @@ export default function Clientes() {
           <DialogHeader>
             <DialogTitle>¡Cliente creado exitosamente!</DialogTitle>
           </DialogHeader>
+          <p className="sr-only" id="cliente-continuar-description">Elige si continuar con el flujo o finalizar.</p>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               ¿Qué deseas hacer ahora?

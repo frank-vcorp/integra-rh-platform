@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+﻿import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, DollarSign, Check } from "lucide-react";
+import { Plus, DollarSign, Check, Upload, FileDown } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -31,12 +31,16 @@ import { toast } from "sonner";
 
 export default function Pagos() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [reportFrom, setReportFrom] = useState<string>("");
+  const [reportTo, setReportTo] = useState<string>("");
+  const [periodo, setPeriodo] = useState<'dia'|'semana'|'mes'>("mes");
   const [selectedProcess, setSelectedProcess] = useState<string>("");
   const [selectedSurveyor, setSelectedSurveyor] = useState<string>("");
 
   const { data: payments = [], isLoading } = trpc.payments.list.useQuery();
   const { data: processes = [] } = trpc.processes.list.useQuery();
-  const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery();
+  const { data: surveyors = [] } = trpc.surveyors.list.useQuery(undefined, { initialData: [] } as any);
   const utils = trpc.useUtils();
 
   const createMutation = trpc.payments.create.useMutation({
@@ -98,6 +102,92 @@ export default function Pagos() {
     setDialogOpen(true);
   };
 
+  // Helpers import CSV + report
+  const findProcessId = (row: Record<string,string>) => {
+    const pid = row.procesoId || row.proceso_id || row.proceso;
+    const clave = row.procesoClave || row.clave || row.proceso_clave;
+    if (pid && /^\d+$/.test(pid)) return parseInt(pid,10);
+    if (clave) {
+      const p = (processes as any[]).find((p:any)=> String(p.clave).toLowerCase() === clave.toLowerCase());
+      if (p) return p.id;
+    }
+    return undefined;
+  };
+  const findSurveyorId = (row: Record<string,string>) => {
+    const sid = row.encuestadorId || row.encuestador_id || row.encuestador;
+    const nombre = row.encuestadorNombre || row.encuestador_nombre || row.encuestador;
+    if (sid && /^\d+$/.test(sid)) return parseInt(sid,10);
+    if (nombre) {
+      const s = (surveyors as any[]).find((s:any)=> String(s.nombre).toLowerCase() === nombre.toLowerCase());
+      if (s) return s.id;
+    }
+    return undefined;
+  };
+  const parseCsv = (text: string) => {
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if (lines.length === 0) return [] as any[];
+    const headers = lines[0].split(',').map(h=> h.trim());
+    return lines.slice(1).map(l=> {
+      const cols = l.split(',');
+      const obj: Record<string,string> = {};
+      headers.forEach((h, i)=> obj[h] = (cols[i] ?? '').trim());
+      return obj;
+    });
+  };
+  const importFromFile = async (file: File) => {
+    const text = await file.text();
+    const rows = parseCsv(text);
+    if (rows.length === 0) { toast.error('CSV vacío'); return; }
+    let ok = 0, fail = 0;
+    for (const row of rows) {
+      try {
+        const procesoId = findProcessId(row);
+        const encuestadorId = findSurveyorId(row);
+        const montoStr = row.monto || row.amount || '0';
+        const metodoPago = row.metodoPago || row.metodo || undefined;
+        const observaciones = row.observaciones || row.nota || undefined;
+        const estatusPago = (row.estatusPago || row.estatus || 'pendiente').toLowerCase();
+        const fechaPagoStr = row.fechaPago || row.fecha || '';
+        if (!procesoId || !encuestadorId) { throw new Error('No se resolvió procesoId/encuestadorId'); }
+        const monto = Math.round(parseFloat(montoStr) * 100);
+        const res = await createMutation.mutateAsync({ procesoId, encuestadorId, monto, metodoPago, observaciones } as any);
+        if (estatusPago === 'pagado' || fechaPagoStr) {
+          await updateMutation.mutateAsync({ id: (res as any).id, data: { estatusPago: 'pagado', fechaPago: fechaPagoStr ? new Date(fechaPagoStr) : new Date(), metodoPago, observaciones } as any });
+        }
+        ok++;
+      } catch (e:any) {
+        console.error('[import pago] row failed', row, e);
+        fail++;
+      }
+    }
+    await utils.payments.list.invalidate();
+    toast.success(`Importación finalizada: ${ok} ok, ${fail} fallidos`);
+    setImportOpen(false);
+  };
+  const startOfWeek = (d: Date) => {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = date.getUTCDay() || 7; if (day !== 1) date.setUTCDate(date.getUTCDate() - (day - 1));
+    return date;
+  };
+  const periodKey = (d: Date) => {
+    const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0');
+    if (periodo === 'dia') return `${y}-${m}-${day}`;
+    if (periodo === 'mes') return `${y}-${m}`;
+    const wk = startOfWeek(d); const wm = String(wk.getMonth()+1).padStart(2,'0'); const wd = String(wk.getDate()).padStart(2,'0');
+    return `${wk.getFullYear()}-W(${wm}-${wd})`;
+  };
+  const filteredForReport = (payments as any[]).filter(p=> {
+    const ts = p.createdAt ? new Date(p.createdAt).getTime() : 0;
+    const from = reportFrom ? new Date(reportFrom).getTime() : undefined;
+    const to = reportTo ? new Date(reportTo).getTime() : undefined;
+    if (from && ts < from) return false; if (to && ts > to) return false; return true;
+  });
+  const grouped = (()=>{
+    const map = new Map<string,{ total:number, count:number }>();
+    for (const p of filteredForReport) { const k = periodKey(new Date(p.createdAt)); const e = map.get(k) || { total:0, count:0 }; e.total += p.monto||0; e.count += 1; map.set(k,e); }
+    return Array.from(map.entries()).sort((a,b)=> a[0] < b[0] ? -1 : 1);
+  })();
+
   const getProcessClave = (procesoId: number) => {
     const process = processes.find((p) => p.id === procesoId);
     return process?.clave || "-";
@@ -129,15 +219,43 @@ export default function Pagos() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Pagos</h1>
+          <h1 className="text-3xl font-bold">Pago a encuestadores</h1>
           <p className="text-muted-foreground mt-1">
             Gestiona los pagos a encuestadores
           </p>
         </div>
-        <Button onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Registrar Pago
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={()=> setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" /> Importar pagos
+          </Button>
+          <Button variant="outline" onClick={()=>{
+            // Hoja 1: Detalle
+            const detalle = (payments as any[]).map(p=> ({
+              Proceso: getProcessClave(p.procesoId),
+              Encuestador: getSurveyorName(p.encuestadorId),
+              Monto_MXN: (p.monto/100).toFixed(2),
+              Metodo: p.metodoPago || '',
+              FechaPago: p.fechaPago ? new Date(p.fechaPago).toISOString().slice(0,10) : '',
+              Estatus: p.estatusPago,
+              Creado: p.createdAt ? new Date(p.createdAt).toISOString().slice(0,19).replace('T',' ') : '',
+            }));
+            const ws1 = XLSX.utils.json_to_sheet(detalle);
+
+            // Hoja 2: Agregado por periodo y rango (usa filtros actuales)
+            const agg = grouped.map(([k,v])=> ({ Periodo: k, Total_MXN: (v.total/100).toFixed(2), Cantidad: v.count }));
+            const ws2 = XLSX.utils.json_to_sheet(agg);
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws1, 'Detalle');
+            XLSX.utils.book_append_sheet(wb, ws2, `Reporte_${periodo}`);
+            XLSX.writeFile(wb, 'pagos.xlsx');
+          }}>
+            <FileDown className="h-4 w-4 mr-2" /> Exportar XLSX
+          </Button>
+          <Button onClick={handleOpenDialog}>
+            <Plus className="h-4 w-4 mr-2" /> Registrar Pago
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -252,10 +370,11 @@ export default function Pagos() {
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby="pago-desc">
           <DialogHeader>
             <DialogTitle>Registrar Pago</DialogTitle>
           </DialogHeader>
+          <p id="pago-desc" className="sr-only">Formulario para registrar un pago a encuestadores por proceso.</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-4">
               <div>
@@ -281,9 +400,9 @@ export default function Pagos() {
                     <SelectValue placeholder="Selecciona un encuestador" />
                   </SelectTrigger>
                   <SelectContent>
-                    {surveyors.map((surveyor) => (
-                      <SelectItem key={surveyor.id} value={surveyor.id.toString()}>
-                        {surveyor.nombre}
+                    {surveyors.map((surveyor: any) => (
+                      <SelectItem key={surveyor.id} value={surveyor.id.toString()} disabled={!surveyor.activo}>
+                        {surveyor.nombre}{!surveyor.activo ? " (inactivo)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -349,6 +468,22 @@ export default function Pagos() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* Importar pagos */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-xl" aria-describedby="import-desc">
+          <DialogHeader>
+            <DialogTitle>Importar pagos (CSV)</DialogTitle>
+          </DialogHeader>
+          <p id="import-desc" className="text-sm text-muted-foreground">Sube un archivo CSV con columnas: procesoClave | procesoId, encuestadorId | encuestadorNombre, monto, estatusPago[pagado|pendiente], fechaPago[YYYY-MM-DD], metodoPago, observaciones.</p>
+          <div className="space-y-3">
+            <input type="file" accept=".csv,text/csv" onChange={(e)=>{ const f=e.target.files?.[0]; if (f) importFromFile(f); }} />
+            <div className="text-xs text-muted-foreground">Se resolverán proceso y encuestador por clave/nombre si no se proporcionan IDs.</div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+import * as XLSX from 'xlsx';
+

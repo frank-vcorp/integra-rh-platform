@@ -1,0 +1,4 @@
+Checkpoint previo a migración de surveyors (cobertura/operación)
+Fecha: 2025-11-02T17:11:12.8061003-06:00
+Backup: ./backups (último folder con prefijo db-)
+Acción a seguir: pnpm db:push
