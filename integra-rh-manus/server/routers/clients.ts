@@ -1,9 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.ts';
-import { db } from '../../scripts/db';
-import { clients } from '../../drizzle/schema';
-import { eq } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { createClient, getAllClients, getClientById } from "../db";
 
 export const clientsRouter = router({
   /**
@@ -11,7 +9,7 @@ export const clientsRouter = router({
    * Protegido, solo para usuarios autenticados.
    */
   list: protectedProcedure.query(async () => {
-    return await db.select().from(clients).orderBy(clients.nombreEmpresa);
+    return await getAllClients();
   }),
 
   /**
@@ -21,10 +19,37 @@ export const clientsRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
-      const client = await db.select().from(clients).where(eq(clients.id, input.id));
-      if (!client[0]) {
+      const client = await getClientById(input.id);
+      if (!client) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Cliente no encontrado.' });
       }
-      return client[0];
+      return client;
+    }),
+
+  /** Crear cliente (solo administradores) */
+  create: protectedProcedure
+    .input(z.object({
+      nombreEmpresa: z.string().min(1),
+      rfc: z.string().optional(),
+      direccion: z.string().optional(),
+      telefono: z.string().optional(),
+      email: z.string().email().optional(),
+      nombreContacto: z.string().optional(),
+      puestoContacto: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user?.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Solo administradores pueden crear clientes' });
+      }
+      const id = await createClient({
+        nombreEmpresa: input.nombreEmpresa,
+        rfc: input.rfc ?? null,
+        direccion: input.direccion ?? null,
+        telefono: input.telefono ?? null,
+        email: input.email ?? null,
+        nombreContacto: input.nombreContacto ?? null,
+        puestoContacto: input.puestoContacto ?? null,
+      } as any);
+      return { id } as const;
     }),
 });
