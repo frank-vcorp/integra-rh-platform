@@ -6,6 +6,8 @@
 **Fecha:** 31 de Octubre, 2025  
 **Autor:** Manus AI
 
+> Nota: Cualquier referencia a Manus/OAuth en este documento quedó obsoleta. La autenticación actual es con Firebase. Consulta `docs/AUTH_FIREBASE.md` y el histórico en `docs/HISTORICO_MANUS.md`.
+
 ---
 
 ## Tabla de Contenidos

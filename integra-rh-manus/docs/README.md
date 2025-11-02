@@ -77,7 +77,7 @@ pnpm install
 pnpm dev
 ```
 
-Las variables de entorno ya están configuradas en Manus. No necesitas crear archivos `.env`.
+Nota: Este proyecto ya no depende de Manus. Configura `.env` locales según `docs/AUTH_FIREBASE.md`.
 
 ### 3. Explora el Código (1 hora)
 Revisa los archivos clave en este orden:

@@ -333,7 +333,7 @@ Todas las relaciones están definidas mediante claves foráneas con restriccione
 
 ### Unicidad
 Los campos que requieren unicidad están marcados con `UNIQUE`:
-- `users.openId`: Un usuario de Manus OAuth es único
+- `users.openId`: Corresponde al UID de Firebase y es único
 - `processes.clave`: Cada proceso tiene una clave única
 - `clientAccessTokens.token`: Cada token es único
 

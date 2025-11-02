@@ -1,4 +1,4 @@
-// Preconfigured storage helpers for Manus WebDev templates
+// Preconfigured storage helpers for project templates
 // Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
 
 import { ENV } from './_core/env';
@@ -100,3 +100,4 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
     url: await buildDownloadUrl(baseUrl, key, apiKey),
   };
 }
+
