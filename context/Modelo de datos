@@ -1,0 +1,52 @@
+Modelo de Datos: Sistema de Verificación de Candidatos (v1.0)
+Este documento define la estructura de datos necesaria para el sistema de gestión de estudios de verificación, basado en el análisis y la validación de la experta (Paula).
+Requisitos Funcionales Clave
+* Estatus Visible para el Cliente: Es indispensable crear un campo Estatus en el módulo de Seguimiento para que el cliente pueda ver el progreso del estudio.
+* Campo Unificado de Recepción: Se debe crear un campo Fecha_Recepcion que combine la fecha y hora de recepción para simplificar el seguimiento.
+* Estructura Detallada de Antecedentes: La información de empleos anteriores debe desglosarse en campos individuales para mayor claridad, ya que es la sección más importante para el cliente.
+* Creación de Campo Clave: Se debe añadir un campo Clave al inicio del proceso para identificar el tipo de producto (ILA, ESE), la fecha y un número consecutivo.
+Módulos y Campos de la Base de Datos
+1. Módulo: Cliente
+Empresa que solicita el estudio de verificación.
+* nombre_empresa: Texto. Incluye el nombre y la ciudad.
+* reclutador: Texto. Nombre del reclutador responsable.
+* plaza: Texto. Ubicación o CEDIS asociado.
+2. Módulo: Puesto
+Puesto específico al que aplica el candidato.
+* nombre_puesto: Texto.
+* ubicacion: Texto. Derivado de la plaza del cliente.
+3. Módulo: Candidato
+Persona evaluada en el estudio.
+* nombre_completo: Texto.
+* medio_recepcion: Texto. Correo o medio por el que llegó la solicitud.
+* folio_asignacion: Texto. Analista asignado, que posteriormente se convierte en clave de facturación.
+* puesto_aplicado: Texto.
+* resultado_ila: Texto. Contiene la fecha de envío del estudio, quién lo envió y la calificación final (ej. "Recomendable", "No recomendable", "Con reservas").
+4. Módulo: Antecedentes Laborales
+Cada empleo anterior verificado debe ser un registro individual con los siguientes campos.
+* empresa: Texto.
+* puesto_ocupado: Texto.
+* tiempo_trabajado: Texto.
+* contacto_referencia: Texto.
+* telefono_referencia: Texto.
+* correo_referencia: Texto.
+* resultado_verificacion: Texto (ej. "Recomendable").
+* observaciones: Texto largo.
+5. Módulo: Seguimiento
+Acciones realizadas durante el proceso de verificación.
+* fecha_accion: Fecha y Hora.
+* accion_realizada: Texto. Descripción de la acción (llamada, correo, etc.).
+* responsable: Texto. Analista o encuestador que realizó la acción.
+* estatus: Texto. Campo indispensable para la visibilidad del cliente.
+6. Módulo: Encuestadores
+Colaboradores que realizan verificaciones en campo.
+* nombre_encuestador: Texto.
+* pago_asignado: Numérico.
+* fecha_pago: Fecha.
+* detalles_visita: Texto. Incluye dirección de la visita y datos del candidato verificado.
+7. Módulo: Producto (Clave del Estudio)
+Información clave que define el servicio solicitado.
+* clave_producto: Texto. Campo principal que contiene:
+   * tipo_producto: (ej. "ILA", "ESE").
+   * fecha_recepcion: Fecha y Hora.
+   * consecutivo: Número.

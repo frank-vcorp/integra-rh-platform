@@ -1,0 +1,17 @@
+{
+  "query": "SELECT token, clientId, expiresAt, createdAt, NOW() FROM clientAccessTokens WHERE token = 'da1435d3effe326053f39bfe7c3f14bfd8af829b5062361be80dd34388cd370d' LIMIT 1",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FVqBYiARtTxQtX.8cb31900c238 --database cbFb3ENFa9ByLeuqrnCodm --execute SELECT token, clientId, expiresAt, createdAt, NOW() FROM clientAccessTokens WHERE token = 'da1435d3effe326053f39bfe7c3f14bfd8af829b5062361be80dd34388cd370d' LIMIT 1",
+  "rows": [
+    {
+      "token": "da1435d3effe326053f39bfe7c3f14bfd8af829b5062361be80dd34388cd370d",
+      "clientId": "30001",
+      "expiresAt": "2025-12-01 01:45:37",
+      "createdAt": "2025-11-01 00:45:37",
+      "NOW()": "2025-11-01 00:54:59"
+    }
+  ],
+  "messages": [],
+  "stdout": "token\tclientId\texpiresAt\tcreatedAt\tNOW()\nda1435d3effe326053f39bfe7c3f14bfd8af829b5062361be80dd34388cd370d\t30001\t2025-12-01 01:45:37\t2025-11-01 00:45:37\t2025-11-01 00:54:59\n",
+  "stderr": "",
+  "execution_time_ms": 48
+}

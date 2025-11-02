@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: public/index.html
+@@
+-      async function checkUserRoleAndLoadDashboard(user) {
++      async function checkUserRoleAndLoadDashboard(user) {
+         // MODO ENSEÑANZA: Forzar la actualización del token (true) es CRÍTICO.
+         // Esto asegura que el SDK de Firebase en el cliente tenga un token de ID fresco y válido.
+         // Sin esto, las llamadas a httpsCallable pueden fallar con errores de "unauthenticated"
+         // porque el token que se adjunta automáticamente a la petición puede estar caducado.
+-        const idTokenResult = await user.getIdTokenResult();
++        const idTokenResult = await user.getIdTokenResult(true);
+         const userRole = idTokenResult.claims.role;
+@@
+-      async function loadAdminUsersPanel() {
++      async function loadAdminUsersPanel() {
++        // Forzar token fresco antes de invocar funciones protegidas
++        try { await auth.currentUser?.getIdToken(true); } catch (e) {}
+         const listUsersFunction = functions.httpsCallable('listUsers');
+         const manageUserRoleFunction = functions.httpsCallable('manageUserRole');
+         const errorDiv = document.getElementById('admin-users-error');
+         adminUsersListDiv.innerHTML = '<p>Cargando usuarios...</p>';
+         errorDiv.textContent = '';
+*** End Patch

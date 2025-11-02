@@ -1,0 +1,76 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1761865810112,
+      "tag": "0000_wet_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1761865943356,
+      "tag": "0001_romantic_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1761870338065,
+      "tag": "0002_polite_khan",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1761955318766,
+      "tag": "0003_bored_marten_broadcloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1761955366071,
+      "tag": "0004_nifty_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1761956370916,
+      "tag": "0005_last_corsair",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1762052515101,
+      "tag": "0006_strong_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1762055276284,
+      "tag": "0007_curly_peter_quill",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1762063218511,
+      "tag": "0008_gorgeous_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1762070113145,
+      "tag": "0009_luxuriant_dracula",
+      "breakpoints": true
+    }
+  ]
+}

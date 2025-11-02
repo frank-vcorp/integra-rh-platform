@@ -1,29 +1,217 @@
 {
-  "name": "functions",
-  "description": "Cloud Functions for Firebase",
-  "scripts": {
-    "lint": "eslint .",
-    "serve": "firebase emulators:start --only functions",
-    "shell": "firebase functions:shell",
-    "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+  "lists": [
+    {
+      "id": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+      "title": "Backlog",
+      "cards": [
+        {
+          "id": "7650c46d-5349-425c-8cd7-83feb465dec4",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-REP-01: Generación de Dictamen (V1)",
+          "description": "Implementar una Cloud Function que genere un reporte/dictamen en formato PDF o DOCX a partir de los datos de un proceso..",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "2f26883c-f9d0-4bb8-ae9a-82f884c47370",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-SEC-01: Implementar Roles y Permisos para Clientes",
+          "description": "Configurar Firebase Auth con claims personalizados, ajustar las reglas de seguridad de Firestore y construir el panel de visualización para que los clientes vean solo sus propios datos.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "1318cad3-7ed4-4cef-be66-ec7a83b34b8a",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-AI-01: Integración con Gemini para dictamen asistido",
+          "description": "Añadir una función que envíe los resultados de un candidato a la API de Gemini para generar un borrador de dictamen.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "b1823b7d-568b-4057-b555-4ca419bba612",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "ARCH-IMP-01: Migrar a Firebase SDK v9 (modular)",
+          "description": "Actualizar el código del frontend para usar la sintaxis modular de Firebase v9, mejorando el rendimiento y el tree-shaking.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "c1a2b3d4-e5f6-4789-a0b1-c2d3e4f5a6b7",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-VIEW-01: Implementar Vista de Detalles para Clientes",
+          "description": "Crear una vista de detalles que, al seleccionar un cliente, muestre su información y una lista de todos sus puestos y candidatos asociados.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "d9e8f7g6-h5i4-4321-j0k9-l8m7n6o5p4q3",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-VIEW-02: Implementar Vista de Detalles para Puestos",
+          "description": "Crear una vista de detalles que, al seleccionar un puesto, muestre su información y una lista de todos los candidatos que están participando en ese proceso de selección.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "a1b2c3d4-e5f6-a1b2-c3d4-e5f6a1b2c3d4",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "UX-FLOW-01: Flujo Guiado de Creación de Procesos",
+          "description": "Crear atajos en la UI, como un botón 'Añadir Candidato a Proceso' desde la vista de un puesto, para agilizar la creación de entidades vinculadas y reducir la navegación entre paneles.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "a2b3c4d5-e6f7-4890-a1b2-c3d4e5f6a7b8",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-DOC-01: Implementar Carga de Documentos para Candidatos",
+          "description": "Añadir una sección en los detalles del candidato para subir archivos (CV, ID, etc.) a Firebase Storage y listar los documentos subidos para su acceso.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "a3b4c5d6-e7f8-4901-a2b3-c4d5e6f7a8b9",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-EDT-04: Implementar Edición de Procesos",
+          "description": "Añadir un icono de edición a cada proceso, reutilizar el modal de creación para precargar y actualizar los datos del proceso en Firestore.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "d5e6f7a8-b9c0-4123-d4e5-f6a7b8c9d0e1",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "UI-UX-01: Mejorar Apariencia Visual y Usabilidad",
+          "description": "Reemplazar los iconos de texto (ej. ✏️) por una librería de iconos profesional (ej. Font Awesome, Material Icons) y realizar mejoras generales en el layout, colores y espaciado para una experiencia de usuario más pulida.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "f8a9b0c1-d2e3-4f56-a7b8-c9d0e1f2a3b4",
+          "listId": "b836af74-2aac-44a7-90fd-e5c69953d0d6",
+          "title": "FEAT-REP-02: Generar Reporte PDF Personalizado con Puppeteer",
+          "description": "Crear una Cloud Function que use Puppeteer para renderizar una plantilla HTML/CSS con los datos del JSON de psicometrías y generar un PDF con branding propio.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        }
+      ]
+    },
+    {
+      "id": "395a141d-ff54-4e3a-a12f-a6429826c17c",
+      "title": "En Progreso",
+      "cards": [
+        {
+          "id": "f9e8d7c6-b5a4-4321-fedc-ba9876543210",
+          "listId": "395a141d-ff54-4e3a-a12f-a6429826c17c",
+          "title": "FEAT-EDT-02: Implementar Edición de Candidatos",
+          "description": "Crear la lógica para abrir un modal de edición de candidato, pre-llenar los datos existentes desde Firestore y guardar los cambios en el documento correspondiente.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        }
+      ]
+    },
+    {
+      "id": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+      "title": "Hecho",
+      "cards": [
+        {
+          "id": "8b7266f9-adc2-4473-b687-c49b4f04bf14",
+          "listId": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+          "title": "FEAT-FRM-01: Construir Formulario de Creación de Candidatos",
+          "description": "Implementado el modal, la carga dinámica de clientes y la lógica para guardar un nuevo candidato en Firestore.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "1f54dd76-0a89-4bd7-ba77-2fb7d31ab8b0",
+          "listId": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+          "title": "FEAT-FRM-02: Construir Formulario de Creación de Clientes",
+          "description": "Crear el modal y la lógica de guardado para añadir nuevos clientes a la colección 'clients' en Firestore.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "6584cb4b-b71b-4dc6-a03e-4bca2be36210",
+          "listId": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+          "title": "FEAT-FRM-03: Construir Formulario de Creación de Puestos",
+          "description": "Crear el modal y la lógica de guardado para añadir nuevos puestos a la colección 'posts' en Firestore.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "70fc139a-3296-46f3-8e20-337960035bd2",
+          "listId": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+          "title": "FEAT-FRM-04: Construir Formulario de Creación de Procesos",
+          "description": "Crear la interfaz para vincular un candidato, un cliente y un puesto, generando un nuevo documento en la colección 'processes'.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "e1d1c2b3-a4f5-4678-9012-34567890abcd",
+          "listId": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+          "title": "FEAT-EDT-01: Implementar Edición de Clientes",
+          "description": "Crear la lógica para abrir un modal de edición de cliente, pre-llenar los datos existentes desde Firestore y guardar los cambios en el documento correspondiente.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        },
+        {
+          "id": "a3b4c5d6-e7f8-4901-a2b3-c4d5e6f7a8b9",
+          "listId": "5a8ce6c3-4df1-4b66-b1b1-b1d33f7c0a4f",
+          "title": "FEAT-EDT-03: Implementar Edición de Puestos",
+          "description": "Añadir un icono de edición a cada puesto, reutilizar el modal de creación para precargar y actualizar los datos del puesto en Firestore.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        }
+      ]
+    },
+    {
+      "id": "4a417210-81ae-4976-856a-50654c227f64",
+      "title": "Verificación (QA)",
+      "cards": []
+    },
+    {
+      "id": "3e2e773d-9636-45c7-bc25-dd836793dc19",
+      "title": "Demostración (DEMO)",
+      "cards": [
+        {
+          "id": "a4b5c6d7-e8f9-4012-a3b4-c5d6e7f8a9b0",
+          "listId": "3e2e773d-9636-45c7-bc25-dd836793dc19",
+          "title": "UAT-PSY-01: Validación del Flujo Completo de Psicometrías",
+          "description": "Paula, por favor, sigue estos pasos para validar el nuevo flujo:\n1. **Crea un Candidato de Prueba:** Usa el botón '+' en el panel de Candidatos.\n2. **Selecciona el Candidato:** Haz clic en el nuevo candidato para ver sus detalles.\n3. **Asigna Pruebas:** En la sección 'Psicométricos', haz clic en 'Asignar Pruebas'. Selecciona 2 o 3 pruebas de tu elección y confirma.\n4. **Notificación a Frank:** Avísale a Frank para que simule la finalización de las pruebas por parte del candidato.\n5. **Verifica los Resultados:** Una vez que Frank te confirme, refresca la página. El estatus del candidato debe ser 'Finalizado'. Verifica que aparezcan los botones para 'Ver Resultados Detallados' y 'Descargar Reporte (PDF)' y que funcionen correctamente.",
+          "labels": [],
+          "checkboxes": [],
+          "comments": []
+        }
+      ]
+    }
+  ],
+  "archive": {
+    "lists": [],
+    "cards": []
   },
-  "engines": {
-    "node": "22"
+  "settings": {
+    "labels": []
   },
-  "main": "index.js",
   "dependencies": {
-    "@sendgrid/mail": "^8.1.3",
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.12.2",
-    "dotenv": "^17.2.3",
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1"
-  },
-  "devDependencies": {
-    "eslint": "^8.15.0",
-    "eslint-config-google": "^0.14.0",
-    "firebase-functions-test": "^3.1.0"
-  },
-  "private": true
+    "firebase-admin": "^13.5.0",
+    "firebase-functions": "^6.6.0"
+  }
 }

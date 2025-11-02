@@ -3,11 +3,16 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "functions": {
-    "source": "functions",
-    "predeploy": []
-  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs18",
+      "v1": true
+    }
+  ],
   "hosting": {
+    "target": "integra-rh",
     "public": "public",
     "ignore": [
       "firebase.json",
@@ -16,12 +21,30 @@
     ],
     "rewrites": [
       {
+        "source": "/asignarPruebasPsicometricas",
+        "function": "asignarPruebasPsicometricas"
+      },
+      {
+        "source": "/reenviarInvitacion",
+        "function": "reenviarInvitacion"
+      },
+      {
+        "source": "/manageUserRole",
+        "function": "manageUserRole"
+      },
+      {
+        "source": "/listUsers",
+        "function": "listUsers"
+      },
+      {
+        "source": "/listUsersHttp",
+        "function": "listUsersHttp"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ]
   },
-  "storage": {
-    "rules": "storage.rules"
-  }
+  "storage": { "rules": "storage.rules" }
 }

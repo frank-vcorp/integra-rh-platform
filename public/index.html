@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -14,7 +14,8 @@
     #details-panel { flex: 2; }
     ul { list-style-type: none; padding: 0; }
     li { padding: 10px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #eee; cursor: pointer; }
-    li:hover { background-color: #f0f0f0; }
+    li:hover { background-color: #f0f0f0; } li > span:first-child { flex-grow: 1; }
+    .edit-icon { cursor: pointer; font-size: 18px; margin-left: 10px; }
     li.selected { background-color: #007bff; color: white; }
     .detail-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
     .detail-section h4 { margin: 0 0 10px 0; }
@@ -27,6 +28,27 @@
     .btn-reenviar { background-color: #ffc107; color: black; }
     #logoutBtn { width: auto; background-color: #dc3545; }
     pre { background-color: #eee; padding: 10px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px; margin-top: 10px; max-height: 150px; overflow-y: auto;}
+    /* Estilos para Tooltip */
+    .tooltip-container { position: relative; display: inline-block; border-bottom: 1px dotted black; cursor: help; }
+    .tooltip-container .tooltip-text {
+      visibility: hidden; width: 250px; background-color: #555; color: #fff;
+      text-align: center; border-radius: 6px; padding: 8px;
+      position: absolute; z-index: 1; bottom: 125%; left: 50%;
+      margin-left: -125px; opacity: 0; transition: opacity 0.3s;
+      font-size: 12px; font-weight: normal;
+    }
+    .tooltip-container:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    /* Estilos para el Modal */
+    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+    .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
+    .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+    .modal-content label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #333; }
+    .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+    .close-btn:hover, .close-btn:focus { color: black; text-decoration: none; cursor: pointer; }
+    .results-table { width: 100%; border-collapse: collapse; margin-top: 15px; } .results-table th, .results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; } .results-table th { background-color: #f2f2f2; }
     .error-msg { color: red; margin-bottom: 10px; }
   </style>
 </head>
@@ -36,11 +58,37 @@
     <div id="dashboard-container">
       <div id="dashboard-header"><h1>Dashboard INTEGRA RH</h1><div><span id="user-email"></span> <button id="logoutBtn">Cerrar Sesión</button></div></div>
       <div id="dashboard-panels">
-        <div class="panel"><h2>Clientes</h2><ul id="clients-list"></ul></div>
-        <div class="panel"><h2>Candidatos</h2><ul id="candidates-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Clientes</h2>
+            <button id="show-add-client-form-btn" style="background-color: #17a2b8;">+</button>
+          </div><ul id="clients-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Candidatos</h2>
+            <button id="show-add-candidate-form-btn" style="background-color: #17a2b8;">+</button>
+          </div>
+          <ul id="candidates-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Puestos</h2>
+            <button id="show-add-post-form-btn" style="background-color: #17a2b8;">+</button>
+          </div><ul id="posts-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Procesos</h2>
+            <button id="show-add-process-form-btn" style="background-color: #28a745;">+</button>
+          </div><ul id="processes-list"></ul></div>
         <div class="panel" id="details-panel">
-          <h2>Detalles del Candidato</h2>
-          <div id="candidate-details"><p><em>Selecciona un candidato.</em></p></div>
+          <!-- Nuevo Panel de Administración de Usuarios (Solo visible para SuperAdmin) -->
+          <div id="admin-users-panel" class="panel" style="display: none;">
+            <h2>Administración de Usuarios</h2>
+            <div id="admin-users-list"></div>
+            <div id="admin-users-error" class="error-msg"></div>
+          </div>
+
+          <h2 id="details-panel-title">Detalles</h2>
+          <div id="details-panel-content"><p><em>Selecciona un elemento de las listas para ver sus detalles.</em></p></div>
           
           <div id="psicometricos-section" class="detail-section" style="display: none;">
             <h4>Psicométricos</h4>
@@ -49,13 +97,60 @@
             <pre id="response-container"></pre>
           </div>
 
-          <div id="process-list" class="detail-section"><h4>Procesos</h4><div id="process-items"></div></div>
+          <div id="process-list" class="detail-section">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><h4>Procesos</h4><button id="add-process-for-candidate-btn" title="Añadir nuevo proceso para este candidato" style="background-color: #28a745;">+</button></div>
+            <div id="process-items"></div>
+          </div>
           <div id="work-history-section" class="detail-section">
             <h4>Historial Laboral</h4><div id="work-history-list"></div>
             <div id="add-work-history-form" style="display: none;">
-              <h4>Añadir Empleo</h4>
-              <input type="text" id="wh-empresa" placeholder="Empresa"><input type="text" id="wh-puestoOcupado" placeholder="Puesto"><input type="text" id="wh-tiempoTrabajado" placeholder="Tiempo"><input type="text" id="wh-contactoReferencia" placeholder="Contacto Ref."><input type="text" id="wh-telefonoReferencia" placeholder="Teléfono Ref."><input type="text" id="wh-correoReferencia" placeholder="Correo Ref."><input type="text" id="wh-resultadoVerificacion" placeholder="Verificación"><input type="text" id="wh-observaciones" placeholder="Observaciones">
-              <button id="save-job-btn" class="btn-save">Guardar Historial</button>
+              <h4 style="margin-top: 20px;">Añadir Nuevo Empleo</h4>
+              <label for="wh-empresa">Empresa</label>
+              <input type="text" id="wh-empresa" placeholder="Nombre de la empresa">
+              <label for="wh-puesto">Puesto</label>
+              <input type="text" id="wh-puesto" placeholder="Puesto ocupado">
+              <label for="wh-fechaInicio">Fecha Inicio</label><input type="date" id="wh-fechaInicio"><label for="wh-fechaFin">Fecha Fin</label><input type="date" id="wh-fechaFin">
+              <label for="wh-tiempoTrabajado">Tiempo Trabajado (Opcional)</label>
+              <input type="text" id="wh-tiempoTrabajado" placeholder="Ej: 2 años 3 meses">
+              <label for="wh-observaciones">Observaciones (Internas)</label>
+              <textarea id="wh-observaciones" placeholder="Observaciones y comentarios internos..."></textarea>
+              <h5 style="margin-top: 15px;">Datos de Verificación de Referencias (Opcional)</h5>
+              <input type="text" id="wh-contactoReferencia" placeholder="Contacto de Referencia"><input type="text" id="wh-telefonoReferencia" placeholder="Teléfono de Referencia"><input type="text" id="wh-correoReferencia" placeholder="Correo de Referencia"><input type="text" id="wh-resultadoVerificacion" placeholder="Resultado de la Verificación">
+              <button id="save-job-btn" class="btn-save">Guardar Empleo</button>
+            </div>
+          </div>
+
+          <div id="candidate-comments-section" class="detail-section" style="display: none;">
+            <h4>Bitácora General del Candidato</h4>
+            <div id="candidate-comments-log" style="max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background-color: #f9f9f9;">
+              <p>Cargando comentarios...</p>
+            </div>
+            <textarea id="new-candidate-comment" placeholder="Añadir nota general sobre el candidato..."></textarea>
+            <button id="add-candidate-comment-btn" style="background-color: #17a2b8; width: 100%; margin-top: 5px;">Añadir Nota a Bitácora</button>
+          </div>
+
+          <div id="documents-section" class="detail-section" style="display: none;">
+            <h4>Documentos</h4>
+            <div id="documents-list"></div>
+            <input type="file" id="doc-file-input" style="margin-top: 10px;">
+            <button id="upload-doc-btn" style="background-color: #fd7e14;">Subir Documento</button>
+          </div>
+
+          <!-- MODO ENSEÑANZA: Nuevo Panel de Gestión de Visita ESE.
+               Está oculto por defecto y se mostrará cuando el usuario haga clic en "Gestionar"
+               en un proceso de tipo ESE. Esto crea un "sub-módulo" o una vista dedicada. -->
+          <div id="ese-visit-management-panel" class="detail-section" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 id="ese-panel-title">Gestión de Visita ESE</h3>
+              <button id="back-to-candidate-details-btn" style="background-color: #6c757d;">Volver</button>
+            </div>
+            <div id="ese-process-context" class="detail-section-content"></div>
+            <div class="detail-section">
+              <label for="ese-visit-status">Estatus de la Visita</label>
+              <select id="ese-visit-status"><option value="Asignada">Asignada</option><option value="Programada">Programada</option><option value="Realizada">Realizada</option></select>
+              <label for="ese-visit-datetime">Fecha y Hora de Visita</label>
+              <input type="datetime-local" id="ese-visit-datetime">
+              <button id="save-ese-visit-btn" class="btn-save">Guardar Cambios de Visita</button>
             </div>
           </div>
         </div>
@@ -63,114 +158,1224 @@
     </div>
   </div>
 
-  <script src="/__/firebase/8.10.1/firebase-app.js"></script>
-  <script src="/__/firebase/8.10.1/firebase-auth.js"></script>
-  <script src="/__/firebase/8.10.1/firebase-firestore.js"></script>
-  <script src="/__/firebase/8.10.1/firebase-functions.js"></script>
-  <script src="/__/firebase/init.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // --- INICIALIZACIÓN ---
-      const auth = firebase.auth();
-      const db = firebase.firestore();
-      const functions = firebase.functions();
+  <!-- Modal para Añadir Candidato -->
+  <div id="add-candidate-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-candidate-modal-btn" class="close-btn">&times;</span>
+      <h2>Añadir Nuevo Candidato</h2>
+      <div id="candidate-form-error" class="error-msg"></div>
+      <label for="candidate-nombreCompleto">Nombre Completo *</label>
+      <input type="text" id="candidate-nombreCompleto" placeholder="Nombre Completo del Candidato *">
+      <label for="candidate-email">Correo Electrónico *</label>
+      <input type="email" id="candidate-email" placeholder="Correo Electrónico *">
+      <label for="candidate-telefono">Teléfono</label>
+      <input type="text" id="candidate-telefono" placeholder="Teléfono">
+      <label for="candidate-ciudad">Ciudad de Residencia</label>
+      <input type="text" id="candidate-ciudad" placeholder="Ciudad de Residencia">
+      <label for="candidate-clienteId">Cliente Asociado</label>
+      <select id="candidate-clienteId">
+        <option value="">-- Seleccionar Cliente Asociado --</option>
+      </select>
+      <label for="candidate-puestoId">Puesto al que Aplica</label>
+      <select id="candidate-puestoId"><option value="">-- Seleccione un cliente primero --</option></select>
+      <label for="candidate-medioDeRecepcion">Medio de Recepción</label>
+      <select id="candidate-medioDeRecepcion">
+        <option value="">-- Medio de Recepción --</option>
+        <option value="Proporcionado por el cliente">Proporcionado por el cliente</option>
+        <option value="Bolsa de Trabajo">Bolsa de Trabajo</option>
+        <option value="Recomendación">Recomendación</option>
+        <option value="Redes Sociales">Redes Sociales</option>
+      </select>
+      <label for="candidate-proceso-tipoProducto">Crear proceso al guardar (opcional)</label>
+      <select id="candidate-proceso-tipoProducto">
+        <option value="">-- Sin crear proceso --</option>
+        <option value="ILA">ILA (Investigación Laboral)</option>
+        <option value="ESE">ESE (Estudio Socioeconómico)</option>
+        <option value="Psicometría">Psicometría</option>
+      </select>
+      <button id="save-candidate-btn" class="btn-save">Guardar Candidato</button>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Cliente -->
+  <div id="add-client-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-client-modal-btn" class="close-btn">&times;</span>
+      <h2>Añadir Nuevo Cliente</h2>
+      <div id="client-form-error" class="error-msg"></div>
+      <label for="client-nombreEmpresa">Nombre de la Empresa *</label>
+      <input type="text" id="client-nombreEmpresa" placeholder="Nombre de la Empresa *">
+      <label for="client-reclutador">Nombre del Reclutador</label>
+      <input type="text" id="client-reclutador" placeholder="Nombre del Reclutador">
+      <label for="client-ubicacionPlaza">Plaza / Ubicación</label>
+      <input type="text" id="client-ubicacionPlaza" placeholder="Plaza / Ubicación">
+      <button id="save-client-btn" class="btn-save">Guardar Cliente</button>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Puesto -->
+  <div id="add-post-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-post-modal-btn" class="close-btn">&times;</span>
+      <h2>Añadir Nuevo Puesto</h2>
+      <div id="post-form-error" class="error-msg"></div>
+      <label for="post-nombreDelPuesto">Nombre del Puesto *</label>
+      <input type="text" id="post-nombreDelPuesto" placeholder="Nombre del Puesto *">
+      <label for="post-clienteId">Cliente Asociado</label>
+      <select id="post-clienteId">
+        <option value="">-- Seleccionar Cliente --</option>
+      </select>
+      <button id="save-post-btn" class="btn-save">Guardar Puesto</button>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Proceso -->
+  <div id="add-process-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-process-modal-btn" class="close-btn">&times;</span>
+      <h2>Crear Nuevo Proceso</h2>
+      <div id="process-form-error" class="error-msg"></div>
+      <label for="process-clienteId">1. Seleccionar Cliente</label>
+      <select id="process-clienteId">
+        <option value="">-- 1. Seleccionar Cliente --</option>
+      </select>
+      <label for="process-puestoId">2. Seleccionar Puesto</label>
+      <select id="process-puestoId">
+        <option value="">-- 2. Seleccionar Puesto --</option>
+      </select>
+      <label for="process-candidatoId">3. Seleccionar Candidato</label>
+      <select id="process-candidatoId">
+        <option value="">-- 3. Seleccionar Candidato --</option>
+      </select>
+      <label for="process-tipoProducto">4. Seleccionar Tipo de Producto</label>
+      <select id="process-tipoProducto">
+        <option value="">-- 4. Seleccionar Tipo de Producto --</option>
+        <option value="ILA">ILA (Investigación Laboral)</option><option value="ESE">ESE (Estudio Socioeconómico)</option><option value="Psicometría">Psicometría</option>
+      </select>
+      <button id="save-process-btn" class="btn-save">Guardar Proceso</button>
+      <!-- Campos de Seguimiento del Proceso -->
+      <div id="process-tracking-fields" style="border-top: 2px solid #eee; margin-top: 20px; padding-top: 15px;">
+        <h4>Seguimiento del Proceso</h4>
+        <label for="process-arrivalDateTime">Fecha y Hora de Llegada del Candidato</label>
+        <input type="datetime-local" id="process-arrivalDateTime">
+        
+        <label for="process-visitStatus">Estatus de la Visita Domiciliaria</label>
+        <select id="process-visitStatus">
+          <option value="">-- Sin Visita --</option>
+          <option value="Asignada">Asignada</option><option value="Programada">Programada</option><option value="Realizada">Realizada</option>
+        </select>
+        <div id="visit-datetime-container" style="display: none;">
+          <label for="process-visitDateTime">Fecha y Hora de la Visita</label>
+          <input type="datetime-local" id="process-visitDateTime">
+        </div>
+        <h4 style="margin-top: 20px;">Bitácora de Comentarios</h4>
+        <div id="process-comments-log" style="max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background-color: #f9f9f9;"></div>
+        <textarea id="new-process-comment" placeholder="Añadir nueva entrada a la bitácora..."></textarea>
+        <button id="add-process-comment-btn" style="background-color: #17a2b8; width: 100%; margin-top: 5px;">Añadir Comentario a Bitácora</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para ver Resultados JSON -->
+  <div id="json-results-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-json-modal-btn" class="close-btn">&times;</span>
+      <h2>Resultados Detallados</h2>
+      <div id="json-results-content"></div>
+    </div>
+  </div>
+
+  <!-- Modal para Selección de Pruebas Psicométricas -->
+  <div id="select-tests-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-tests-modal-btn" class="close-btn">&times;</span>
+      <h2>Asignar Pruebas Psicométricas</h2>
+      <div id="tests-form-error" class="error-msg"></div>
+      <div id="tests-checkboxes" style="margin-bottom: 10px;">
+        <label style="display:block;"><input type="checkbox" name="psychometric-test" value="Cognitiva"> Cognitiva</label>
+        <label style="display:block;"><input type="checkbox" name="psychometric-test" value="Honestidad"> Honestidad</label>
+        <label style="display:block;"><input type="checkbox" name="psychometric-test" value="Personalidad"> Personalidad</label>
+      </div>
+      <button id="confirm-assign-btn" class="btn-save">Confirmar Asignación</button>
+    </div>
+  </div>
+
+  <!-- Cargaremos la configuración vía /__/firebase/init.json en el script modular -->
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-functions.js';
+    import { initializeAppCheck, ReCaptchaV3Provider, getToken as getAppCheckToken } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app-check.js';
+    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // --- INICIALIZACIÓN: v9 modular (Auth, Functions, Firestore, Storage, App Check) ---
+      const resp = await fetch('/__/firebase/init.json');
+      const cfg = await resp.json();
+      const app = initializeApp(cfg);
+      const auth = getAuth(app);
+      const functions = getFunctions(app, 'us-central1');
+      const db = getFirestore(app);
+      const storage = getStorage(app);
+      const appCheck = initializeAppCheck(app, { provider: new ReCaptchaV3Provider('6LfH0_IrAAAAANInROe7eksR81uUJYbVW1NmVsyv'), isTokenAutoRefreshEnabled: true });
       
       const loginContainer = document.getElementById('login-container');
       const dashboardContainer = document.getElementById('dashboard-container');
       const userEmailSpan = document.getElementById('user-email');
       const clientsList = document.getElementById('clients-list');
       const candidatesList = document.getElementById('candidates-list');
+      const postsList = document.getElementById('posts-list');
+      const processesList = document.getElementById('processes-list');
       const candidateDetailsDiv = document.getElementById('candidate-details');
+      const detailsPanelContent = document.getElementById('details-panel-content');
       const psicometricosSection = document.getElementById('psicometricos-section');
       const psicometricosContent = document.getElementById('psicometricos-content');
+      const jsonResultsModal = document.getElementById('json-results-modal');
+      const closeJsonModalBtn = document.getElementById('close-json-modal-btn');
+      const jsonResultsContent = document.getElementById('json-results-content');
+      // Modal de selección de pruebas psicométricas
+      const selectTestsModal = document.getElementById('select-tests-modal');
+      const closeTestsModalBtn = document.getElementById('close-tests-modal-btn');
+      const confirmAssignBtn = document.getElementById('confirm-assign-btn');
       const responseContainer = document.getElementById('response-container');
       const processItemsDiv = document.getElementById('process-items');
+      // Unsubscribe holder para listeners dinámicos
+      let unsubscribeCandidateProcesses = null;
+      const clientModalTitle = document.querySelector('#add-client-modal h2');
+      const candidateModalTitle = document.querySelector('#add-candidate-modal h2');
+      const postModalTitle = document.querySelector('#add-post-modal h2');
+      const processModalTitle = document.querySelector('#add-process-modal h2');
       const workHistoryListDiv = document.getElementById('work-history-list');
       const addWorkHistoryForm = document.getElementById('add-work-history-form');
+      const documentsSection = document.getElementById('documents-section');
+      const candidateCommentsSection = document.getElementById('candidate-comments-section');
+      const documentsListDiv = document.getElementById('documents-list');
+      const eseVisitManagementPanel = document.getElementById('ese-visit-management-panel');
       let activeCandidateId = null;
+      
+      // --- Elementos del Panel de Administración de Usuarios ---
+      const adminUsersPanel = document.getElementById('admin-users-panel');
+      const adminUsersListDiv = document.getElementById('admin-users-list');
+
+      // --- LÓGICA DEL MODAL DE CANDIDATOS ---
+      // ... (código existente sin cambios)
+      const addCandidateModal = document.getElementById('add-candidate-modal');
+      const showAddCandidateBtn = document.getElementById('show-add-candidate-form-btn');
+      const closeCandidateModalBtn = document.getElementById('close-candidate-modal-btn');
+      const saveCandidateBtn = document.getElementById('save-candidate-btn');
+      const candidateClienteSelect = document.getElementById('candidate-clienteId'); // Este es el select de clientes en el form de candidatos
+      const candidatePuestoSelect = document.getElementById('candidate-puestoId');
+      const candidateProcesoTipoSelect = document.getElementById('candidate-proceso-tipoProducto');
+      let editingCandidateId = null;
+      let activeProcessId = null; // Variable para el módulo de gestión de visitas
+
+      showAddCandidateBtn.onclick = () => { 
+        // Limpiamos el formulario antes de mostrarlo
+        editingCandidateId = null;
+        candidateModalTitle.textContent = 'Añadir Nuevo Candidato';
+        addCandidateModal.querySelectorAll('input, select').forEach(el => el.value = '');
+        candidatePuestoSelect.innerHTML = '<option value="">-- Seleccione un cliente primero --</option>';
+        document.getElementById('candidate-form-error').textContent = '';
+        // MODO ENSEÑANZA: Establecemos explícitamente el valor por defecto para este campo,
+        // como lo solicitaste, para agilizar la captura de datos.
+        document.getElementById('candidate-medioDeRecepcion').value = 'Proporcionado por el cliente';
+        // Reset del selector de proceso opcional
+        candidateProcesoTipoSelect.value = '';
+        addCandidateModal.style.display = 'block'; 
+      };
+      closeCandidateModalBtn.onclick = () => { addCandidateModal.style.display = 'none'; };
+      window.onclick = (event) => { 
+        if (event.target == addCandidateModal) { addCandidateModal.style.display = 'none'; } 
+        if (event.target == addClientModal) { addClientModal.style.display = 'none'; }
+        if (event.target == addPostModal) { addPostModal.style.display = 'none'; }
+        if (event.target == addProcessModal) { addProcessModal.style.display = 'none'; }
+        if (event.target == jsonResultsModal) { jsonResultsModal.style.display = 'none'; }
+        if (event.target == selectTestsModal) { selectTestsModal.style.display = 'none'; }
+      };
+
+      // --- LÓGICA DEL MODAL DE CLIENTES ---
+      const addClientModal = document.getElementById('add-client-modal');
+      const showAddClientBtn = document.getElementById('show-add-client-form-btn');
+      const closeClientModalBtn = document.getElementById('close-client-modal-btn');
+      const saveClientBtn = document.getElementById('save-client-btn');
+
+
+      let editingClientId = null; // Variable de estado para saber si estamos editando
+
+      showAddClientBtn.onclick = () => {
+        editingClientId = null; // Modo creación
+        clientModalTitle.textContent = 'Añadir Nuevo Cliente';
+        addClientModal.querySelectorAll('input').forEach(el => el.value = '');
+        document.getElementById('client-form-error').textContent = '';
+        addClientModal.style.display = 'block';
+      };
+      closeClientModalBtn.onclick = () => {
+        addClientModal.style.display = 'none';
+      };
+
+      // --- LÓGICA DEL MODAL DE PUESTOS ---
+      const addPostModal = document.getElementById('add-post-modal');
+      const showAddPostBtn = document.getElementById('show-add-post-form-btn');
+      const closePostModalBtn = document.getElementById('close-post-modal-btn');
+      const savePostBtn = document.getElementById('save-post-btn');
+      const postClienteSelect = document.getElementById('post-clienteId');
+      let editingPostId = null;
+
+      showAddPostBtn.onclick = () => {
+        editingPostId = null;
+        postModalTitle.textContent = 'Añadir Nuevo Puesto';
+        addPostModal.querySelectorAll('input, select').forEach(el => el.value = '');
+        document.getElementById('post-form-error').textContent = '';
+        addPostModal.style.display = 'block';
+      };
+      closePostModalBtn.onclick = () => { addPostModal.style.display = 'none'; };
+
+      // --- LÓGICA DEL MODAL DE PROCESOS ---
+      const addProcessModal = document.getElementById('add-process-modal');
+      const showAddProcessBtn = document.getElementById('show-add-process-form-btn');
+      const closeProcessModalBtn = document.getElementById('close-process-modal-btn');
+      const saveProcessBtn = document.getElementById('save-process-btn');
+      const processClienteSelect = document.getElementById('process-clienteId');
+      const processPuestoSelect = document.getElementById('process-puestoId');
+      const processCandidatoSelect = document.getElementById('process-candidatoId');
+      let editingProcessId = null;
+      const addProcessForCandidateBtn = document.getElementById('add-process-for-candidate-btn');
+
+      showAddProcessBtn.onclick = () => {
+        editingProcessId = null;
+        processModalTitle.textContent = 'Crear Nuevo Proceso';
+        addProcessModal.querySelectorAll('select').forEach(el => el.value = '');
+        processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>'; // Resetear puestos
+        document.getElementById('process-form-error').textContent = '';
+        processCandidatoSelect.disabled = false; // Habilitar el selector de candidato
+        document.getElementById('process-tracking-fields').style.display = 'none'; // Ocultar seguimiento al crear
+        addProcessModal.style.display = 'block';
+
+        // MODO ENSEÑANZA: Aquí está la corrección. Al abrir el modal, debemos asegurarnos
+        // de que los desplegables de clientes y candidatos estén poblados.
+        // Reutilizamos la lógica que ya teníamos en la carga inicial del dashboard.
+        processClienteSelect.innerHTML = '<option value="">-- 1. Seleccionar Cliente --</option>';
+        processCandidatoSelect.innerHTML = '<option value="">-- 3. Seleccionar Candidato --</option>';
+        getDocs(collection(db, "clients")).then(snap => {
+          snap.forEach(doc => processClienteSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreEmpresa}</option>`);
+        });
+        getDocs(collection(db, "candidates")).then(snap => {
+          snap.forEach(doc => processCandidatoSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreCompleto}</option>`);
+        });
+
+      };
+      closeProcessModalBtn.onclick = () => { addProcessModal.style.display = 'none'; };
+
+      // MODO ENSEÑANZA: Este es el nuevo flujo contextual que solicitaste.
+      // Cuando se hace clic en el '+' dentro de los detalles de un candidato,
+      // abrimos el mismo modal de procesos, pero con el candidato ya seleccionado.
+      addProcessForCandidateBtn.addEventListener('click', () => {
+        if (!activeCandidateId) {
+            alert("Error: No hay un candidato activo seleccionado.");
+            return;
+        }
+        // Reseteamos el modal
+        editingProcessId = null;
+        processModalTitle.textContent = 'Crear Nuevo Proceso';
+        addProcessModal.querySelectorAll('select, input').forEach(el => el.value = '');
+        processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>';
+        // Pre-seleccionamos y deshabilitamos el campo del candidato
+        processCandidatoSelect.value = activeCandidateId;
+        processCandidatoSelect.disabled = true;
+
+        // Corrección: También debemos poblar el desplegable de clientes aquí.
+        processClienteSelect.innerHTML = '<option value="">-- 1. Seleccionar Cliente --</option>';
+        getDocs(collection(db, "clients")).then(snap => {
+          snap.forEach(doc => processClienteSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreEmpresa}</option>`);
+        });
+        // Y el de candidatos para que la pre-selección funcione.
+        processCandidatoSelect.innerHTML = '';
+        getDocs(collection(db, "candidates")).then(snap => {
+          snap.forEach(doc => processCandidatoSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreCompleto}</option>`);
+        }).then(() => { processCandidatoSelect.value = activeCandidateId; }); // Seleccionar después de poblar
+        addProcessModal.style.display = 'block';
+      });
+
+      // Lógica para mostrar/ocultar el campo de fecha de visita
+      document.getElementById('process-visitStatus').addEventListener('change', (e) => {
+        const visitDateTimeContainer = document.getElementById('visit-datetime-container');
+        if (e.target.value === 'Programada' || e.target.value === 'Realizada') {
+          visitDateTimeContainer.style.display = 'block';
+        } else {
+          visitDateTimeContainer.style.display = 'none';
+        }
+      });
+
+      // --- LÓGICA DEL MÓDULO DE GESTIÓN DE VISITAS ESE ---
+      document.getElementById('back-to-candidate-details-btn').addEventListener('click', () => {
+        if (activeCandidateId) {
+          showCandidateDetails(activeCandidateId); // Llama a la función para restaurar la vista
+        }
+      });
+
+      // MODO ENSEÑANZA: Implementamos la lógica de guardado para el módulo de visitas.
+      document.getElementById('save-ese-visit-btn').addEventListener('click', async () => {
+        if (!activeProcessId) {
+          alert("Error: No hay un proceso activo para guardar.");
+          return;
+        }
+
+        const newStatus = document.getElementById('ese-visit-status').value;
+        const newDateTime = document.getElementById('ese-visit-datetime').value;
+
+        const processRef = doc(db, "processes", activeProcessId);
+
+        try {
+          // Usamos notación de puntos para una actualización atómica y eficiente.
+          await updateDoc(processRef, {
+            "visitStatus.status": newStatus,
+            "visitStatus.scheduledDateTime": newDateTime
+          });
+          alert("Estatus de la visita actualizado con éxito.");
+          document.getElementById('back-to-candidate-details-btn').click(); // Volver a la vista del candidato
+        } catch (error) { console.error("Error al actualizar la visita:", error); alert("No se pudo guardar los cambios."); }
+      });
+
+      // --- LÓGICA DEL MODAL DE RESULTADOS JSON ---
+      closeJsonModalBtn.onclick = () => { jsonResultsModal.style.display = 'none'; };
+      closeTestsModalBtn.onclick = () => { selectTestsModal.style.display = 'none'; };
+
 
       // --- AUTENTICACIÓN ---
-      auth.onAuthStateChanged(user => {
+      onAuthStateChanged(auth, user => {
         if (user) {
           loginContainer.style.display = 'none';
           dashboardContainer.style.display = 'block';
           userEmailSpan.textContent = user.email;
-          cargarDatosDelDashboard();
+          checkUserRoleAndLoadDashboard(user); // Modificado para verificar el rol
         } else {
           loginContainer.style.display = 'block';
           dashboardContainer.style.display = 'none';
         }
       });
-      document.getElementById('loginBtn').addEventListener('click', () => { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(err => { document.getElementById('login-error').textContent = 'Error: Credenciales incorrectas.'; }); });
-      document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+
+      document.getElementById('loginBtn').addEventListener('click', () => { signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(err => { document.getElementById('login-error').textContent = 'Error: Credenciales incorrectas.'; }); });
+      document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+      // --- VERIFICACIÓN DE ROL Y CARGA DEL DASHBOARD ---
+      async function checkUserRoleAndLoadDashboard(user) {
+        // MODO ENSEÑANZA: Forzar la actualización del token (true) es CRÍTICO.
+        // Esto asegura que el SDK de Firebase en el cliente tenga un token de ID fresco y válido.
+        // Sin esto, las llamadas a httpsCallable pueden fallar con errores de "unauthenticated"
+        // porque el token que se adjunta automáticamente a la petición puede estar caducado.
+        const idTokenResult = await user.getIdTokenResult(true);
+        const userRole = idTokenResult.claims.role;
+
+        if (userRole === 'superAdmin') {
+          adminUsersPanel.style.display = 'block';
+          loadAdminUsersPanel(); // Cargar usuarios para el superAdmin
+        } else {
+          adminUsersPanel.style.display = 'none';
+        }
+        cargarDatosDelDashboard(); // Cargar los datos normales del dashboard para todos los roles
+      }
 
       // --- CARGA DE LISTAS PRINCIPALES ---
-      function cargarDatosDelDashboard() {
-        db.collection("clients").onSnapshot(snap => {
-            clientsList.innerHTML = ''; snap.forEach(doc => { clientsList.innerHTML += `<li>${doc.data().nombreEmpresa}</li>`; });
+      async function cargarDatosDelDashboard() { // MODO ENSEÑANZA: Convertimos la función principal en async
+        onSnapshot(collection(db, "clients"), snap => {
+            clientsList.innerHTML = ''; 
+            const defaultOption = '<option value="">-- Seleccionar Cliente --</option>';
+            candidateClienteSelect.innerHTML = defaultOption;
+            postClienteSelect.innerHTML = defaultOption;
+            processClienteSelect.innerHTML = '<option value="">-- 1. Seleccionar Cliente --</option>';
+            snap.forEach(doc => {
+                const client = doc.data();
+                const clientId = doc.id;
+                const optionHTML = `<option value="${doc.id}">${client.nombreEmpresa}</option>`;
+                const clientListItem = document.createElement('li'); clientListItem.style.display = 'flex';
+                clientListItem.innerHTML = `<span>${client.nombreEmpresa}</span><span class="edit-icon" data-id="${clientId}">✏️</span>`;
+                
+                clientListItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                    e.stopPropagation(); // Evita que se seleccione el 'li'
+                    editingClientId = clientId;
+                    const clientDoc = await getDoc(doc(db, "clients", clientId));
+                    const clientData = clientDoc.data();
+                    document.getElementById('client-nombreEmpresa').value = clientData.nombreEmpresa;
+                    document.getElementById('client-reclutador').value = clientData.reclutador;
+                    document.getElementById('client-ubicacionPlaza').value = clientData.ubicacionPlaza;
+                    clientModalTitle.textContent = 'Editar Cliente';
+                    addClientModal.style.display = 'block';
+                });
+
+                clientListItem.querySelector('span:first-child').onclick = () => {
+                    document.querySelectorAll('#clients-list li, #candidates-list li').forEach(el => el.classList.remove('selected'));
+                    clientListItem.classList.add('selected');
+                    showClientDetails(clientId);
+                };
+
+                clientsList.appendChild(clientListItem);
+                candidateClienteSelect.innerHTML += optionHTML;
+                postClienteSelect.innerHTML += optionHTML;
+                processClienteSelect.innerHTML += optionHTML;
+            });
         });
-        db.collection("candidates").onSnapshot(snap => {
+        onSnapshot(collection(db, "candidates"), snap => {
             candidatesList.innerHTML = '';
             snap.forEach(doc => {
-                const candidateId = doc.id; const listItem = document.createElement('li'); listItem.textContent = doc.data().nombreCompleto; listItem.dataset.id = candidateId;
-                listItem.onclick = () => { document.querySelectorAll('#candidates-list li').forEach(el => el.classList.remove('selected')); listItem.classList.add('selected'); activeCandidateId = candidateId; showCandidateDetails(candidateId); };
+                const candidateId = doc.id;
+                const candidateData = doc.data();
+                const listItem = document.createElement('li'); listItem.style.display = 'flex';
+                listItem.innerHTML = `<span>${candidateData.nombreCompleto}</span><span class="edit-icon" data-id="${candidateId}">✏️</span>`;
+                listItem.dataset.id = candidateId;
+
+                listItem.querySelector('span:first-child').onclick = () => { 
+                  document.querySelectorAll('#clients-list li, #candidates-list li').forEach(el => el.classList.remove('selected')); 
+                  listItem.classList.add('selected'); activeCandidateId = candidateId; showCandidateDetails(candidateId); 
+                };
+                
+                listItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  editingCandidateId = candidateId;
+                  document.getElementById('candidate-nombreCompleto').value = candidateData.nombreCompleto || '';
+                  document.getElementById('candidate-email').value = candidateData.email || '';
+                  document.getElementById('candidate-telefono').value = candidateData.telefono || '';
+                  document.getElementById('candidate-ciudad').value = candidateData.ciudad || '';
+                  document.getElementById('candidate-clienteId').value = candidateData.clienteId || '';
+                  document.getElementById('candidate-medioDeRecepcion').value = candidateData.medioDeRecepcion || '';
+                  // Disparar el evento change para cargar los puestos y luego seleccionar el correcto
+                  await candidateClienteSelect.dispatchEvent(new Event('change'));
+                  document.getElementById('candidate-puestoId').value = candidateData.puestoId || '';
+                  candidateModalTitle.textContent = 'Editar Candidato';
+                  addCandidateModal.style.display = 'block';
+                });
+
+                const optionHTML = `<option value="${doc.id}">${doc.data().nombreCompleto}</option>`;
+                processCandidatoSelect.innerHTML += optionHTML;
                 candidatesList.appendChild(listItem);
             });
         });
-      }
-
-      // --- MUESTRA LOS DETALLES DE UN CANDIDATO AL HACER CLIC ---
-      function showCandidateDetails(candidateId) {
-        psicometricosSection.style.display = 'block';
-        addWorkHistoryForm.style.display = 'block';
-
-        // Escuchar cambios en el documento del candidato para actualizar todo en tiempo real
-        db.collection("candidates").doc(candidateId).onSnapshot(async (doc) => {
-            if (!doc.exists) return;
-            const data = doc.data();
-
-            // Cargar detalles básicos
-            candidateDetailsDiv.innerHTML = `<h3>${data.nombreCompleto}</h3><p><strong>Email:</strong> ${data.email || 'N/A'}</p>`;
-            
-            // Cargar sección de Psicométricos
-            renderPsicometricos(candidateId, data);
-
-            // Cargar Procesos
-            const processQuery = await db.collection("processes").where("candidatoId", "==", candidateId).get();
-            processItemsDiv.innerHTML = '';
-            processQuery.forEach(doc => {
-                const process = doc.data();
-                processItemsDiv.innerHTML += `<div><strong>Tipo:</strong> ${process.tipoProducto} | <strong>Calificación:</strong> ${process.calificacionFinal}</div>`;
+        onSnapshot(collection(db, "posts"), snap => {
+            postsList.innerHTML = '';
+            snap.forEach(doc => {
+                const postData = doc.data();
+                const postId = doc.id;
+                const listItem = document.createElement('li'); listItem.style.display = 'flex';
+                listItem.innerHTML = `<span>${postData.nombreDelPuesto}</span><span class="edit-icon" data-id="${postId}">✏️</span>`;
+                
+                listItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  editingPostId = postId;
+                  document.getElementById('post-nombreDelPuesto').value = postData.nombreDelPuesto || '';
+                  document.getElementById('post-clienteId').value = postData.clienteId || '';
+                  postModalTitle.textContent = 'Editar Puesto';
+                  addPostModal.style.display = 'block';
+                });
+                postsList.appendChild(listItem);
             });
+        });
 
-            // Cargar Historial Laboral
-            const historyQuery = await db.collection("candidates").doc(candidateId).collection("workHistory").orderBy("createdAt", "desc").get();
-            workHistoryListDiv.innerHTML = '';
-            historyQuery.forEach(doc => {
-                const job = doc.data();
-                workHistoryListDiv.innerHTML += `<div><h4>${job.puestoOcupado || ''} en ${job.empresa || ''}</h4><p><strong>Observaciones:</strong> ${job.observaciones || 'N/A'}</p></div>`;
+        // MODO ENSEÑANZA: CORRECCIÓN. Primero cargamos los datos estáticos (clientes, puestos) una sola vez.
+        const clientsSnap = await getDocs(collection(db, 'clients'));
+        const postsSnap = await getDocs(collection(db, 'posts'));
+        const clientsMap = new Map(clientsSnap.docs.map(doc => [doc.id, doc.data().nombreEmpresa]));
+        const postsMap = new Map(postsSnap.docs.map(doc => [doc.id, doc.data().nombreDelPuesto]));
+
+        // Ahora, el listener de onSnapshot es síncrono y rápido. Solo usa los datos ya cargados.
+        onSnapshot(collection(db, "processes"), (snap) => {
+            processesList.innerHTML = '';
+
+            snap.forEach(async doc => { // El forEach puede ser async para la edición
+                const processData = doc.data();
+                const processId = doc.id;
+                const listItem = document.createElement('li'); listItem.style.display = 'flex';
+                listItem.dataset.candidatoId = processData.candidatoId; // Guardamos el ID del candidato para la navegación.
+
+                // 2. Buscamos los nombres en los Maps.
+                const clientName = clientsMap.get(processData.clienteId) || '...';
+                const postName = postsMap.get(processData.puestoId) || '...';
+
+                // 3. Construimos el texto informativo.
+                listItem.innerHTML = `<span>Proceso: ${processData.tipoProducto || 'N/A'} (${clientName} / ${postName})</span><span class="edit-icon" data-id="${processId}">✏️</span>`;
+
+                listItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  editingProcessId = processId;
+                  // Poblamos los desplegables antes de intentar seleccionar valores.
+                  await processClienteSelect.dispatchEvent(new Event('change'));
+                  await processCandidatoSelect.dispatchEvent(new Event('change'));
+
+                  document.getElementById('process-clienteId').value = processData.clienteId || '';
+                  await processClienteSelect.dispatchEvent(new Event('change'));
+                  document.getElementById('process-puestoId').value = processData.puestoId || '';
+                  document.getElementById('process-candidatoId').value = processData.candidatoId || '';
+                  document.getElementById('process-tipoProducto').value = processData.tipoProducto || '';
+                  document.getElementById('process-tracking-fields').style.display = 'block'; // Mostrar seguimiento al editar
+                  processModalTitle.textContent = 'Editar Proceso';
+                  fillProcessTrackingFields(processData);
+                  addProcessModal.style.display = 'block';
+                });
+
+                // 4. Añadimos el evento para navegar al candidato.
+                listItem.querySelector('span:first-child').addEventListener('click', (e) => {
+                    document.querySelector(`#candidates-list li[data-id='${e.currentTarget.parentElement.dataset.candidatoId}'] span:first-child`)?.click();
+                });
+
+                processesList.appendChild(listItem);
             });
         });
       }
+
+      // Lógica para el desplegable en cascada de Cliente -> Puesto
+      processClienteSelect.addEventListener('change', async (e) => {
+        const clienteId = e.target.value;
+        processPuestoSelect.innerHTML = '<option value="">-- Cargando puestos... --</option>';
+        if (!clienteId) {
+          processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>';
+          return;
+        }
+        const postsQuery = await getDocs(query(collection(db, "posts"), where("clienteId", "==", clienteId)));
+        processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>';
+        postsQuery.forEach(doc => {
+          processPuestoSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreDelPuesto}</option>`;
+        });
+      });
+
+      // Lógica para el desplegable en cascada en el form de Candidato
+      candidateClienteSelect.addEventListener('change', async (e) => {
+        const clienteId = e.target.value;
+        candidatePuestoSelect.innerHTML = '<option value="">-- Cargando puestos... --</option>';
+        if (!clienteId) {
+          candidatePuestoSelect.innerHTML = '<option value="">-- Seleccione un cliente primero --</option>';
+          return;
+        }
+        const postsQuery = await getDocs(query(collection(db, "posts"), where("clienteId", "==", clienteId)));
+        candidatePuestoSelect.innerHTML = '<option value="">-- Seleccione un puesto --</option>';
+        postsQuery.forEach(doc => {
+          candidatePuestoSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreDelPuesto}</option>`;
+        });
+        // MODO ENSEÑANZA: Añadimos una opción especial para crear un nuevo puesto.
+        // Su valor es único para poder identificarlo fácilmente en el event listener.
+        candidatePuestoSelect.innerHTML += '<option value="--add-new--" style="font-weight: bold; color: #007bff;">-- Añadir nuevo puesto --</option>';
+
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO CANDIDATO ---
+      saveCandidateBtn.addEventListener('click', async () => { // CORRECCIÓN: Añadido async
+        const nombreCompleto = document.getElementById('candidate-nombreCompleto').value.trim();
+        const email = document.getElementById('candidate-email').value.trim();
+        const errorDiv = document.getElementById('candidate-form-error');
+
+        // MODO ENSEÑANZA: Añadimos una validación crucial. Si el usuario ha seleccionado
+        // "Añadir nuevo puesto" pero no ha completado ese flujo (guardando el puesto),
+        // no debemos permitir que se guarde el candidato, ya que el puestoId sería inválido.
+        if (candidatePuestoSelect.value === '--add-new--') {
+          errorDiv.textContent = 'Por favor, termina de crear el nuevo puesto o selecciona uno existente antes de guardar el candidato.';
+          return;
+        }
+        if (!nombreCompleto || !email) {
+          errorDiv.textContent = 'El nombre y el correo son obligatorios.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        // Captura robusta del puestoId directamente del elemento select vivo
+        let puestoIdSeleccionado = candidatePuestoSelect.value || '';
+        if ((!puestoIdSeleccionado || puestoIdSeleccionado === '--add-new--') && window.__lastCreatedPostId) {
+          puestoIdSeleccionado = window.__lastCreatedPostId;
+        }
+
+        const newCandidate = {
+          nombreCompleto: nombreCompleto,
+          email: email,
+          telefono: document.getElementById('candidate-telefono').value,
+          ciudad: document.getElementById('candidate-ciudad').value,
+          clienteId: candidateClienteSelect.value,
+          puestoId: puestoIdSeleccionado,
+          medioDeRecepcion: document.getElementById('candidate-medioDeRecepcion').value,
+          createdAt: serverTimestamp() // Buena práctica para usar la hora del servidor
+        };
+
+        // Si el usuario solicitó crear proceso, asegurarse de que Cliente y Puesto estén seleccionados
+        const tipoProductoSeleccionado = candidateProcesoTipoSelect.value;
+        if (tipoProductoSeleccionado && (!newCandidate.clienteId || !newCandidate.puestoId)) {
+          errorDiv.textContent = 'Para crear un proceso, selecciona Cliente y Puesto.';
+          return;
+        }
+
+        try {
+          let candidateId;
+          if (editingCandidateId) {
+            // Modo Edición
+            await updateDoc(doc(db, "candidates", editingCandidateId), newCandidate);
+            candidateId = editingCandidateId;
+          } else {
+            // Modo Creación
+            const candRef = await addDoc(collection(db, "candidates"), newCandidate);
+            candidateId = candRef.id;
+          }
+
+          // Si eligió crear proceso, crear el documento en 'processes'
+          if (tipoProductoSeleccionado) {
+            const newProcess = {
+              clienteId: newCandidate.clienteId,
+              puestoId: puestoIdSeleccionado,
+              candidatoId: candidateId,
+              tipoProducto: tipoProductoSeleccionado,
+              estatusProceso: 'En Proceso',
+              fechaRecepcion: serverTimestamp()
+            };
+            await addDoc(collection(db, 'processes'), newProcess);
+          }
+
+          addCandidateModal.style.display = 'none';
+          editingCandidateId = null;
+          // Mostrar de inmediato los detalles del nuevo candidato y sus procesos
+          activeCandidateId = candidateId;
+          showCandidateDetails(candidateId);
+        } catch (error) { console.error("Error al guardar candidato:", error); errorDiv.textContent = "Error al guardar en la base de datos."; }
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO CLIENTE ---
+      saveClientBtn.addEventListener('click', async () => {
+        const nombreEmpresa = document.getElementById('client-nombreEmpresa').value.trim();
+        const errorDiv = document.getElementById('client-form-error');
+
+        if (!nombreEmpresa) {
+          errorDiv.textContent = 'El nombre de la empresa es obligatorio.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        const clientData = {
+          nombreEmpresa: nombreEmpresa,
+          reclutador: document.getElementById('client-reclutador').value,
+          ubicacionPlaza: document.getElementById('client-ubicacionPlaza').value,
+        };
+
+        try {
+          if (editingClientId) {
+            await updateDoc(doc(db, "clients", editingClientId), clientData);
+          } else {
+            clientData.createdAt = serverTimestamp();
+            await addDoc(collection(db, "clients"), clientData);
+          }
+          addClientModal.style.display = 'none';
+          editingClientId = null; // Reseteamos el estado
+        } catch (error) { 
+          console.error("Error al guardar cliente:", error); 
+          errorDiv.textContent = "Error al guardar en la base de datos."; 
+        }
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO PUESTO ---
+      savePostBtn.addEventListener('click', async () => {
+        const nombreDelPuesto = document.getElementById('post-nombreDelPuesto').value.trim();
+        const clienteId = document.getElementById('post-clienteId').value;
+        const errorDiv = document.getElementById('post-form-error');
+
+        if (!nombreDelPuesto || !clienteId) {
+          errorDiv.textContent = 'El nombre del puesto y el cliente son obligatorios.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        const newPost = {
+          nombreDelPuesto: nombreDelPuesto,
+          clienteId: clienteId,
+        };
+
+        try {
+          if (editingPostId) {
+            await updateDoc(doc(db, "posts", editingPostId), newPost);
+          } else {
+            newPost.createdAt = serverTimestamp();
+            const docRef = await addDoc(collection(db, "posts"), newPost);
+
+            // MODO ENSEÑANZA: CORRECCIÓN. El método anterior de insertar la opción directamente
+            // era propenso a errores. La forma más robusta es forzar una recarga completa
+            // de la lista de puestos y luego seleccionar el nuevo.
+            // 1. Forzamos la recarga de puestos disparando el 'change' en el cliente.
+            await candidateClienteSelect.dispatchEvent(new Event('change'));
+            // 2. Seleccionamos el puesto recién creado por su ID.
+            const newOption = document.createElement('option');
+            newOption.value = docRef.id;
+            newOption.textContent = newPost.nombreDelPuesto;
+            // Insertar antes de la opción "-- Añadir nuevo puesto --"
+            candidatePuestoSelect.insertBefore(newOption, candidatePuestoSelect.lastChild);
+            candidatePuestoSelect.value = docRef.id; // Seleccionar el puesto recién creado
+            // Bandera global de respaldo por si la UI no refleja a tiempo el valor
+            window.__lastCreatedPostId = docRef.id;
+          }
+          addPostModal.style.display = 'none';
+          editingPostId = null;
+        } catch (error) { console.error("Error al guardar puesto:", error); errorDiv.textContent = "Error al guardar en la base de datos."; }
+      });
+
+      // --- LÓGICA PARA ABRIR MODAL DE PUESTO DESDE FORM DE CANDIDATO ---
+      candidatePuestoSelect.addEventListener('change', async (e) => { // CORRECCIÓN: Añadido async
+        if (e.target.value === '--add-new--') {
+          const clienteIdSeleccionado = candidateClienteSelect.value;
+          if (!clienteIdSeleccionado) {
+            alert("Por favor, selecciona un cliente primero antes de añadir un puesto.");
+            // Resetear la selección para que no se quede en "Añadir nuevo"
+            candidatePuestoSelect.value = '';
+            return;
+          }
+          // Abrir el modal de puestos y pre-llenar el cliente
+          editingPostId = null;
+          postModalTitle.textContent = 'Añadir Nuevo Puesto';
+          addPostModal.querySelectorAll('input').forEach(el => el.value = '');
+          postClienteSelect.value = clienteIdSeleccionado; // Pre-seleccionar cliente
+          addPostModal.style.display = 'block';
+        }
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO PROCESO ---
+      saveProcessBtn.addEventListener('click', async () => {
+        const clienteId = processClienteSelect.value;
+        const puestoId = processPuestoSelect.value;
+        const candidatoId = processCandidatoSelect.value;
+        const tipoProducto = document.getElementById('process-tipoProducto').value;
+        const errorDiv = document.getElementById('process-form-error');
+
+        if (!clienteId || !puestoId || !candidatoId || !tipoProducto) {
+          errorDiv.textContent = 'Todos los campos son obligatorios.';
+          return;
+        }
+        // Si el selector de candidato está deshabilitado, su valor no se envía con el formulario.
+        // Debemos obtenerlo de nuestra variable de estado 'activeCandidateId'.
+        if (processCandidatoSelect.disabled && !activeCandidateId) {
+            errorDiv.textContent = 'Error: No se pudo identificar al candidato activo.'; return;
+        }
+        errorDiv.textContent = '';
+
+        const newProcess = {
+          clienteId: clienteId,
+          puestoId: puestoId,
+          candidatoId: processCandidatoSelect.disabled ? activeCandidateId : candidatoId,
+          tipoProducto: tipoProducto,
+          estatusProceso: "En Proceso",
+        };
+
+        // MODO ENSEÑANZA: Añadimos los campos de seguimiento al objeto que se guardará.
+        // Estos campos ahora son genéricos para cualquier proceso.
+        newProcess.arrivalDateTime = document.getElementById('process-arrivalDateTime').value || null;
+        const visitStatus = document.getElementById('process-visitStatus').value;
+        if (visitStatus) {
+          newProcess.visitStatus = {
+            status: visitStatus,
+            scheduledDateTime: document.getElementById('process-visitDateTime').value || null
+          };
+        }
+
+        try {
+          if (editingProcessId) {
+            await updateDoc(doc(db, "processes", editingProcessId), newProcess);
+          } else {
+            newProcess.fechaRecepcion = serverTimestamp();
+            await addDoc(collection(db, "processes"), newProcess);
+          }
+          addProcessModal.style.display = 'none';
+          editingProcessId = null;
+        } catch (error) { console.error("Error al guardar proceso:", error); errorDiv.textContent = "Error al guardar en la base de datos."; }
+      });
+
+      // --- LÓGICA PARA AÑADIR COMENTARIO A LA BITÁCORA DEL PROCESO ---
+      document.getElementById('add-process-comment-btn').addEventListener('click', async () => {
+        if (!editingProcessId) return alert("Solo se pueden añadir comentarios a un proceso existente.");
+        const commentText = document.getElementById('new-process-comment').value.trim();
+        if (!commentText) return alert("El comentario no puede estar vacío.");
+
+        const processRef = doc(db, "processes", editingProcessId);
+        const currentProcessSnap = await getDoc(processRef);
+        const currentProcessData = currentProcessSnap.data();
+
+        const newComment = {
+          text: commentText,
+          createdAt: serverTimestamp(),
+          processStatusAtTime: currentProcessData.estatusProceso || 'No definido'
+        };
+
+        try {
+          await updateDoc(processRef, {
+            comments: arrayUnion(newComment) // arrayUnion es la forma correcta de añadir a un array en Firestore
+          });
+          document.getElementById('new-process-comment').value = ''; // Limpiar el textarea
+          // La actualización de la bitácora se hará automáticamente por el onSnapshot que debemos añadir
+        } catch (error) { console.error("Error al añadir comentario:", error); alert("Error al guardar el comentario."); }
+      });
+
+      // --- LÓGICA PARA AÑADIR COMENTARIO A LA BITÁCORA DEL CANDIDATO ---
+      document.getElementById('add-candidate-comment-btn').addEventListener('click', async () => {
+        if (!activeCandidateId) return alert("Selecciona un candidato para añadir una nota.");
+        const commentText = document.getElementById('new-candidate-comment').value.trim();
+        if (!commentText) return alert("La nota no puede estar vacía.");
+
+        const newComment = {
+          text: commentText,
+          createdAt: serverTimestamp(),
+          author: auth.currentUser.email // Guardamos quién hizo el comentario
+        };
+
+        try {
+          // MODO ENSEÑANZA: Guardamos el comentario en su propia subcolección, manteniendo
+          // el documento principal del candidato limpio y escalable.
+          await addDoc(collection(db, "candidates", activeCandidateId, "comments"), newComment);
+          document.getElementById('new-candidate-comment').value = ''; // Limpiar el textarea
+        } catch (error) { console.error("Error al añadir nota de candidato:", error); alert("Error al guardar la nota."); }
+      });
+
+
+      function fillProcessTrackingFields(processData) {
+        if (processData.arrivalDateTime) {
+          document.getElementById('process-arrivalDateTime').value = processData.arrivalDateTime;
+        }
+        if (processData.visitStatus) {
+          document.getElementById('process-visitStatus').value = processData.visitStatus.status || '';
+          document.getElementById('process-visitStatus').dispatchEvent(new Event('change')); // Para mostrar el campo de fecha
+          document.getElementById('process-visitDateTime').value = processData.visitStatus.scheduledDateTime || '';
+        }
+        // Llenar la bitácora de comentarios
+        const commentsLog = document.getElementById('process-comments-log');
+        commentsLog.innerHTML = '';
+        if (processData.comments && Array.isArray(processData.comments)) {
+          processData.comments.forEach(comment => {
+            const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString() : 'Fecha no disponible';
+            commentsLog.innerHTML += `<p style="font-size:12px; margin: 5px 0; border-bottom: 1px dotted #ccc; padding-bottom: 5px;"><strong>${date}</strong> (Estatus: ${comment.processStatusAtTime}):<br>${comment.text}</p>`;
+          });
+        }
+      }
+
+
+      // --- MUESTRA LOS DETALLES DE UN CANDIDATO AL HACER CLIC ---
+      function showCandidateDetails(candidateId) {
+        document.getElementById('details-panel-title').textContent = 'Detalles del Candidato';
+        workHistoryListDiv.innerHTML = ''; // Limpiar para evitar mostrar datos antiguos
+        psicometricosSection.style.display = 'block';
+        document.getElementById('process-list').style.display = 'block';
+        document.getElementById('work-history-section').style.display = 'block';
+        documentsSection.style.display = 'block';
+        addProcessForCandidateBtn.style.display = 'inline-block'; // Mostrar el botón '+'
+        candidateCommentsSection.style.display = 'block';
+        eseVisitManagementPanel.style.display = 'none'; // Asegurarse de que el panel de ESE esté oculto
+        addWorkHistoryForm.style.display = 'block';
+
+        // Estado inicial del contenedor de procesos
+        processItemsDiv.innerHTML = '<p class="text-muted" style="font-style: italic;">Cargando procesos…</p>';
+
+        // Escuchar cambios en el documento del candidato para actualizar todo en tiempo real
+        onSnapshot(doc(db, "candidates", candidateId), async (candDoc) => {
+            if (!candDoc.exists()) return;
+            const data = candDoc.data();
+
+            // Cargar detalles básicos
+            detailsPanelContent.innerHTML = `<h3>${data.nombreCompleto}</h3><p><strong>Email:</strong> ${data.email || 'N/A'}</p><p><strong>Teléfono:</strong> ${data.telefono || 'N/A'}</p><p><strong>Ciudad:</strong> ${data.ciudad || 'N/A'}</p>`;
+            
+            // Cargar sección de Psicométricos (protegido contra errores para no bloquear procesos)
+            try {
+              renderPsicometricos(candidateId, data);
+            } catch (e) {
+              console.error('Error en renderPsicometricos:', e);
+              psicometricosContent.innerHTML = '<p class="text-danger">Error cargando psicométricos.</p>';
+            }
+
+            // MODO ENSEÑANZA: CORRECCIÓN. En lugar de una consulta única, usamos onSnapshot
+            // para que la lista de procesos se actualice en tiempo real si se añade uno nuevo.
+            const processesQuery = query(collection(db, "processes"), where("candidatoId", "==", candidateId));
+            // Render inicial inmediato (en caso de que el listener tarde en disparar)
+            try {
+              const initialSnap = await getDocs(processesQuery);
+              processItemsDiv.innerHTML = '';
+              if (initialSnap.empty) {
+                processItemsDiv.innerHTML = '<p class="text-muted" style="font-style: italic;">No hay procesos activos para este candidato.</p>';
+              } else {
+                const clientsSnapInit = await getDocs(collection(db, 'clients'));
+                const postsSnapInit = await getDocs(collection(db, 'posts'));
+                const clientsMapInit = new Map(clientsSnapInit.docs.map(doc => [doc.id, doc.data().nombreEmpresa]));
+                const postsMapInit = new Map(postsSnapInit.docs.map(doc => [doc.id, doc.data().nombreDelPuesto]));
+                initialSnap.forEach(doc => {
+                  const process = doc.data();
+                  const processId = doc.id;
+                  const clientName = clientsMapInit.get(process.clienteId) || 'Cliente no encontrado';
+                  const postName = postsMapInit.get(process.puestoId) || 'Puesto no encontrado';
+                  const wrapper = document.createElement('div');
+                  wrapper.className = 'detail-section-card mb-2';
+                  wrapper.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                      <div>
+                        <h5 class=\"mb-1\">Proceso ${process.tipoProducto || 'N/A'}: <span class=\"badge bg-info text-dark\" style=\"font-size: 0.75em;\">${process.estatusProceso || 'N/A'}</span></h5>
+                        <p class=\"text-muted small mb-1\"><strong>Cliente:</strong> ${clientName}</p>
+                        <p class=\"text-muted small mb-0\"><strong>Puesto:</strong> ${postName}</p>
+                      </div>
+                      <div>
+                        <button class=\"btn btn-sm btn-secondary manage-process-btn\" data-process-id=\"${processId}\" title=\"Gestionar Proceso\">Gestionar</button>
+                      </div>
+                    </div>`;
+                  processItemsDiv.appendChild(wrapper);
+                });
+              }
+            } catch (err) {
+              console.error('Error render inicial de procesos:', err);
+              processItemsDiv.innerHTML = '<p class="text-danger">Error cargando procesos.</p>';
+            }
+            // Cancelar listener previo si existe para evitar fugas y estados viejos
+            if (unsubscribeCandidateProcesses) { unsubscribeCandidateProcesses(); }
+            unsubscribeCandidateProcesses = onSnapshot(processesQuery, async (querySnapshot) => { // CORRECCIÓN: Añadido async
+                processItemsDiv.innerHTML = ''; // Limpiar la lista en cada actualización
+                if (querySnapshot.empty) {
+                    processItemsDiv.innerHTML = '<p class="text-muted" style="font-style: italic;">No hay procesos activos para este candidato.</p>';
+                    return;
+                }
+
+                try {
+                  // MODO ENSEÑANZA: precargamos nombres en Maps para evitar N consultas por tarjeta
+                  const clientsSnap = await getDocs(collection(db, 'clients'));
+                  const postsSnap = await getDocs(collection(db, 'posts'));
+                  const clientsMap = new Map(clientsSnap.docs.map(doc => [doc.id, doc.data().nombreEmpresa]));
+                  const postsMap = new Map(postsSnap.docs.map(doc => [doc.id, doc.data().nombreDelPuesto]));
+
+                  querySnapshot.forEach(doc => {
+                      const process = doc.data();
+                      const processDiv = document.createElement('div');
+                      const processId = doc.id;
+                      processDiv.className = 'detail-section-card mb-2';
+
+                      const clientName = clientsMap.get(process.clienteId) || 'Cliente no encontrado';
+                      const postName = postsMap.get(process.puestoId) || 'Puesto no encontrado';
+
+                      let processHTML = `
+                          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                              <div>
+                                  <h5 class="mb-1">Proceso ${process.tipoProducto || 'N/A'}: <span class="badge bg-info text-dark" style="font-size: 0.75em;">${process.estatusProceso || 'N/A'}</span></h5>
+                                  <p class="text-muted small mb-1"><strong>Cliente:</strong> ${clientName}</p>
+                                  <p class="text-muted small mb-0"><strong>Puesto:</strong> ${postName}</p>
+                              </div>
+                              <div>
+                                  <button class="btn btn-sm manage-process-btn" data-process-id="${processId}" title="Gestionar Proceso" style="background-color: #fd7e14;">Gestionar</button>
+                              </div>
+                          </div>`;
+                      processDiv.innerHTML = processHTML;
+                      processItemsDiv.appendChild(processDiv);
+                  });
+                } catch (err) {
+                  // Fallback: si no podemos leer nombres de clientes/puestos, mostramos al menos IDs
+                  querySnapshot.forEach(doc => {
+                      const process = doc.data();
+                      const processDiv = document.createElement('div');
+                      const processId = doc.id;
+                      processDiv.className = 'detail-section-card mb-2';
+                      let processHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                          <div>
+                            <h5 class="mb-1">Proceso ${process.tipoProducto || 'N/A'}: <span class="badge bg-info text-dark" style="font-size: 0.75em;">${process.estatusProceso || 'N/A'}</span></h5>
+                            <p class="text-muted small mb-1"><strong>ClienteId:</strong> ${process.clienteId}</p>
+                            <p class="text-muted small mb-0"><strong>PuestoId:</strong> ${process.puestoId}</p>
+                          </div>
+                          <div>
+                            <button class="btn btn-sm manage-process-btn" data-process-id="${processId}" title="Gestionar Proceso" style="background-color: #fd7e14;">Gestionar</button>
+                          </div>
+                        </div>`;
+                      processDiv.innerHTML = processHTML;
+                      processItemsDiv.appendChild(processDiv);
+                  });
+                }
+
+                // Delegación de eventos para los botones de compartir
+                // MODO ENSEÑANZA: Añadimos el listener para el nuevo botón "Gestionar"
+                // Por ahora, solo mostrará una alerta para confirmar que funciona.
+                // Aquí es donde construiremos la lógica para abrir el módulo de visitas.
+                processItemsDiv.onclick = (e) => {
+                    if (e.target && e.target.classList.contains('manage-process-btn')) {
+                        const processId = e.target.dataset.processId;
+                        showEseVisitManagementPanel(processId);
+                    }
+                };
+            });
+
+            // Cargar Historial Laboral
+            const historyQuery = await getDocs(query(collection(db, "candidates", candidateId, "workHistory"), orderBy("createdAt", "desc")));
+            workHistoryListDiv.innerHTML = '';
+            historyQuery.forEach(doc => {
+                const job = doc.data();
+                const startDate = job.fechaInicio ? new Date(job.fechaInicio + 'T00:00:00').toLocaleDateString() : 'N/A';
+                const endDate = job.fechaFin ? new Date(job.fechaFin + 'T00:00:00').toLocaleDateString() : 'N/A';
+                const jobItemHTML = `<div><h4>${job.puesto || 'Puesto no especificado'} en ${job.empresa || 'Empresa no especificada'}</h4>
+                                                 <p><strong>Periodo:</strong> ${startDate} - ${endDate}</p><p><strong>Observaciones:</strong> ${job.observaciones || 'N/A'}</p></div>`;
+                workHistoryListDiv.innerHTML += jobItemHTML;
+            });
+
+            onSnapshot(collection(db, "candidates", candidateId, "documents"), (docsSnap) => {
+              documentsListDiv.innerHTML = '';
+              docsSnap.forEach(doc => {
+                const docData = doc.data();
+                const docLink = document.createElement('a');
+                docLink.href = docData.downloadURL; docLink.textContent = docData.fileName; docLink.target = '_blank'; docLink.style.display = 'block';
+                documentsListDiv.appendChild(docLink);
+              });
+            });
+
+            // Cargar Bitácora General del Candidato
+            onSnapshot(query(collection(db, "candidates", candidateId, "comments"), orderBy("createdAt", "desc")), (commentsSnap) => {
+              const commentsLog = document.getElementById('candidate-comments-log');
+              commentsLog.innerHTML = '';
+              if (commentsSnap.empty) { commentsLog.innerHTML = '<p style="font-style: italic; color: #888;">No hay notas en la bitácora.</p>'; }
+              commentsSnap.forEach(commentDoc => {
+                const comment = commentDoc.data();
+                const date = comment.createdAt ? comment.createdAt.toDate().toLocaleString() : 'Fecha no disponible';
+                commentsLog.innerHTML += `<p style="font-size:12px; margin: 5px 0; border-bottom: 1px dotted #ccc; padding-bottom: 5px;"><strong>${date}</strong> (Por: ${comment.author || 'N/A'}):<br>${comment.text}</p>`;
+              });
+            });
+        });
+      }
+
+      async function showClientDetails(clientId) {
+        document.getElementById('details-panel-title').textContent = 'Detalles del Cliente';
+        // Ocultar secciones específicas del candidato
+        document.getElementById('process-list').style.display = 'none';
+        documentsSection.style.display = 'none';
+        document.getElementById('work-history-section').style.display = 'none';
+        candidateCommentsSection.style.display = 'none';
+        psicometricosSection.style.display = 'none';
+        addProcessForCandidateBtn.style.display = 'none'; // Ocultar el botón '+'
+        addWorkHistoryForm.style.display = 'none';
+        eseVisitManagementPanel.style.display = 'none';
+
+        const clientSnap = await getDoc(doc(db, "clients", clientId));
+        if (!clientSnap.exists) {
+          detailsPanelContent.innerHTML = '<p>Cliente no encontrado.</p>';
+          return;
+        }
+        const clientData = clientSnap.data();
+
+        const postsQuery = await getDocs(query(collection(db, "posts"), where("clienteId", "==", clientId)));
+        const candidatesQuery = await getDocs(query(collection(db, "candidates"), where("clienteId", "==", clientId)));
+
+        let postsHtml = `
+          <div class="tooltip-container">
+            <h4>Puestos Abiertos</h4>
+            <span class="tooltip-text">Estos son los puestos de trabajo activos que tiene este cliente en el sistema.</span>
+          </div><ul>`;
+        postsQuery.forEach(doc => { postsHtml += `<li>${doc.data().nombreDelPuesto}</li>`; });
+        postsHtml += '</ul>';
+
+        let candidatesHtml = `
+          <div class="tooltip-container">
+            <h4>Candidatos Asociados</h4>
+            <span class="tooltip-text">Estos son los candidatos que han sido asociados directamente a este cliente al momento de su creación.</span>
+          </div>
+          <ul>`;
+        candidatesQuery.forEach(doc => { candidatesHtml += `<li>${doc.data().nombreCompleto}</li>`; });
+        candidatesHtml += '</ul>';
+
+        detailsPanelContent.innerHTML = `<h3>${clientData.nombreEmpresa}</h3><p><strong>Reclutador:</strong> ${clientData.reclutador || 'N/A'}</p><p><strong>Plaza:</strong> ${clientData.ubicacionPlaza || 'N/A'}</p><div class="detail-section">${postsHtml}</div><div class="detail-section">${candidatesHtml}</div>`;
+        processItemsDiv.innerHTML = ''; // Limpiar procesos de candidato
+        workHistoryListDiv.innerHTML = ''; // Limpiar historial de candidato
+      }
+
+      // --- MUESTRA EL PANEL DE GESTIÓN DE VISITAS ESE ---
+      async function showEseVisitManagementPanel(processId) {
+        activeProcessId = processId;
+        const processSnap = await getDoc(doc(db, "processes", processId));
+        if (!processSnap.exists()) {
+          alert("Error: No se encontró el proceso.");
+          return;
+        }
+        const processData = processSnap.data();
+
+        if (processData.tipoProducto !== 'ESE') {
+          alert("La gestión de visitas solo está disponible para procesos de tipo ESE.");
+          return;
+        }
+
+        // Ocultar las secciones del candidato
+        detailsPanelContent.style.display = 'none';
+        psicometricosSection.style.display = 'none';
+        document.getElementById('process-list').style.display = 'none';
+        document.getElementById('work-history-section').style.display = 'none';
+        documentsSection.style.display = 'none';
+        candidateCommentsSection.style.display = 'none';
+
+        // Mostrar el panel de gestión
+        eseVisitManagementPanel.style.display = 'block';
+
+        // Poblar los campos con los datos del proceso
+        const candidateSnap = await getDoc(doc(db, "candidates", processData.candidatoId));
+        document.getElementById('ese-process-context').innerHTML = `<p><strong>Candidato:</strong> ${candidateSnap.data().nombreCompleto}</p>`;
+        
+        const visitStatusData = processData.visitStatus || {};
+        document.getElementById('ese-visit-status').value = visitStatusData.status || 'Asignada';
+        document.getElementById('ese-visit-datetime').value = visitStatusData.scheduledDateTime || '';
+      }
+
+
       
       // --- RENDERIZA LA SECCIÓN DE PSICOMÉTRICOS ---
       function renderPsicometricos(candidateId, candidateData) {
         psicometricosContent.innerHTML = '';
-        const asignarPruebas = functions.httpsCallable('asignarPruebasPsicometricas');
-        const reenviarInvitacion = functions.httpsCallable('reenviarInvitacion');
+        const asignarPruebas = httpsCallable(functions, 'asignarPruebasPsicometricas');
+        const reenviarInvitacion = httpsCallable(functions, 'reenviarInvitacion');
 
         if (!candidateData.psicometricos) {
             const button = document.createElement('button');
             button.textContent = 'Asignar Pruebas'; button.className = 'btn-asignar';
-            button.onclick = async () => {
-                responseContainer.textContent = `Asignando a ${candidateData.nombreCompleto}...`;
+            button.onclick = () => {
+              selectTestsModal.style.display = 'block';
+              // MODO ENSEÑANZA: CORRECCIÓN DEFINITIVA.
+              // La lógica para el botón de confirmación debe vivir aquí, donde tiene acceso
+              // al 'candidateId'. Para evitar añadir múltiples listeners, clonamos el botón
+              // para eliminar los antiguos antes de añadir el nuevo.
+              const oldBtn = document.getElementById('confirm-assign-btn');
+              const newBtn = oldBtn.cloneNode(true);
+              oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+              newBtn.onclick = async () => {
+                const selectedTests = Array.from(document.querySelectorAll('input[name="psychometric-test"]:checked')).map(cb => cb.value);
+                const errorDiv = document.getElementById('tests-form-error');
+                if (selectedTests.length === 0) {
+                  errorDiv.textContent = 'Debes seleccionar al menos una prueba.';
+                  return;
+                }
+                errorDiv.textContent = '';
+                responseContainer.textContent = `Asignando pruebas a ${candidateData.nombreCompleto}...`;
+                selectTestsModal.style.display = 'none';
+
                 try {
-                    const result = await asignarPruebas({ candidatoId: candidateId, tests: "1,7" });
-                    responseContainer.textContent = JSON.stringify(result.data, null, 2);
-                } catch(error) { responseContainer.textContent = `Error: ${error.message}`; }
+                  const result = await asignarPruebas({
+                    candidatoId: candidateId,
+                    tests: selectedTests.join(',')
+                  });
+                  responseContainer.textContent = JSON.stringify(result.data, null, 2);
+                } catch (error) {
+                  responseContainer.textContent = `Error: ${error.message}`;
+                }
+              };
             };
+            // Limpiar checkboxes y errores previos al abrir el modal
+            document.querySelectorAll('input[name="psychometric-test"]:checked').forEach(cb => cb.checked = false);
+            document.getElementById('tests-form-error').textContent = '';
+
             psicometricosContent.appendChild(button);
+
         } else {
+            if (candidateData.psicometricos.estatus === 'Finalizado') {
+                // Botón para ver JSON
+                const jsonButton = document.createElement('button');
+                jsonButton.textContent = 'Ver Resultados Detallados';
+                jsonButton.onclick = () => {
+                    jsonResultsContent.innerHTML = formatJsonAsTable(candidateData.psicometricos.resultadosJson);
+                    jsonResultsModal.style.display = 'block';
+                };
+                psicometricosContent.appendChild(jsonButton);
+
+                // Botón para descargar PDF
+                if (candidateData.psicometricos.resultadoPdfPath) {
+                    const pdfLink = document.createElement('a');
+                    pdfLink.textContent = 'Descargar Reporte (PDF)';
+                    pdfLink.className = 'btn-download-pdf'; // Para estilizarlo como botón si queremos
+                    pdfLink.target = '_blank';
+                    pdfLink.href = '#'; // Placeholder
+                    pdfLink.style.marginLeft = '10px';
+                    (async () => { const url = await getDownloadURL(storageRef(storage, candidateData.psicometricos.resultadoPdfPath)); pdfLink.href = url; })();
+                    psicometricosContent.appendChild(pdfLink);
+                }
+            }
             const statusDiv = document.createElement('div');
             statusDiv.innerHTML = `<p><strong>Estatus:</strong> ${candidateData.psicometricos.estatus}</p>`;
             psicometricosContent.appendChild(statusDiv);
@@ -188,21 +1393,257 @@
         }
       }
 
+      function formatJsonAsTable(jsonData) {
+          if (!jsonData || typeof jsonData !== 'object') return '<p>No hay resultados detallados disponibles.</p>';
+          
+          let table = '<table class="results-table">';
+          table += '<thead><tr><th>Prueba</th><th>Resultado</th></tr></thead>';
+          table += '<tbody>';
+
+          for (const key in jsonData) {
+              if (jsonData.hasOwnProperty(key)) {
+                  table += `<tr><td>${key}</td><td>${jsonData[key]}</td></tr>`;
+              }
+          }
+
+          table += '</tbody></table>';
+          return table;
+      }
+
       // --- LÓGICA PARA GUARDAR HISTORIAL LABORAL ---
       document.getElementById('save-job-btn').addEventListener('click', async () => {
         if (!activeCandidateId) return alert("Selecciona un candidato.");
+        // MODO ENSEÑANZA: Corregimos la construcción del objeto 'newJob'.
+        // Ahora se crea un único objeto válido que incluye todos los campos del formulario,
+        // solucionando el error de sintaxis que impedía el guardado correcto.
         const newJob = {
-          empresa: document.getElementById('wh-empresa').value, puestoOcupado: document.getElementById('wh-puestoOcupado').value,
-          tiempoTrabajado: document.getElementById('wh-tiempoTrabajado').value, contactoReferencia: document.getElementById('wh-contactoReferencia').value,
-          telefonoReferencia: document.getElementById('wh-telefonoReferencia').value, correoReferencia: document.getElementById('wh-correoReferencia').value,
-          resultadoVerificacion: document.getElementById('wh-resultadoVerificacion').value, observaciones: document.getElementById('wh-observaciones').value,
-          createdAt: new Date()
+          empresa: document.getElementById('wh-empresa').value,
+          puesto: document.getElementById('wh-puesto').value,
+          fechaInicio: document.getElementById('wh-fechaInicio').value,
+          fechaFin: document.getElementById('wh-fechaFin').value,
+          tiempoTrabajado: document.getElementById('wh-tiempoTrabajado').value,
+          observaciones: document.getElementById('wh-observaciones').value,
+          contactoReferencia: document.getElementById('wh-contactoReferencia').value,
+          telefonoReferencia: document.getElementById('wh-telefonoReferencia').value,
+          correoReferencia: document.getElementById('wh-correoReferencia').value,
+          resultadoVerificacion: document.getElementById('wh-resultadoVerificacion').value,
+          createdAt: serverTimestamp() // Usamos serverTimestamp para consistencia
         };
         try {
-          await db.collection("candidates").doc(activeCandidateId).collection("workHistory").add(newJob);
-          addWorkHistoryForm.querySelectorAll('input').forEach(input => input.value = '');
+          await addDoc(collection(db, "candidates", activeCandidateId, "workHistory"), newJob);
+          addWorkHistoryForm.querySelectorAll('input, textarea').forEach(input => input.value = '');
         } catch (error) { console.error("Error al guardar historial:", error); alert("Error al guardar."); }
       });
+
+      // --- LÓGICA PARA SUBIR DOCUMENTOS ---
+      document.getElementById('upload-doc-btn').addEventListener('click', async () => {
+        if (!activeCandidateId) return alert("Por favor, selecciona un candidato primero.");
+        
+        const fileInput = document.getElementById('doc-file-input');
+        const file = fileInput.files[0];
+        if (!file) return alert("Por favor, selecciona un archivo para subir.");
+
+        const filePath = `candidates/${activeCandidateId}/documents/${file.name}`;
+        const fileRef = storageRef(storage, filePath);
+
+        try {
+          responseContainer.textContent = `Subiendo ${file.name}...`;
+          const uploadTask = await uploadBytes(fileRef, file);
+          const downloadURL = await getDownloadURL(fileRef);
+
+          await addDoc(collection(db, "candidates", activeCandidateId, "documents"), {
+            fileName: file.name,
+            storagePath: filePath,
+            downloadURL: downloadURL,
+            uploadedAt: serverTimestamp()
+          });
+          responseContainer.textContent = `Archivo ${file.name} subido con éxito.`;
+          fileInput.value = ''; // Limpiar el input
+        } catch (error) { console.error("Error al subir archivo:", error); responseContainer.textContent = "Error al subir el archivo."; }
+      });
+
+      // --- LÓGICA DEL PANEL DE ADMINISTRACIÓN DE USUARIOS ---
+      async function loadAdminUsersPanel() {
+        // Forzar token fresco antes de invocar funciones protegidas
+        try { await auth.currentUser?.getIdToken(true); } catch (e) {}
+        const listUsersFunction = httpsCallable(functions, 'listUsers');
+        const manageUserRoleFunction = httpsCallable(functions, 'manageUserRole');
+        const errorDiv = document.getElementById('admin-users-error');
+        adminUsersListDiv.innerHTML = '<p>Cargando usuarios...</p>';
+        errorDiv.textContent = '';
+
+        try {
+          const result = await listUsersFunction();
+          if (result.data.success) {
+            adminUsersListDiv.innerHTML = '';
+            result.data.users.forEach(user => {
+              const userDiv = document.createElement('div');
+              userDiv.style.borderBottom = '1px solid #eee';
+              userDiv.style.padding = '10px 0';
+              userDiv.innerHTML = `
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>UID:</strong> ${user.uid}</p>
+                <p><strong>Rol Actual:</strong> ${user.role || 'Ninguno'}</p>
+                <label for="role-select-${user.uid}">Asignar Rol:</label>
+                <select id="role-select-${user.uid}" data-uid="${user.uid}">
+                  <option value="none" ${user.role === 'none' ? 'selected' : ''}>Ninguno</option>
+                  <option value="client" ${user.role === 'client' ? 'selected' : ''}>Cliente</option>
+                  <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                  <option value="superAdmin" ${user.role === 'superAdmin' ? 'selected' : ''}>Super Administrador</option>
+                </select>
+                <div id="client-id-div-${user.uid}" style="display: ${user.role === 'client' ? 'block' : 'none'}; margin-top: 5px;">
+                  <label for="client-id-input-${user.uid}">ID de Cliente:</label>
+                  <input type="text" id="client-id-input-${user.uid}" value="${user.clientId || ''}" placeholder="ID del Cliente">
+                </div>
+                <button class="btn-save-role" data-uid="${user.uid}" style="margin-top: 10px;">Guardar Rol</button>
+                <div id="role-status-${user.uid}" style="margin-top: 5px; font-size: 12px;"></div>
+              `;
+              adminUsersListDiv.appendChild(userDiv);
+
+              // Lógica para mostrar/ocultar el campo clientId
+              const roleSelect = userDiv.querySelector(`#role-select-${user.uid}`);
+              const clientIdDiv = userDiv.querySelector(`#client-id-div-${user.uid}`);
+              roleSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'client') {
+                  clientIdDiv.style.display = 'block';
+                } else {
+                  clientIdDiv.style.display = 'none';
+                }
+              });
+
+              // Lógica para guardar el rol
+              userDiv.querySelector('.btn-save-role').addEventListener('click', async (e) => {
+                const targetUid = e.target.dataset.uid;
+                const selectedRole = userDiv.querySelector(`#role-select-${targetUid}`).value;
+                const clientIdInput = userDiv.querySelector(`#client-id-input-${targetUid}`);
+                const statusDiv = userDiv.querySelector(`#role-status-${targetUid}`);
+                statusDiv.textContent = 'Guardando...';
+                statusDiv.style.color = 'orange';
+
+                let payload = { uid: targetUid, role: selectedRole };
+                if (selectedRole === 'client') {
+                  if (!clientIdInput.value.trim()) {
+                    statusDiv.textContent = 'Error: El ID de Cliente es obligatorio para el rol "Cliente".';
+                    statusDiv.style.color = 'red';
+                    return;
+                  }
+                  payload.clientId = clientIdInput.value.trim();
+                }
+
+                try {
+                  const manageResult = await manageUserRoleFunction(payload);
+                  if (manageResult.data.success) {
+                    statusDiv.textContent = 'Rol actualizado con éxito. El usuario deberá volver a iniciar sesión para que los cambios surtan efecto.';
+                    statusDiv.style.color = 'green';
+                    // Recargar el panel para reflejar los cambios
+                    loadAdminUsersPanel(); 
+                  } else {
+                    statusDiv.textContent = `Error: ${manageResult.data.message}`;
+                    statusDiv.style.color = 'red';
+                  }
+                } catch (err) { statusDiv.textContent = `Error: ${err.message}`; statusDiv.style.color = 'red'; }
+              });
+            });
+          } else { errorDiv.textContent = `Error al cargar usuarios: ${result.data.message}`; }
+        } catch (error) {
+          console.error("Error al cargar usuarios (callable):", error);
+          const msg = String(error && error.message || '').toLowerCase();
+          if (msg.includes('unauthenticated') || msg.includes('autenticada')) {
+            try {
+              const token = await auth.currentUser.getIdToken(true);
+              let appCheckToken = null;
+              try { appCheckToken = await getAppCheckToken(appCheck); } catch(e) { /* opcional */ }
+              let resp = await fetch('/listUsersHttp', {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  ...(appCheckToken && appCheckToken.token ? { 'X-Firebase-AppCheck': appCheckToken.token } : {})
+                }
+              });
+              // Si el rewrite de Hosting no está desplegado, intenta directamente la URL de Cloud Functions
+              if (resp.status === 404) {
+                resp = await fetch('https://us-central1-integra-rh.cloudfunctions.net/listUsersHttp', {
+                  method: 'GET',
+                  cache: 'no-store',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    ...(appCheckToken && appCheckToken.token ? { 'X-Firebase-AppCheck': appCheckToken.token } : {})
+                  }
+                });
+              }
+              const data = await resp.json();
+              if (data && data.success) {
+                adminUsersListDiv.innerHTML = '';
+                data.users.forEach(user => {
+                  const userDiv = document.createElement('div');
+                  userDiv.style.borderBottom = '1px solid #eee';
+                  userDiv.style.padding = '10px 0';
+                  userDiv.innerHTML = `
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>UID:</strong> ${user.uid}</p>
+                    <p><strong>Rol Actual:</strong> ${user.role || 'Ninguno'}</p>
+                    <label for=\"role-select-${user.uid}\">Asignar Rol:</label>
+                    <select id=\"role-select-${user.uid}\" data-uid=\"${user.uid}\">
+                      <option value=\"none\" ${user.role === 'none' ? 'selected' : ''}>Ninguno</option>
+                      <option value=\"client\" ${user.role === 'client' ? 'selected' : ''}>Cliente</option>
+                      <option value=\"admin\" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                      <option value=\"superAdmin\" ${user.role === 'superAdmin' ? 'selected' : ''}>Super Administrador</option>
+                    </select>
+                    <div id=\"client-id-div-${user.uid}\" style=\"display: ${user.role === 'client' ? 'block' : 'none'}; margin-top: 5px;\">
+                      <label for=\"client-id-input-${user.uid}\">ID de Cliente:</label>
+                      <input type=\"text\" id=\"client-id-input-${user.uid}\" value=\"${user.clientId || ''}\" placeholder=\"ID del Cliente\">
+                    </div>
+                    <button class=\"btn-save-role\" data-uid=\"${user.uid}\" style=\"margin-top: 10px;\">Guardar Rol</button>
+                    <div id=\"role-status-${user.uid}\" style=\"margin-top: 5px; font-size: 12px;\"></div>
+                  `;
+                  adminUsersListDiv.appendChild(userDiv);
+                  const roleSelect = userDiv.querySelector(`#role-select-${user.uid}`);
+                  const clientIdDiv = userDiv.querySelector(`#client-id-div-${user.uid}`);
+                  roleSelect.addEventListener('change', (e) => { clientIdDiv.style.display = e.target.value === 'client' ? 'block' : 'none'; });
+                  userDiv.querySelector('.btn-save-role').addEventListener('click', async (e) => {
+                    const targetUid = e.target.dataset.uid;
+                    const selectedRole = userDiv.querySelector(`#role-select-${targetUid}`).value;
+                    const clientIdInput = userDiv.querySelector(`#client-id-input-${targetUid}`);
+                    const statusDiv = userDiv.querySelector(`#role-status-${targetUid}`);
+                    statusDiv.textContent = 'Guardando...';
+                    statusDiv.style.color = 'orange';
+                    let payload = { uid: targetUid, role: selectedRole };
+                    if (selectedRole === 'client') {
+                      if (!clientIdInput.value.trim()) {
+                        statusDiv.textContent = 'Error: El ID de Cliente es obligatorio para el rol "Cliente".';
+                        statusDiv.style.color = 'red';
+                        return;
+                      }
+                      payload.clientId = clientIdInput.value.trim();
+                    }
+                    try {
+                      const manageResult = await manageUserRoleFunction(payload);
+                      if (manageResult.data.success) {
+                        statusDiv.textContent = 'Rol actualizado con éxito. El usuario deberá volver a iniciar sesión para que los cambios surtan efecto.';
+                        statusDiv.style.color = 'green';
+                        loadAdminUsersPanel();
+                      } else {
+                        statusDiv.textContent = `Error: ${manageResult.data.message}`;
+                        statusDiv.style.color = 'red';
+                      }
+                    } catch (e2) {
+                      statusDiv.textContent = `Error: ${e2.message}`;
+                      statusDiv.style.color = 'red';
+                    }
+                  });
+                });
+                return;
+              }
+              errorDiv.textContent = `Error (HTTP): ${data && data.message ? data.message : 'No se pudo cargar usuarios.'}`;
+            } catch (e1) {
+              errorDiv.textContent = `Error al cargar usuarios: ${e1.message}`;
+            }
+          } else {
+            errorDiv.textContent = `Error al cargar usuarios: ${error.message}`;
+          }
+        }
+      }
     });
   </script>
 </body>

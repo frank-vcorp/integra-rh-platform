@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE clients SET name = 'Empresa Demo S.A. de C.V.', contactName = 'Juan Pérez', contactEmail = 'juan.perez@empresademo.com', contactPhone = '5512345678', rfc = 'EDE010101ABC', address = 'Av. Reforma 123, CDMX' WHERE id = 30001",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FVqBYiARtTxQtX.8cb31900c238 --database cbFb3ENFa9ByLeuqrnCodm --execute UPDATE clients SET name = 'Empresa Demo S.A. de C.V.', contactName = 'Juan Pérez', contactEmail = 'juan.perez@empresademo.com', contactPhone = '5512345678', rfc = 'EDE010101ABC', address = 'Av. Reforma 123, CDMX' WHERE id = 30001",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'name' in 'field list'"
+  ]
+}

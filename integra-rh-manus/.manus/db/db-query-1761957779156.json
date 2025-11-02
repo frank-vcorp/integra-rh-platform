@@ -1,0 +1,50 @@
+{
+  "query": "SELECT * FROM clientAccessTokens ORDER BY createdAt DESC LIMIT 5",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FVqBYiARtTxQtX.8cb31900c238 --database cbFb3ENFa9ByLeuqrnCodm --execute SELECT * FROM clientAccessTokens ORDER BY createdAt DESC LIMIT 5",
+  "rows": [
+    {
+      "id": "30005",
+      "token": "9c3c7e99b4e94b9077ee77021ad3a2878d0acee82159a7324577161b5c16b761",
+      "clientId": "30001",
+      "expiresAt": "2025-12-01 01:42:04",
+      "lastUsedAt": "2025-11-01 00:42:42",
+      "createdAt": "2025-11-01 00:42:03"
+    },
+    {
+      "id": "30004",
+      "token": "4402f4ae2dfc21b2e7970f7e732cc214a51f46063a1131965df9e68749a96d91",
+      "clientId": "30001",
+      "expiresAt": "2025-12-01 01:40:59",
+      "lastUsedAt": "2025-11-01 00:42:42",
+      "createdAt": "2025-11-01 00:40:58"
+    },
+    {
+      "id": "30003",
+      "token": "0bf1a16ca65a79976390b9c9991537d8e096ab76dcffacaa45e0155470bc1946",
+      "clientId": "30001",
+      "expiresAt": "2025-12-01 01:40:52",
+      "lastUsedAt": "NULL",
+      "createdAt": "2025-11-01 00:40:52"
+    },
+    {
+      "id": "30002",
+      "token": "b5781e1a6154de26d864c9172ffac8444b112ec53a2ce37a352248144cd30b3d",
+      "clientId": "30001",
+      "expiresAt": "2025-12-01 01:39:51",
+      "lastUsedAt": "NULL",
+      "createdAt": "2025-11-01 00:39:51"
+    },
+    {
+      "id": "30001",
+      "token": "6fc562b1b40979be74d35e1b6dee4c007e9fb878e1b42c6b665344f35551250c",
+      "clientId": "30001",
+      "expiresAt": "2025-12-01 01:33:03",
+      "lastUsedAt": "NULL",
+      "createdAt": "2025-11-01 00:33:03"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttoken\tclientId\texpiresAt\tlastUsedAt\tcreatedAt\n30005\t9c3c7e99b4e94b9077ee77021ad3a2878d0acee82159a7324577161b5c16b761\t30001\t2025-12-01 01:42:04\t2025-11-01 00:42:42\t2025-11-01 00:42:03\n30004\t4402f4ae2dfc21b2e7970f7e732cc214a51f46063a1131965df9e68749a96d91\t30001\t2025-12-01 01:40:59\t2025-11-01 00:42:42\t2025-11-01 00:40:58\n30003\t0bf1a16ca65a79976390b9c9991537d8e096ab76dcffacaa45e0155470bc1946\t30001\t2025-12-01 01:40:52\tNULL\t2025-11-01 00:40:52\n30002\tb5781e1a6154de26d864c9172ffac8444b112ec53a2ce37a352248144cd30b3d\t30001\t2025-12-01 01:39:51\tNULL\t2025-11-01 00:39:51\n30001\t6fc562b1b40979be74d35e1b6dee4c007e9fb878e1b42c6b665344f35551250c\t30001\t2025-12-01 01:33:03\tNULL\t2025-11-01 00:33:03\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

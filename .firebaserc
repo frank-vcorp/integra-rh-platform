@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "integra-rh"
+  },
+  "targets": {
+    "integra-rh": {
+      "hosting": {
+        "integra-rh": [
+          "integra-rh"
+        ]
+      }
+    }
   }
 }

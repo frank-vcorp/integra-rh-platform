@@ -1,0 +1,16 @@
+﻿name: Validate Checkpoints
+on:
+  pull_request:
+    paths:
+      - 'Checkpoints/**.md'
+      - 'meta/plantilla_control.md'
+      - 'scripts/validate-checkpoints.ps1'
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate checkpoint IDs
+        shell: pwsh
+        run: |
+          ./scripts/validate-checkpoints.ps1

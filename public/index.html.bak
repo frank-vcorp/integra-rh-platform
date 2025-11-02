@@ -1,0 +1,1086 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard - INTEGRA RH</title>
+  <style>
+    body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background-color: #f4f6f8; }
+    .container { max-width: 1400px; margin: auto; width: 100%;}
+    #login-container { max-width: 400px; margin: 100px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    #dashboard-container { display: none; }
+    #dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 20px;}
+    #dashboard-panels { display: flex; gap: 20px; }
+    .panel { flex: 1; background: white; border: 1px solid #ccc; padding: 0 20px 20px 20px; border-radius: 8px; }
+    #details-panel { flex: 2; }
+    ul { list-style-type: none; padding: 0; }
+    li { padding: 10px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #eee; cursor: pointer; }
+    li:hover { background-color: #f0f0f0; } li > span:first-child { flex-grow: 1; }
+    .edit-icon { cursor: pointer; font-size: 18px; margin-left: 10px; }
+    li.selected { background-color: #007bff; color: white; }
+    .detail-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
+    .detail-section h4 { margin: 0 0 10px 0; }
+    .detail-section-content div { border-bottom: 1px solid #f5f5f5; padding: 8px 0; font-size: 14px; }
+    #add-work-history-form input { width: 100%; padding: 8px; margin-bottom: 5px; box-sizing: border-box; }
+    button { border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; color: white; }
+    .btn-login { background-color: #007bff; width: 100%;}
+    .btn-save { background-color: #28a745; width: 100%; margin-top: 10px;}
+    .btn-asignar { background-color: #007bff; }
+    .btn-reenviar { background-color: #ffc107; color: black; }
+    #logoutBtn { width: auto; background-color: #dc3545; }
+    pre { background-color: #eee; padding: 10px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px; margin-top: 10px; max-height: 150px; overflow-y: auto;}
+    /* Estilos para Tooltip */
+    .tooltip-container { position: relative; display: inline-block; border-bottom: 1px dotted black; cursor: help; }
+    .tooltip-container .tooltip-text {
+      visibility: hidden; width: 250px; background-color: #555; color: #fff;
+      text-align: center; border-radius: 6px; padding: 8px;
+      position: absolute; z-index: 1; bottom: 125%; left: 50%;
+      margin-left: -125px; opacity: 0; transition: opacity 0.3s;
+      font-size: 12px; font-weight: normal;
+    }
+    .tooltip-container:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    /* Estilos para el Modal */
+    .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+    .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
+    .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+    .modal-content label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #333; }
+    .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+    .close-btn:hover, .close-btn:focus { color: black; text-decoration: none; cursor: pointer; }
+    .results-table { width: 100%; border-collapse: collapse; margin-top: 15px; } .results-table th, .results-table td { border: 1px solid #ddd; padding: 8px; text-align: left; } .results-table th { background-color: #f2f2f2; }
+    .error-msg { color: red; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="login-container"><h2>Iniciar Sesión</h2><div id="login-error" class="error-msg"></div><input type="email" id="email" placeholder="Correo electrónico"><input type="password" id="password" placeholder="Contraseña"><button id="loginBtn" class="btn-login">Ingresar</button></div>
+    <div id="dashboard-container">
+      <div id="dashboard-header"><h1>Dashboard INTEGRA RH</h1><div><span id="user-email"></span> <button id="logoutBtn">Cerrar Sesión</button></div></div>
+      <div id="dashboard-panels">
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Clientes</h2>
+            <button id="show-add-client-form-btn" style="background-color: #17a2b8;">+</button>
+          </div><ul id="clients-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Candidatos</h2>
+            <button id="show-add-candidate-form-btn" style="background-color: #17a2b8;">+</button>
+          </div>
+          <ul id="candidates-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Puestos</h2>
+            <button id="show-add-post-form-btn" style="background-color: #17a2b8;">+</button>
+          </div><ul id="posts-list"></ul></div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Procesos</h2>
+            <button id="show-add-process-form-btn" style="background-color: #28a745;">+</button>
+          </div><ul id="processes-list"></ul></div>
+        <div class="panel" id="details-panel">
+          <!-- Nuevo Panel de Administración de Usuarios (Solo visible para SuperAdmin) -->
+          <div id="admin-users-panel" class="panel" style="display: none;">
+            <h2>Administración de Usuarios</h2>
+            <div id="admin-users-list"></div>
+            <div id="admin-users-error" class="error-msg"></div>
+          </div>
+
+          <h2 id="details-panel-title">Detalles</h2>
+          <div id="details-panel-content"><p><em>Selecciona un elemento de las listas para ver sus detalles.</em></p></div>
+          
+          <div id="psicometricos-section" class="detail-section" style="display: none;">
+            <h4>Psicométricos</h4>
+            <div id="psicometricos-content"></div>
+            <h5>Respuesta de la API:</h5>
+            <pre id="response-container"></pre>
+          </div>
+
+          <div id="process-list" class="detail-section"><h4>Procesos</h4><div id="process-items"></div></div>
+          <div id="work-history-section" class="detail-section">
+            <h4>Historial Laboral</h4><div id="work-history-list"></div>
+            <div id="add-work-history-form" style="display: none;">
+              <h4>Añadir Empleo</h4>
+              <input type="text" id="wh-empresa" placeholder="Empresa"><input type="text" id="wh-puestoOcupado" placeholder="Puesto"><input type="text" id="wh-tiempoTrabajado" placeholder="Tiempo"><input type="text" id="wh-contactoReferencia" placeholder="Contacto Ref."><input type="text" id="wh-telefonoReferencia" placeholder="Teléfono Ref."><input type="text" id="wh-correoReferencia" placeholder="Correo Ref."><input type="text" id="wh-resultadoVerificacion" placeholder="Verificación"><input type="text" id="wh-observaciones" placeholder="Observaciones">
+              <button id="save-job-btn" class="btn-save">Guardar Historial</button>
+            </div>
+          </div>
+
+          <div id="documents-section" class="detail-section" style="display: none;">
+            <h4>Documentos</h4>
+            <div id="documents-list"></div>
+            <input type="file" id="doc-file-input" style="margin-top: 10px;">
+            <button id="upload-doc-btn" style="background-color: #fd7e14;">Subir Documento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Candidato -->
+  <div id="add-candidate-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-candidate-modal-btn" class="close-btn">&times;</span>
+      <h2>Añadir Nuevo Candidato</h2>
+      <div id="candidate-form-error" class="error-msg"></div>
+      <label for="candidate-nombreCompleto">Nombre Completo *</label>
+      <input type="text" id="candidate-nombreCompleto" placeholder="Nombre Completo del Candidato *">
+      <label for="candidate-email">Correo Electrónico *</label>
+      <input type="email" id="candidate-email" placeholder="Correo Electrónico *">
+      <label for="candidate-telefono">Teléfono</label>
+      <input type="text" id="candidate-telefono" placeholder="Teléfono">
+      <label for="candidate-ciudad">Ciudad de Residencia</label>
+      <input type="text" id="candidate-ciudad" placeholder="Ciudad de Residencia">
+      <label for="candidate-clienteId">Cliente Asociado</label>
+      <select id="candidate-clienteId">
+        <option value="">-- Seleccionar Cliente Asociado --</option>
+      </select>
+      <label for="candidate-puestoId">Puesto al que Aplica</label>
+      <select id="candidate-puestoId"><option value="">-- Seleccione un cliente primero --</option></select>
+      <label for="candidate-medioDeRecepcion">Medio de Recepción</label>
+      <select id="candidate-medioDeRecepcion">
+        <option value="">-- Medio de Recepción --</option>
+        <option value="Bolsa de Trabajo">Bolsa de Trabajo</option>
+        <option value="Recomendación">Recomendación</option>
+        <option value="Redes Sociales">Redes Sociales</option>
+      </select>
+      <button id="save-candidate-btn" class="btn-save">Guardar Candidato</button>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Cliente -->
+  <div id="add-client-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-client-modal-btn" class="close-btn">&times;</span>
+      <h2>Añadir Nuevo Cliente</h2>
+      <div id="client-form-error" class="error-msg"></div>
+      <label for="client-nombreEmpresa">Nombre de la Empresa *</label>
+      <input type="text" id="client-nombreEmpresa" placeholder="Nombre de la Empresa *">
+      <label for="client-reclutador">Nombre del Reclutador</label>
+      <input type="text" id="client-reclutador" placeholder="Nombre del Reclutador">
+      <label for="client-ubicacionPlaza">Plaza / Ubicación</label>
+      <input type="text" id="client-ubicacionPlaza" placeholder="Plaza / Ubicación">
+      <button id="save-client-btn" class="btn-save">Guardar Cliente</button>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Puesto -->
+  <div id="add-post-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-post-modal-btn" class="close-btn">&times;</span>
+      <h2>Añadir Nuevo Puesto</h2>
+      <div id="post-form-error" class="error-msg"></div>
+      <label for="post-nombreDelPuesto">Nombre del Puesto *</label>
+      <input type="text" id="post-nombreDelPuesto" placeholder="Nombre del Puesto *">
+      <label for="post-clienteId">Cliente Asociado</label>
+      <select id="post-clienteId">
+        <option value="">-- Seleccionar Cliente --</option>
+      </select>
+      <button id="save-post-btn" class="btn-save">Guardar Puesto</button>
+    </div>
+  </div>
+
+  <!-- Modal para Añadir Proceso -->
+  <div id="add-process-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-process-modal-btn" class="close-btn">&times;</span>
+      <h2>Crear Nuevo Proceso</h2>
+      <div id="process-form-error" class="error-msg"></div>
+      <label for="process-clienteId">1. Seleccionar Cliente</label>
+      <select id="process-clienteId">
+        <option value="">-- 1. Seleccionar Cliente --</option>
+      </select>
+      <label for="process-puestoId">2. Seleccionar Puesto</label>
+      <select id="process-puestoId">
+        <option value="">-- 2. Seleccionar Puesto --</option>
+      </select>
+      <label for="process-candidatoId">3. Seleccionar Candidato</label>
+      <select id="process-candidatoId">
+        <option value="">-- 3. Seleccionar Candidato --</option>
+      </select>
+      <label for="process-tipoProducto">4. Seleccionar Tipo de Producto</label>
+      <select id="process-tipoProducto">
+        <option value="">-- 4. Seleccionar Tipo de Producto --</option>
+        <option value="ILA">ILA (Investigación Laboral)</option><option value="ESE">ESE (Estudio Socioeconómico)</option><option value="Psicometría">Psicometría</option>
+      </select>
+      <button id="save-process-btn" class="btn-save">Guardar Proceso</button>
+    </div>
+  </div>
+
+  <!-- Modal para ver Resultados JSON -->
+  <div id="json-results-modal" class="modal">
+    <div class="modal-content">
+      <span id="close-json-modal-btn" class="close-btn">&times;</span>
+      <h2>Resultados Detallados</h2>
+      <div id="json-results-content"></div>
+    </div>
+  </div>
+
+  <!-- Firebase config (define window.firebaseConfig) -->
+  <script src="/__/firebase/init.js"></script>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-functions.js';
+    import { initializeAppCheck, ReCaptchaV3Provider, getToken as getAppCheckToken } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app-check.js';
+    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // --- INICIALIZACIÓN: v9 modular (Auth, Functions, Firestore, Storage, App Check) ---
+      const cfg = (typeof window !== 'undefined' && window.firebaseConfig) ? window.firebaseConfig : null;
+      if (!cfg) {
+        console.error('firebaseConfig no disponible. Asegura cargar /__/firebase/init.js antes de este script.');
+        return;
+      }
+      const app = initializeApp(cfg);
+      const auth = getAuth(app);
+      const functions = getFunctions(app, 'us-central1');
+      const db = getFirestore(app);
+      const storage = getStorage(app);
+      const appCheck = initializeAppCheck(app, { provider: new ReCaptchaV3Provider('6LfH0_IrAAAAANInROe7eksR81uUJYbVW1NmVsyv'), isTokenAutoRefreshEnabled: true });
+      
+      const loginContainer = document.getElementById('login-container');
+      const dashboardContainer = document.getElementById('dashboard-container');
+      const userEmailSpan = document.getElementById('user-email');
+      const clientsList = document.getElementById('clients-list');
+      const candidatesList = document.getElementById('candidates-list');
+      const postsList = document.getElementById('posts-list');
+      const processesList = document.getElementById('processes-list');
+      const candidateDetailsDiv = document.getElementById('candidate-details');
+      const detailsPanelContent = document.getElementById('details-panel-content');
+      const psicometricosSection = document.getElementById('psicometricos-section');
+      const psicometricosContent = document.getElementById('psicometricos-content');
+      const responseContainer = document.getElementById('response-container');
+      const processItemsDiv = document.getElementById('process-items');
+      const clientModalTitle = document.querySelector('#add-client-modal h2');
+      const candidateModalTitle = document.querySelector('#add-candidate-modal h2');
+      const postModalTitle = document.querySelector('#add-post-modal h2');
+      const processModalTitle = document.querySelector('#add-process-modal h2');
+      const workHistoryListDiv = document.getElementById('work-history-list');
+      const addWorkHistoryForm = document.getElementById('add-work-history-form');
+      const documentsSection = document.getElementById('documents-section');
+      const documentsListDiv = document.getElementById('documents-list');
+      let activeCandidateId = null;
+      
+      // --- Elementos del Panel de Administración de Usuarios ---
+      const adminUsersPanel = document.getElementById('admin-users-panel');
+      const adminUsersListDiv = document.getElementById('admin-users-list');
+
+      // --- LÓGICA DEL MODAL DE CANDIDATOS ---
+      const addCandidateModal = document.getElementById('add-candidate-modal');
+      const showAddCandidateBtn = document.getElementById('show-add-candidate-form-btn');
+      const closeCandidateModalBtn = document.getElementById('close-candidate-modal-btn');
+      const saveCandidateBtn = document.getElementById('save-candidate-btn');
+      const candidateClienteSelect = document.getElementById('candidate-clienteId'); // Este es el select de clientes en el form de candidatos
+      const candidatePuestoSelect = document.getElementById('candidate-puestoId');
+      let editingCandidateId = null;
+
+      showAddCandidateBtn.onclick = () => { 
+        // Limpiamos el formulario antes de mostrarlo
+        editingCandidateId = null;
+        candidateModalTitle.textContent = 'Añadir Nuevo Candidato';
+        addCandidateModal.querySelectorAll('input, select').forEach(el => el.value = '');
+        candidatePuestoSelect.innerHTML = '<option value="">-- Seleccione un cliente primero --</option>';
+        document.getElementById('candidate-form-error').textContent = '';
+        addCandidateModal.style.display = 'block'; 
+      };
+      closeCandidateModalBtn.onclick = () => { addCandidateModal.style.display = 'none'; };
+      window.onclick = (event) => { 
+        if (event.target == addCandidateModal) { addCandidateModal.style.display = 'none'; } 
+        if (event.target == addClientModal) { addClientModal.style.display = 'none'; }
+        if (event.target == addPostModal) { addPostModal.style.display = 'none'; }
+        if (event.target == addProcessModal) { addProcessModal.style.display = 'none'; }
+        if (event.target == jsonResultsModal) { jsonResultsModal.style.display = 'none'; }
+      };
+
+      // --- LÓGICA DEL MODAL DE CLIENTES ---
+      const addClientModal = document.getElementById('add-client-modal');
+      const showAddClientBtn = document.getElementById('show-add-client-form-btn');
+      const closeClientModalBtn = document.getElementById('close-client-modal-btn');
+      const saveClientBtn = document.getElementById('save-client-btn');
+
+
+      let editingClientId = null; // Variable de estado para saber si estamos editando
+
+      showAddClientBtn.onclick = () => {
+        editingClientId = null; // Modo creación
+        clientModalTitle.textContent = 'Añadir Nuevo Cliente';
+        addClientModal.querySelectorAll('input').forEach(el => el.value = '');
+        document.getElementById('client-form-error').textContent = '';
+        addClientModal.style.display = 'block';
+      };
+      closeClientModalBtn.onclick = () => {
+        addClientModal.style.display = 'none';
+      };
+
+      // --- LÓGICA DEL MODAL DE PUESTOS ---
+      const addPostModal = document.getElementById('add-post-modal');
+      const showAddPostBtn = document.getElementById('show-add-post-form-btn');
+      const closePostModalBtn = document.getElementById('close-post-modal-btn');
+      const savePostBtn = document.getElementById('save-post-btn');
+      const postClienteSelect = document.getElementById('post-clienteId');
+      let editingPostId = null;
+
+      showAddPostBtn.onclick = () => {
+        editingPostId = null;
+        postModalTitle.textContent = 'Añadir Nuevo Puesto';
+        addPostModal.querySelectorAll('input, select').forEach(el => el.value = '');
+        document.getElementById('post-form-error').textContent = '';
+        addPostModal.style.display = 'block';
+      };
+      closePostModalBtn.onclick = () => { addPostModal.style.display = 'none'; };
+
+      // --- LÓGICA DEL MODAL DE PROCESOS ---
+      const addProcessModal = document.getElementById('add-process-modal');
+      const showAddProcessBtn = document.getElementById('show-add-process-form-btn');
+      const closeProcessModalBtn = document.getElementById('close-process-modal-btn');
+      const saveProcessBtn = document.getElementById('save-process-btn');
+      const processClienteSelect = document.getElementById('process-clienteId');
+      const processPuestoSelect = document.getElementById('process-puestoId');
+      const processCandidatoSelect = document.getElementById('process-candidatoId');
+      let editingProcessId = null;
+
+      showAddProcessBtn.onclick = () => {
+        editingProcessId = null;
+        processModalTitle.textContent = 'Crear Nuevo Proceso';
+        addProcessModal.querySelectorAll('select').forEach(el => el.value = '');
+        processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>'; // Resetear puestos
+        document.getElementById('process-form-error').textContent = '';
+        addProcessModal.style.display = 'block';
+      };
+      closeProcessModalBtn.onclick = () => { addProcessModal.style.display = 'none'; };
+
+      // --- LÓGICA DEL MODAL DE RESULTADOS JSON ---
+      const jsonResultsModal = document.getElementById('json-results-modal');
+      const closeJsonModalBtn = document.getElementById('close-json-modal-btn');
+      const jsonResultsContent = document.getElementById('json-results-content');
+      closeJsonModalBtn.onclick = () => { jsonResultsModal.style.display = 'none'; };
+
+
+      // --- AUTENTICACIÓN ---
+      onAuthStateChanged(auth, user => {
+        if (user) {
+          loginContainer.style.display = 'none';
+          dashboardContainer.style.display = 'block';
+          userEmailSpan.textContent = user.email;
+          checkUserRoleAndLoadDashboard(user); // Modificado para verificar el rol
+        } else {
+          loginContainer.style.display = 'block';
+          dashboardContainer.style.display = 'none';
+        }
+      });
+
+      document.getElementById('loginBtn').addEventListener('click', () => { signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(err => { document.getElementById('login-error').textContent = 'Error: Credenciales incorrectas.'; }); });
+      document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+      // --- VERIFICACIÓN DE ROL Y CARGA DEL DASHBOARD ---
+      async function checkUserRoleAndLoadDashboard(user) {
+        // MODO ENSEÑANZA: Forzar la actualización del token (true) es CRÍTICO.
+        // Esto asegura que el SDK de Firebase en el cliente tenga un token de ID fresco y válido.
+        // Sin esto, las llamadas a httpsCallable pueden fallar con errores de "unauthenticated"
+        // porque el token que se adjunta automáticamente a la petición puede estar caducado.
+        const idTokenResult = await user.getIdTokenResult(true);
+        const userRole = idTokenResult.claims.role;
+
+        if (userRole === 'superAdmin') {
+          adminUsersPanel.style.display = 'block';
+          loadAdminUsersPanel(); // Cargar usuarios para el superAdmin
+        } else {
+          adminUsersPanel.style.display = 'none';
+        }
+        cargarDatosDelDashboard(); // Cargar los datos normales del dashboard para todos los roles
+      }
+
+      // --- CARGA DE LISTAS PRINCIPALES ---
+      function cargarDatosDelDashboard() {
+        db.collection("clients").onSnapshot(snap => {
+            clientsList.innerHTML = ''; 
+            const defaultOption = '<option value="">-- Seleccionar Cliente --</option>';
+            candidateClienteSelect.innerHTML = defaultOption;
+            postClienteSelect.innerHTML = defaultOption;
+            processClienteSelect.innerHTML = '<option value="">-- 1. Seleccionar Cliente --</option>';
+            snap.forEach(doc => { 
+              const client = doc.data();
+              const clientId = doc.id;
+              const optionHTML = `<option value="${doc.id}">${client.nombreEmpresa}</option>`;
+              const clientListItem = document.createElement('li'); clientListItem.style.display = 'flex';
+              clientListItem.innerHTML = `<span>${client.nombreEmpresa}</span><span class="edit-icon" data-id="${clientId}">✏️</span>`;
+              
+              clientListItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                e.stopPropagation(); // Evita que se seleccione el 'li'
+                editingClientId = clientId;
+                const clientDoc = await db.collection("clients").doc(clientId).get();
+                const clientData = clientDoc.data();
+                document.getElementById('client-nombreEmpresa').value = clientData.nombreEmpresa;
+                document.getElementById('client-reclutador').value = clientData.reclutador;
+                document.getElementById('client-ubicacionPlaza').value = clientData.ubicacionPlaza;
+                clientModalTitle.textContent = 'Editar Cliente';
+                addClientModal.style.display = 'block';
+              });
+
+              clientListItem.querySelector('span:first-child').onclick = () => {
+                document.querySelectorAll('#clients-list li, #candidates-list li').forEach(el => el.classList.remove('selected'));
+                clientListItem.classList.add('selected');
+                showClientDetails(clientId);
+              };
+
+              clientsList.appendChild(clientListItem);
+              candidateClienteSelect.innerHTML += optionHTML;
+              postClienteSelect.innerHTML += optionHTML;
+              processClienteSelect.innerHTML += optionHTML;
+            });
+        });
+        db.collection("candidates").onSnapshot(snap => {
+            candidatesList.innerHTML = '';
+            snap.forEach(doc => {
+                const candidateId = doc.id;
+                const candidateData = doc.data();
+                const listItem = document.createElement('li'); listItem.style.display = 'flex';
+                listItem.innerHTML = `<span>${candidateData.nombreCompleto}</span><span class="edit-icon" data-id="${candidateId}">✏️</span>`;
+                listItem.dataset.id = candidateId;
+
+                listItem.querySelector('span:first-child').onclick = () => { 
+                  document.querySelectorAll('#clients-list li, #candidates-list li').forEach(el => el.classList.remove('selected')); 
+                  listItem.classList.add('selected'); activeCandidateId = candidateId; showCandidateDetails(candidateId); 
+                };
+                
+                listItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  editingCandidateId = candidateId;
+                  document.getElementById('candidate-nombreCompleto').value = candidateData.nombreCompleto || '';
+                  document.getElementById('candidate-email').value = candidateData.email || '';
+                  document.getElementById('candidate-telefono').value = candidateData.telefono || '';
+                  document.getElementById('candidate-ciudad').value = candidateData.ciudad || '';
+                  document.getElementById('candidate-clienteId').value = candidateData.clienteId || '';
+                  document.getElementById('candidate-medioDeRecepcion').value = candidateData.medioDeRecepcion || '';
+                  // Disparar el evento change para cargar los puestos y luego seleccionar el correcto
+                  await candidateClienteSelect.dispatchEvent(new Event('change'));
+                  document.getElementById('candidate-puestoId').value = candidateData.puestoId || '';
+                  candidateModalTitle.textContent = 'Editar Candidato';
+                  addCandidateModal.style.display = 'block';
+                });
+
+                const optionHTML = `<option value="${doc.id}">${doc.data().nombreCompleto}</option>`;
+                processCandidatoSelect.innerHTML += optionHTML;
+                candidatesList.appendChild(listItem);
+            });
+        });
+        db.collection("posts").onSnapshot(snap => {
+            postsList.innerHTML = '';
+            snap.forEach(doc => {
+                const postData = doc.data();
+                const postId = doc.id;
+                const listItem = document.createElement('li'); listItem.style.display = 'flex';
+                listItem.innerHTML = `<span>${postData.nombreDelPuesto}</span><span class="edit-icon" data-id="${postId}">✏️</span>`;
+                
+                listItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  editingPostId = postId;
+                  document.getElementById('post-nombreDelPuesto').value = postData.nombreDelPuesto || '';
+                  document.getElementById('post-clienteId').value = postData.clienteId || '';
+                  postModalTitle.textContent = 'Editar Puesto';
+                  addPostModal.style.display = 'block';
+                });
+                postsList.appendChild(listItem);
+            });
+        });
+        db.collection("processes").onSnapshot(snap => {
+            processesList.innerHTML = '';
+            snap.forEach(doc => {
+                const processData = doc.data();
+                const processId = doc.id;
+                const listItem = document.createElement('li'); listItem.style.display = 'flex';
+                listItem.innerHTML = `<span>Proceso: ${processData.tipoProducto || 'N/A'}</span><span class="edit-icon" data-id="${processId}">✏️</span>`;
+
+                listItem.querySelector('.edit-icon').addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  editingProcessId = processId;
+                  document.getElementById('process-clienteId').value = processData.clienteId || '';
+                  // Disparar el evento change para cargar los puestos y luego seleccionar el correcto
+                  await processClienteSelect.dispatchEvent(new Event('change'));
+                  document.getElementById('process-puestoId').value = processData.puestoId || '';
+                  document.getElementById('process-candidatoId').value = processData.candidatoId || '';
+                  document.getElementById('process-tipoProducto').value = processData.tipoProducto || '';
+                  processModalTitle.textContent = 'Editar Proceso';
+                  addProcessModal.style.display = 'block';
+                });
+                processesList.appendChild(listItem);
+            });
+        });
+      }
+
+      // Lógica para el desplegable en cascada de Cliente -> Puesto
+      processClienteSelect.addEventListener('change', async (e) => {
+        const clienteId = e.target.value;
+        processPuestoSelect.innerHTML = '<option value="">-- Cargando puestos... --</option>';
+        if (!clienteId) {
+          processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>';
+          return;
+        }
+        const postsQuery = await db.collection("posts").where("clienteId", "==", clienteId).get();
+        processPuestoSelect.innerHTML = '<option value="">-- 2. Seleccionar Puesto --</option>';
+        postsQuery.forEach(doc => {
+          processPuestoSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreDelPuesto}</option>`;
+        });
+      });
+
+      // Lógica para el desplegable en cascada en el form de Candidato
+      candidateClienteSelect.addEventListener('change', async (e) => {
+        const clienteId = e.target.value;
+        candidatePuestoSelect.innerHTML = '<option value="">-- Cargando puestos... --</option>';
+        if (!clienteId) {
+          candidatePuestoSelect.innerHTML = '<option value="">-- Seleccione un cliente primero --</option>';
+          return;
+        }
+        const postsQuery = await db.collection("posts").where("clienteId", "==", clienteId).get();
+        candidatePuestoSelect.innerHTML = '<option value="">-- Seleccione un puesto --</option>';
+        postsQuery.forEach(doc => {
+          candidatePuestoSelect.innerHTML += `<option value="${doc.id}">${doc.data().nombreDelPuesto}</option>`;
+        });
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO CANDIDATO ---
+      saveCandidateBtn.addEventListener('click', async () => {
+        const nombreCompleto = document.getElementById('candidate-nombreCompleto').value.trim();
+        const email = document.getElementById('candidate-email').value.trim();
+        const errorDiv = document.getElementById('candidate-form-error');
+
+        if (!nombreCompleto || !email) {
+          errorDiv.textContent = 'El nombre y el correo son obligatorios.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        const newCandidate = {
+          nombreCompleto: nombreCompleto,
+          email: email,
+          telefono: document.getElementById('candidate-telefono').value,
+          ciudad: document.getElementById('candidate-ciudad').value,
+          clienteId: document.getElementById('candidate-clienteId').value,
+          puestoId: document.getElementById('candidate-puestoId').value,
+          medioDeRecepcion: document.getElementById('candidate-medioDeRecepcion').value,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp() // Buena práctica para usar la hora del servidor
+        };
+
+        try {
+          if (editingCandidateId) {
+            // Modo Edición
+            await db.collection("candidates").doc(editingCandidateId).update(newCandidate);
+          } else {
+            // Modo Creación
+            await db.collection("candidates").add(newCandidate);
+          }
+          addCandidateModal.style.display = 'none';
+          editingCandidateId = null;
+        } catch (error) { console.error("Error al guardar candidato:", error); errorDiv.textContent = "Error al guardar en la base de datos."; }
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO CLIENTE ---
+      saveClientBtn.addEventListener('click', async () => {
+        const nombreEmpresa = document.getElementById('client-nombreEmpresa').value.trim();
+        const errorDiv = document.getElementById('client-form-error');
+
+        if (!nombreEmpresa) {
+          errorDiv.textContent = 'El nombre de la empresa es obligatorio.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        const clientData = {
+          nombreEmpresa: nombreEmpresa,
+          reclutador: document.getElementById('client-reclutador').value,
+          ubicacionPlaza: document.getElementById('client-ubicacionPlaza').value,
+        };
+
+        try {
+          if (editingClientId) {
+            await db.collection("clients").doc(editingClientId).update(clientData);
+          } else {
+            clientData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection("clients").add(clientData);
+          }
+          addClientModal.style.display = 'none';
+          editingClientId = null; // Reseteamos el estado
+        } catch (error) { 
+          console.error("Error al guardar cliente:", error); 
+          errorDiv.textContent = "Error al guardar en la base de datos."; 
+        }
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO PUESTO ---
+      savePostBtn.addEventListener('click', async () => {
+        const nombreDelPuesto = document.getElementById('post-nombreDelPuesto').value.trim();
+        const clienteId = document.getElementById('post-clienteId').value;
+        const errorDiv = document.getElementById('post-form-error');
+
+        if (!nombreDelPuesto || !clienteId) {
+          errorDiv.textContent = 'El nombre del puesto y el cliente son obligatorios.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        const newPost = {
+          nombreDelPuesto: nombreDelPuesto,
+          clienteId: clienteId,
+        };
+
+        try {
+          if (editingPostId) {
+            await db.collection("posts").doc(editingPostId).update(newPost);
+          } else {
+            newPost.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection("posts").add(newPost);
+          }
+          addPostModal.style.display = 'none';
+          editingPostId = null;
+        } catch (error) { console.error("Error al guardar puesto:", error); errorDiv.textContent = "Error al guardar en la base de datos."; }
+      });
+
+      // --- LÓGICA PARA GUARDAR NUEVO PROCESO ---
+      saveProcessBtn.addEventListener('click', async () => {
+        const clienteId = processClienteSelect.value;
+        const puestoId = processPuestoSelect.value;
+        const candidatoId = processCandidatoSelect.value;
+        const tipoProducto = document.getElementById('process-tipoProducto').value;
+        const errorDiv = document.getElementById('process-form-error');
+
+        if (!clienteId || !puestoId || !candidatoId || !tipoProducto) {
+          errorDiv.textContent = 'Todos los campos son obligatorios.';
+          return;
+        }
+        errorDiv.textContent = '';
+
+        const newProcess = {
+          clienteId: clienteId,
+          puestoId: puestoId,
+          candidatoId: candidatoId,
+          tipoProducto: tipoProducto,
+          estatusProceso: "En Proceso",
+        };
+
+        try {
+          if (editingProcessId) {
+            await db.collection("processes").doc(editingProcessId).update(newProcess);
+          } else {
+            newProcess.fechaRecepcion = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection("processes").add(newProcess);
+          }
+          addProcessModal.style.display = 'none';
+          editingProcessId = null;
+        } catch (error) { console.error("Error al guardar proceso:", error); errorDiv.textContent = "Error al guardar en la base de datos."; }
+      });
+
+
+      // --- MUESTRA LOS DETALLES DE UN CANDIDATO AL HACER CLIC ---
+      function showCandidateDetails(candidateId) {
+        document.getElementById('details-panel-title').textContent = 'Detalles del Candidato';
+        workHistoryListDiv.innerHTML = ''; // Limpiar para evitar mostrar datos antiguos
+        psicometricosSection.style.display = 'block';
+        document.getElementById('process-list').style.display = 'block';
+        document.getElementById('work-history-section').style.display = 'block';
+        documentsSection.style.display = 'block';
+        addWorkHistoryForm.style.display = 'block';
+
+        // Escuchar cambios en el documento del candidato para actualizar todo en tiempo real
+        db.collection("candidates").doc(candidateId).onSnapshot(async (doc) => {
+            if (!doc.exists) return;
+            const data = doc.data();
+
+            // Cargar detalles básicos
+            detailsPanelContent.innerHTML = `<h3>${data.nombreCompleto}</h3><p><strong>Email:</strong> ${data.email || 'N/A'}</p><p><strong>Teléfono:</strong> ${data.telefono || 'N/A'}</p><p><strong>Ciudad:</strong> ${data.ciudad || 'N/A'}</p>`;
+            
+            // Cargar sección de Psicométricos
+            renderPsicometricos(candidateId, data);
+
+            // Cargar Procesos
+            const processQuery = await db.collection("processes").where("candidatoId", "==", candidateId).get();
+            processItemsDiv.innerHTML = '';
+            processQuery.forEach(doc => {
+                const process = doc.data();
+                const processId = doc.id;
+                const processDiv = document.createElement('div');
+                processDiv.innerHTML = `<span><strong>Tipo:</strong> ${process.tipoProducto || 'N/A'} | <strong>Estatus:</strong> ${process.estatusProceso || 'N/A'}</span> <button class="btn-generate" data-process-id="${processId}">Generar Dictamen</button>`;
+                processItemsDiv.appendChild(processDiv);
+            });
+
+            // Cargar Historial Laboral
+            const historyQuery = await db.collection("candidates").doc(candidateId).collection("workHistory").orderBy("createdAt", "desc").get();
+            workHistoryListDiv.innerHTML = '';
+            historyQuery.forEach(doc => {
+                const job = doc.data();
+                workHistoryListDiv.innerHTML += `<div><h4>${job.puestoOcupado || ''} en ${job.empresa || ''}</h4><p><strong>Observaciones:</strong> ${job.observaciones || 'N/A'}</p></div>`;
+            });
+
+            db.collection("candidates").doc(candidateId).collection("documents").onSnapshot(docsSnap => {
+              documentsListDiv.innerHTML = '';
+              docsSnap.forEach(doc => {
+                const docData = doc.data();
+                const docLink = document.createElement('a');
+                docLink.href = docData.downloadURL; docLink.textContent = docData.fileName; docLink.target = '_blank'; docLink.style.display = 'block';
+                documentsListDiv.appendChild(docLink);
+              });
+            });
+        });
+      }
+
+      async function showClientDetails(clientId) {
+        document.getElementById('details-panel-title').textContent = 'Detalles del Cliente';
+        // Ocultar secciones específicas del candidato
+        document.getElementById('process-list').style.display = 'none';
+        documentsSection.style.display = 'none';
+        document.getElementById('work-history-section').style.display = 'none';
+        psicometricosSection.style.display = 'none';
+        addWorkHistoryForm.style.display = 'none';
+
+        const clientSnap = await db.collection("clients").doc(clientId).get();
+        if (!clientSnap.exists) {
+          detailsPanelContent.innerHTML = '<p>Cliente no encontrado.</p>';
+          return;
+        }
+        const clientData = clientSnap.data();
+
+        const postsQuery = await db.collection("posts").where("clienteId", "==", clientId).get();
+        const candidatesQuery = await db.collection("candidates").where("clienteId", "==", clientId).get();
+
+        let postsHtml = `
+          <div class="tooltip-container">
+            <h4>Puestos Abiertos</h4>
+            <span class="tooltip-text">Estos son los puestos de trabajo activos que tiene este cliente en el sistema.</span>
+          </div><ul>`;
+        postsQuery.forEach(doc => { postsHtml += `<li>${doc.data().nombreDelPuesto}</li>`; });
+        postsHtml += '</ul>';
+
+        let candidatesHtml = `
+          <div class="tooltip-container">
+            <h4>Candidatos Asociados</h4>
+            <span class="tooltip-text">Estos son los candidatos que han sido asociados directamente a este cliente al momento de su creación.</span>
+          </div>
+          <ul>`;
+        candidatesQuery.forEach(doc => { candidatesHtml += `<li>${doc.data().nombreCompleto}</li>`; });
+        candidatesHtml += '</ul>';
+
+        detailsPanelContent.innerHTML = `<h3>${clientData.nombreEmpresa}</h3><p><strong>Reclutador:</strong> ${clientData.reclutador || 'N/A'}</p><p><strong>Plaza:</strong> ${clientData.ubicacionPlaza || 'N/A'}</p><div class="detail-section">${postsHtml}</div><div class="detail-section">${candidatesHtml}</div>`;
+        processItemsDiv.innerHTML = ''; // Limpiar procesos de candidato
+        workHistoryListDiv.innerHTML = ''; // Limpiar historial de candidato
+      }
+      
+      // --- RENDERIZA LA SECCIÓN DE PSICOMÉTRICOS ---
+      function renderPsicometricos(candidateId, candidateData) {
+        psicometricosContent.innerHTML = '';
+        const asignarPruebas = httpsCallable(functions, 'asignarPruebasPsicometricas');
+        const reenviarInvitacion = httpsCallable(functions, 'reenviarInvitacion');
+
+        if (!candidateData.psicometricos) {
+            const button = document.createElement('button');
+            button.textContent = 'Asignar Pruebas'; button.className = 'btn-asignar';
+            button.onclick = () => {
+              selectTestsModal.style.display = 'block';
+            };
+            psicometricosContent.appendChild(button);
+
+            confirmAssignBtn.onclick = async () => {
+              const selectedTests = Array.from(document.querySelectorAll('input[name="psychometric-test"]:checked')).map(cb => cb.value);
+              const errorDiv = document.getElementById('tests-form-error');
+              if (selectedTests.length === 0) {
+                errorDiv.textContent = 'Debes seleccionar al menos una prueba.';
+                return;
+              }
+              errorDiv.textContent = '';
+              responseContainer.textContent = `Asignando a ${candidateData.nombreCompleto}...`;
+              try {
+                  const result = await asignarPruebas({ candidatoId: candidateId, tests: selectedTests.join(',') });
+                  responseContainer.textContent = JSON.stringify(result.data, null, 2);
+                  selectTestsModal.style.display = 'none';
+              } catch(error) { responseContainer.textContent = `Error: ${error.message}`; }
+            };
+
+        } else {
+            if (candidateData.psicometricos.estatus === 'Finalizado') {
+                // Botón para ver JSON
+                const jsonButton = document.createElement('button');
+                jsonButton.textContent = 'Ver Resultados Detallados';
+                jsonButton.onclick = () => {
+                    jsonResultsContent.innerHTML = formatJsonAsTable(candidateData.psicometricos.resultadosJson);
+                    jsonResultsModal.style.display = 'block';
+                };
+                psicometricosContent.appendChild(jsonButton);
+
+                // Botón para descargar PDF
+                if (candidateData.psicometricos.resultadoPdfPath) {
+                    const pdfLink = document.createElement('a');
+                    pdfLink.textContent = 'Descargar Reporte (PDF)';
+                    pdfLink.className = 'btn-download-pdf'; // Para estilizarlo como botón si queremos
+                    pdfLink.target = '_blank';
+                    pdfLink.href = '#'; // Placeholder
+                    pdfLink.style.marginLeft = '10px';
+                    storage.ref(candidateData.psicometricos.resultadoPdfPath).getDownloadURL().then(url => { pdfLink.href = url; });
+                    psicometricosContent.appendChild(pdfLink);
+                }
+            }
+            const statusDiv = document.createElement('div');
+            statusDiv.innerHTML = `<p><strong>Estatus:</strong> ${candidateData.psicometricos.estatus}</p>`;
+            psicometricosContent.appendChild(statusDiv);
+            
+            const button = document.createElement('button');
+            button.textContent = 'Reenviar Invitación'; button.className = 'btn-reenviar';
+            button.onclick = async () => {
+                responseContainer.textContent = `Reenviando a ${candidateData.nombreCompleto}...`;
+                try {
+                    const result = await reenviarInvitacion({ candidatoId: candidateId });
+                    responseContainer.textContent = JSON.stringify(result.data, null, 2);
+                } catch(error) { responseContainer.textContent = `Error: ${error.message}`; }
+            };
+            psicometricosContent.appendChild(button);
+        }
+      }
+
+      function formatJsonAsTable(jsonData) {
+          if (!jsonData || typeof jsonData !== 'object') return '<p>No hay resultados detallados disponibles.</p>';
+          
+          let table = '<table class="results-table">';
+          table += '<thead><tr><th>Prueba</th><th>Resultado</th></tr></thead>';
+          table += '<tbody>';
+
+          for (const key in jsonData) {
+              if (jsonData.hasOwnProperty(key)) {
+                  table += `<tr><td>${key}</td><td>${jsonData[key]}</td></tr>`;
+              }
+          }
+
+          table += '</tbody></table>';
+          return table;
+      }
+
+      // --- LÓGICA PARA GUARDAR HISTORIAL LABORAL ---
+      document.getElementById('save-job-btn').addEventListener('click', async () => {
+        if (!activeCandidateId) return alert("Selecciona un candidato.");
+        const newJob = {
+          empresa: document.getElementById('wh-empresa').value, puestoOcupado: document.getElementById('wh-puestoOcupado').value,
+          tiempoTrabajado: document.getElementById('wh-tiempoTrabajado').value, contactoReferencia: document.getElementById('wh-contactoReferencia').value,
+          telefonoReferencia: document.getElementById('wh-telefonoReferencia').value, correoReferencia: document.getElementById('wh-correoReferencia').value,
+          resultadoVerificacion: document.getElementById('wh-resultadoVerificacion').value, observaciones: document.getElementById('wh-observaciones').value,
+          createdAt: new Date()
+        };
+        try {
+          await db.collection("candidates").doc(activeCandidateId).collection("workHistory").add(newJob);
+          addWorkHistoryForm.querySelectorAll('input').forEach(input => input.value = '');
+        } catch (error) { console.error("Error al guardar historial:", error); alert("Error al guardar."); }
+      });
+
+      // --- LÓGICA PARA SUBIR DOCUMENTOS ---
+      document.getElementById('upload-doc-btn').addEventListener('click', async () => {
+        if (!activeCandidateId) return alert("Por favor, selecciona un candidato primero.");
+        
+        const fileInput = document.getElementById('doc-file-input');
+        const file = fileInput.files[0];
+        if (!file) return alert("Por favor, selecciona un archivo para subir.");
+
+        const filePath = `candidates/${activeCandidateId}/documents/${file.name}`;
+        const fileRef = storage.ref(filePath);
+
+        try {
+          responseContainer.textContent = `Subiendo ${file.name}...`;
+          const uploadTask = await fileRef.put(file);
+          const downloadURL = await uploadTask.ref.getDownloadURL();
+
+          await db.collection("candidates").doc(activeCandidateId).collection("documents").add({
+            fileName: file.name,
+            storagePath: filePath,
+            downloadURL: downloadURL,
+            uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          responseContainer.textContent = `Archivo ${file.name} subido con éxito.`;
+          fileInput.value = ''; // Limpiar el input
+        } catch (error) { console.error("Error al subir archivo:", error); responseContainer.textContent = "Error al subir el archivo."; }
+      });
+
+      // --- LÓGICA DEL PANEL DE ADMINISTRACIÓN DE USUARIOS ---
+      async function loadAdminUsersPanel() {
+        // Forzar token fresco antes de invocar funciones protegidas
+        try { await auth.currentUser?.getIdToken(true); } catch (e) {}
+        const listUsersFunction = httpsCallable(functions, 'listUsers');
+        const manageUserRoleFunction = httpsCallable(functions, 'manageUserRole');
+        const errorDiv = document.getElementById('admin-users-error');
+        adminUsersListDiv.innerHTML = '<p>Cargando usuarios...</p>';
+        errorDiv.textContent = '';
+
+        try {
+          const result = await listUsersFunction();
+          if (result.data.success) {
+            adminUsersListDiv.innerHTML = '';
+            result.data.users.forEach(user => {
+              const userDiv = document.createElement('div');
+              userDiv.style.borderBottom = '1px solid #eee';
+              userDiv.style.padding = '10px 0';
+              userDiv.innerHTML = `
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>UID:</strong> ${user.uid}</p>
+                <p><strong>Rol Actual:</strong> ${user.role || 'Ninguno'}</p>
+                <label for="role-select-${user.uid}">Asignar Rol:</label>
+                <select id="role-select-${user.uid}" data-uid="${user.uid}">
+                  <option value="none" ${user.role === 'none' ? 'selected' : ''}>Ninguno</option>
+                  <option value="client" ${user.role === 'client' ? 'selected' : ''}>Cliente</option>
+                  <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                  <option value="superAdmin" ${user.role === 'superAdmin' ? 'selected' : ''}>Super Administrador</option>
+                </select>
+                <div id="client-id-div-${user.uid}" style="display: ${user.role === 'client' ? 'block' : 'none'}; margin-top: 5px;">
+                  <label for="client-id-input-${user.uid}">ID de Cliente:</label>
+                  <input type="text" id="client-id-input-${user.uid}" value="${user.clientId || ''}" placeholder="ID del Cliente">
+                </div>
+                <button class="btn-save-role" data-uid="${user.uid}" style="margin-top: 10px;">Guardar Rol</button>
+                <div id="role-status-${user.uid}" style="margin-top: 5px; font-size: 12px;"></div>
+              `;
+              adminUsersListDiv.appendChild(userDiv);
+
+              // Lógica para mostrar/ocultar el campo clientId
+              const roleSelect = userDiv.querySelector(`#role-select-${user.uid}`);
+              const clientIdDiv = userDiv.querySelector(`#client-id-div-${user.uid}`);
+              roleSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'client') {
+                  clientIdDiv.style.display = 'block';
+                } else {
+                  clientIdDiv.style.display = 'none';
+                }
+              });
+
+              // Lógica para guardar el rol
+              userDiv.querySelector('.btn-save-role').addEventListener('click', async (e) => {
+                const targetUid = e.target.dataset.uid;
+                const selectedRole = userDiv.querySelector(`#role-select-${targetUid}`).value;
+                const clientIdInput = userDiv.querySelector(`#client-id-input-${targetUid}`);
+                const statusDiv = userDiv.querySelector(`#role-status-${targetUid}`);
+                statusDiv.textContent = 'Guardando...';
+                statusDiv.style.color = 'orange';
+
+                let payload = { uid: targetUid, role: selectedRole };
+                if (selectedRole === 'client') {
+                  if (!clientIdInput.value.trim()) {
+                    statusDiv.textContent = 'Error: El ID de Cliente es obligatorio para el rol "Cliente".';
+                    statusDiv.style.color = 'red';
+                    return;
+                  }
+                  payload.clientId = clientIdInput.value.trim();
+                }
+
+                try {
+                  const manageResult = await manageUserRoleFunction(payload);
+                  if (manageResult.data.success) {
+                    statusDiv.textContent = 'Rol actualizado con éxito. El usuario deberá volver a iniciar sesión para que los cambios surtan efecto.';
+                    statusDiv.style.color = 'green';
+                    // Recargar el panel para reflejar los cambios
+                    loadAdminUsersPanel(); 
+                  } else {
+                    statusDiv.textContent = `Error: ${manageResult.data.message}`;
+                    statusDiv.style.color = 'red';
+                  }
+                } catch (err) { statusDiv.textContent = `Error: ${err.message}`; statusDiv.style.color = 'red'; }
+              });
+            });
+          } else { errorDiv.textContent = `Error al cargar usuarios: ${result.data.message}`; }
+        } catch (error) {
+          console.error("Error al cargar usuarios (callable):", error);
+          const msg = String(error && error.message || '').toLowerCase();
+          if (msg.includes('unauthenticated') || msg.includes('autenticada')) {
+            try {
+              const token = await auth.currentUser.getIdToken(true);
+              let appCheckToken = null;
+              try { appCheckToken = await firebase.appCheck().getToken(); } catch(e) { /* opcional */ }
+              let resp = await fetch('/listUsersHttp', {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  ...(appCheckToken && appCheckToken.token ? { 'X-Firebase-AppCheck': appCheckToken.token } : {})
+                }
+              });
+              // Si el rewrite de Hosting no está desplegado, intenta directamente la URL de Cloud Functions
+              if (resp.status === 404) {
+                resp = await fetch('https://us-central1-integra-rh.cloudfunctions.net/listUsersHttp', {
+                  method: 'GET',
+                  cache: 'no-store',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    ...(appCheckToken && appCheckToken.token ? { 'X-Firebase-AppCheck': appCheckToken.token } : {})
+                  }
+                });
+              }
+              const data = await resp.json();
+              if (data && data.success) {
+                adminUsersListDiv.innerHTML = '';
+                data.users.forEach(user => {
+                  const userDiv = document.createElement('div');
+                  userDiv.style.borderBottom = '1px solid #eee';
+                  userDiv.style.padding = '10px 0';
+                  userDiv.innerHTML = `
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>UID:</strong> ${user.uid}</p>
+                    <p><strong>Rol Actual:</strong> ${user.role || 'Ninguno'}</p>
+                    <label for=\"role-select-${user.uid}\">Asignar Rol:</label>
+                    <select id=\"role-select-${user.uid}\" data-uid=\"${user.uid}\">
+                      <option value=\"none\" ${user.role === 'none' ? 'selected' : ''}>Ninguno</option>
+                      <option value=\"client\" ${user.role === 'client' ? 'selected' : ''}>Cliente</option>
+                      <option value=\"admin\" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                      <option value=\"superAdmin\" ${user.role === 'superAdmin' ? 'selected' : ''}>Super Administrador</option>
+                    </select>
+                    <div id=\"client-id-div-${user.uid}\" style=\"display: ${user.role === 'client' ? 'block' : 'none'}; margin-top: 5px;\">
+                      <label for=\"client-id-input-${user.uid}\">ID de Cliente:</label>
+                      <input type=\"text\" id=\"client-id-input-${user.uid}\" value=\"${user.clientId || ''}\" placeholder=\"ID del Cliente\">
+                    </div>
+                    <button class=\"btn-save-role\" data-uid=\"${user.uid}\" style=\"margin-top: 10px;\">Guardar Rol</button>
+                    <div id=\"role-status-${user.uid}\" style=\"margin-top: 5px; font-size: 12px;\"></div>
+                  `;
+                  adminUsersListDiv.appendChild(userDiv);
+                  const roleSelect = userDiv.querySelector(`#role-select-${user.uid}`);
+                  const clientIdDiv = userDiv.querySelector(`#client-id-div-${user.uid}`);
+                  roleSelect.addEventListener('change', (e) => { clientIdDiv.style.display = e.target.value === 'client' ? 'block' : 'none'; });
+                  userDiv.querySelector('.btn-save-role').addEventListener('click', async (e) => {
+                    const targetUid = e.target.dataset.uid;
+                    const selectedRole = userDiv.querySelector(`#role-select-${targetUid}`).value;
+                    const clientIdInput = userDiv.querySelector(`#client-id-input-${targetUid}`);
+                    const statusDiv = userDiv.querySelector(`#role-status-${targetUid}`);
+                    statusDiv.textContent = 'Guardando...';
+                    statusDiv.style.color = 'orange';
+                    let payload = { uid: targetUid, role: selectedRole };
+                    if (selectedRole === 'client') {
+                      if (!clientIdInput.value.trim()) {
+                        statusDiv.textContent = 'Error: El ID de Cliente es obligatorio para el rol "Cliente".';
+                        statusDiv.style.color = 'red';
+                        return;
+                      }
+                      payload.clientId = clientIdInput.value.trim();
+                    }
+                    try {
+                      const manageResult = await manageUserRoleFunction(payload);
+                      if (manageResult.data.success) {
+                        statusDiv.textContent = 'Rol actualizado con éxito. El usuario deberá volver a iniciar sesión para que los cambios surtan efecto.';
+                        statusDiv.style.color = 'green';
+                        loadAdminUsersPanel();
+                      } else {
+                        statusDiv.textContent = `Error: ${manageResult.data.message}`;
+                        statusDiv.style.color = 'red';
+                      }
+                    } catch (e2) {
+                      statusDiv.textContent = `Error: ${e2.message}`;
+                      statusDiv.style.color = 'red';
+                    }
+                  });
+                });
+                return;
+              }
+              errorDiv.textContent = `Error (HTTP): ${data && data.message ? data.message : 'No se pudo cargar usuarios.'}`;
+            } catch (e1) {
+              errorDiv.textContent = `Error al cargar usuarios: ${e1.message}`;
+            }
+          } else {
+            errorDiv.textContent = `Error al cargar usuarios: ${error.message}`;
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

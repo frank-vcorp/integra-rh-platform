@@ -1,0 +1,389 @@
+# INTEGRA RH - Guía de Estilo
+
+## Introducción
+
+Esta guía de estilo documenta los elementos visuales y de diseño de la plataforma INTEGRA RH. Su propósito es asegurar consistencia en todas las implementaciones y facilitar el trabajo del equipo de desarrollo.
+
+---
+
+## Paleta de Colores
+
+### Colores Primarios
+
+| Color | Hex | RGB | Uso |
+|-------|-----|-----|-----|
+| **Azul Profundo** | `#2C5F8D` | `44, 95, 141` | Navegación, encabezados, elementos primarios |
+| **Gris Oscuro** | `#333333` | `51, 51, 51` | Texto principal, iconos secundarios |
+| **Blanco** | `#FFFFFF` | `255, 255, 255` | Fondo principal, tarjetas, áreas de contenido |
+
+### Colores de Acento
+
+| Color | Hex | RGB | Uso |
+|-------|-----|-----|-----|
+| **Teal** | `#4A9B9B` | `74, 155, 155` | Botones primarios, enlaces, acentos, estados positivos |
+| **Teal Claro** | `#6BB5B5` | `107, 181, 181` | Hover states, gradientes |
+
+### Colores de Estado
+
+| Estado | Color | Hex | RGB | Uso |
+|--------|-------|-----|-----|-----|
+| **Aprobado/Activo** | Verde Teal | `#4A9B9B` | `74, 155, 155` | Candidatos aprobados, procesos activos |
+| **En Revisión/Pendiente** | Amarillo | `#F5A623` | `245, 166, 35` | Candidatos en revisión, acciones pendientes |
+| **Nuevo** | Azul Claro | `#5BA3D0` | `91, 163, 208` | Candidatos nuevos, elementos recientes |
+| **Rechazado/Error** | Rojo | `#E74C3C` | `231, 76, 60` | Candidatos rechazados, errores, alertas |
+| **Gris Neutro** | Gris Medio | `#95A5A6` | `149, 165, 166` | Estados inactivos, deshabilitados |
+
+### Colores de Fondo
+
+| Elemento | Color | Hex | Uso |
+|----------|-------|-----|-----|
+| **Fondo Principal** | Blanco | `#FFFFFF` | Fondo de la aplicación |
+| **Fondo Secundario** | Gris Muy Claro | `#F8F9FA` | Tarjetas, secciones alternadas |
+| **Fondo de Navegación** | Azul Oscuro | `#1E3A52` | Barra de navegación superior |
+
+---
+
+## Tipografía
+
+### Familia Tipográfica
+
+**Fuente Primaria:** Montserrat (o alternativas: Lato, Poppins, Roboto)
+
+**Fuente Secundaria:** System UI (fallback para máxima compatibilidad)
+
+### Jerarquía Tipográfica
+
+| Elemento | Tamaño | Peso | Color | Uso |
+|----------|--------|------|-------|-----|
+| **H1 - Título Principal** | 32px | Bold (700) | Gris Oscuro | Títulos de página principales |
+| **H2 - Subtítulo** | 24px | Semibold (600) | Gris Oscuro | Secciones principales |
+| **H3 - Encabezado** | 20px | Semibold (600) | Gris Oscuro | Subsecciones, títulos de tarjetas |
+| **Body - Texto Principal** | 16px | Regular (400) | Gris Oscuro | Contenido general, párrafos |
+| **Body Small** | 14px | Regular (400) | Gris Medio | Texto secundario, descripciones |
+| **Caption** | 12px | Regular (400) | Gris Medio | Etiquetas, metadatos |
+| **Button Text** | 16px | Semibold (600) | Según contexto | Texto de botones |
+| **Link** | 16px | Regular (400) | Teal | Enlaces, acciones secundarias |
+
+### Espaciado de Línea
+
+- **Títulos (H1-H3):** 1.2 (line-height)
+- **Texto de cuerpo:** 1.5 (line-height)
+- **Texto pequeño:** 1.4 (line-height)
+
+---
+
+## Espaciado y Grid
+
+### Sistema de Espaciado
+
+Basado en múltiplos de **8px** para mantener consistencia:
+
+| Tamaño | Valor | Uso |
+|--------|-------|-----|
+| **XS** | 4px | Espaciado mínimo entre elementos relacionados |
+| **S** | 8px | Espaciado entre elementos cercanos |
+| **M** | 16px | Espaciado estándar entre componentes |
+| **L** | 24px | Espaciado entre secciones |
+| **XL** | 32px | Espaciado entre bloques principales |
+| **XXL** | 48px | Espaciado máximo, separación de áreas |
+
+### Grid Layout
+
+- **Contenedor máximo:** 1440px
+- **Padding lateral:** 24px (desktop), 16px (mobile)
+- **Columnas:** 12 columnas con gutter de 24px
+
+---
+
+## Componentes
+
+### Botones
+
+#### Botón Primario
+- **Fondo:** Teal (`#4A9B9B`)
+- **Texto:** Blanco, Semibold 16px
+- **Padding:** 12px 24px
+- **Border-radius:** 6px
+- **Hover:** Teal Claro (`#6BB5B5`)
+- **Uso:** Acciones principales (Guardar, Confirmar, Enviar)
+
+#### Botón Secundario
+- **Fondo:** Transparente
+- **Borde:** 2px sólido Gris Medio (`#95A5A6`)
+- **Texto:** Gris Oscuro, Semibold 16px
+- **Padding:** 12px 24px
+- **Border-radius:** 6px
+- **Hover:** Fondo Gris Muy Claro (`#F8F9FA`)
+- **Uso:** Acciones secundarias (Cancelar, Volver)
+
+#### Botón de Acción (Icon Button)
+- **Tamaño:** 36px × 36px
+- **Fondo:** Transparente
+- **Icono:** Gris Medio, 20px
+- **Hover:** Fondo Gris Muy Claro, Icono Teal
+- **Uso:** Ver, Editar, Eliminar en tablas
+
+### Badges (Píldoras de Estado)
+
+- **Padding:** 6px 12px
+- **Border-radius:** 16px (completamente redondeado)
+- **Texto:** Semibold 14px, color según estado
+- **Fondo:** Color de estado con 20% de opacidad
+- **Texto:** Color de estado sólido
+
+Ejemplos:
+- **Aprobado:** Fondo `#4A9B9B20`, Texto `#4A9B9B`
+- **En Revisión:** Fondo `#F5A62320`, Texto `#F5A623`
+- **Nuevo:** Fondo `#5BA3D020`, Texto `#5BA3D0`
+- **Rechazado:** Fondo `#E74C3C20`, Texto `#E74C3C`
+
+### Tarjetas (Cards)
+
+- **Fondo:** Blanco
+- **Borde:** 1px sólido `#E8E8E8`
+- **Border-radius:** 8px
+- **Padding:** 24px
+- **Sombra:** `0 2px 8px rgba(0, 0, 0, 0.08)`
+- **Hover:** Sombra `0 4px 16px rgba(0, 0, 0, 0.12)`
+
+### Campos de Formulario
+
+#### Input Text
+- **Altura:** 44px
+- **Padding:** 12px 16px
+- **Borde:** 1px sólido `#D1D5DB`
+- **Border-radius:** 6px
+- **Fondo:** Blanco
+- **Focus:** Borde Teal (`#4A9B9B`), sombra `0 0 0 3px rgba(74, 155, 155, 0.1)`
+- **Placeholder:** Gris Medio (`#95A5A6`)
+
+#### Dropdown
+- **Altura:** 44px
+- **Padding:** 12px 16px
+- **Borde:** 1px sólido `#D1D5DB`
+- **Border-radius:** 6px
+- **Icono:** Chevron down, Gris Medio
+- **Focus:** Igual que Input Text
+
+#### Textarea
+- **Min-height:** 120px
+- **Padding:** 12px 16px
+- **Borde:** 1px sólido `#D1D5DB`
+- **Border-radius:** 6px
+- **Resize:** Vertical
+
+### Tablas
+
+- **Encabezado:** Fondo Gris Muy Claro (`#F8F9FA`), Texto Semibold 14px
+- **Filas:** Fondo Blanco, Borde inferior 1px `#E8E8E8`
+- **Hover:** Fondo `#F8F9FA`
+- **Padding de celda:** 16px
+- **Altura de fila:** 64px (mínimo)
+
+### Barras de Progreso
+
+- **Altura:** 24px
+- **Border-radius:** 12px (completamente redondeado)
+- **Fondo:** Gris Muy Claro (`#E8E8E8`)
+- **Barra de progreso:** Gradiente de Teal a Azul
+- **Texto:** Semibold 14px, Gris Oscuro, alineado a la derecha
+
+---
+
+## Iconografía
+
+### Estilo de Iconos
+
+- **Librería recomendada:** Heroicons, Feather Icons o Material Icons
+- **Estilo:** Outline (líneas)
+- **Grosor de línea:** 2px
+- **Tamaños estándar:** 16px, 20px, 24px, 32px
+
+### Iconos Comunes
+
+| Función | Icono | Tamaño |
+|---------|-------|--------|
+| Ver/Visualizar | Eye | 20px |
+| Editar | Pencil | 20px |
+| Eliminar | Trash | 20px |
+| Buscar | Magnifying Glass | 20px |
+| Filtrar | Funnel | 20px |
+| Descargar | Arrow Down Tray | 20px |
+| Subir archivo | Arrow Up Tray | 24px |
+| Usuario | User Circle | 32px |
+| Notificaciones | Bell | 24px |
+| Configuración | Cog | 24px |
+
+---
+
+## Logo
+
+### Versiones del Logo
+
+1. **Logo Completo:** Símbolo + texto "INTEGRA RH"
+2. **Logo Símbolo:** Solo el ícono de red circular (para favicons, apps)
+3. **Logo Horizontal:** Símbolo a la izquierda, texto a la derecha
+
+### Especificaciones
+
+- **Tamaño mínimo:** 120px de ancho (logo completo)
+- **Espacio de protección:** 16px alrededor del logo
+- **Fondos permitidos:** Blanco, Azul Oscuro (`#1E3A52`), transparente
+- **Versión invertida:** Disponible para fondos oscuros (blanco)
+
+### Uso Incorrecto
+
+- No estirar o distorsionar
+- No cambiar colores del símbolo
+- No rotar
+- No agregar efectos (sombras, brillos)
+- No usar sobre fondos con bajo contraste
+
+---
+
+## Navegación
+
+### Barra de Navegación Superior
+
+- **Altura:** 72px
+- **Fondo:** Azul Oscuro (`#1E3A52`)
+- **Logo:** Alineado a la izquierda, 40px de altura
+- **Elementos de menú:** Texto Blanco 16px, espaciado 32px
+- **Avatar de usuario:** 40px × 40px, circular, alineado a la derecha
+
+### Estados de Navegación
+
+- **Activo:** Texto Blanco, borde inferior 3px Teal
+- **Hover:** Texto Teal Claro
+- **Inactivo:** Texto Blanco con 70% opacidad
+
+---
+
+## Visualización de Datos
+
+### Gráficos
+
+- **Colores de datos:** Usar paleta de Teal, Azul, Verde Azulado
+- **Ejes:** Gris Medio (`#95A5A6`), 1px
+- **Etiquetas:** 12px, Gris Medio
+- **Valores:** 14px Semibold, Gris Oscuro
+- **Grid:** Líneas punteadas, Gris Claro (`#E8E8E8`)
+
+### KPI Cards
+
+- **Fondo:** Blanco
+- **Borde:** 1px `#E8E8E8`
+- **Border-radius:** 8px
+- **Padding:** 24px
+- **Icono:** 32px, Teal
+- **Valor:** 32px Bold, Gris Oscuro
+- **Etiqueta:** 14px Regular, Gris Medio
+
+---
+
+## Responsive Design
+
+### Breakpoints
+
+| Dispositivo | Ancho | Ajustes |
+|-------------|-------|---------|
+| **Desktop Large** | ≥1440px | Contenedor máximo 1440px |
+| **Desktop** | 1024px - 1439px | Contenedor fluido con padding |
+| **Tablet** | 768px - 1023px | Grid de 8 columnas, menú colapsable |
+| **Mobile** | <768px | Grid de 4 columnas, navegación hamburguesa |
+
+### Consideraciones Mobile
+
+- Aumentar tamaño de botones a 48px de altura mínima
+- Reducir padding a 16px
+- Apilar elementos en columna única
+- Usar navegación tipo drawer
+- Simplificar tablas (cards en lugar de tabla)
+
+---
+
+## Accesibilidad
+
+### Contraste de Color
+
+Todos los pares de color texto/fondo cumplen con WCAG 2.1 AA:
+- Texto normal: ratio mínimo 4.5:1
+- Texto grande (18px+): ratio mínimo 3:1
+
+### Interactividad
+
+- Todos los elementos interactivos tienen estados de focus visibles
+- Tamaño mínimo de área de toque: 44px × 44px
+- Etiquetas descriptivas en todos los campos de formulario
+- Textos alternativos en todas las imágenes
+
+### Navegación por Teclado
+
+- Orden de tabulación lógico
+- Skip links para navegación rápida
+- Atajos de teclado documentados
+
+---
+
+## Animaciones y Transiciones
+
+### Principios
+
+- **Duración:** 200-300ms para transiciones estándar
+- **Easing:** `ease-in-out` para la mayoría de transiciones
+- **Uso:** Hover states, modales, dropdowns, tooltips
+
+### Ejemplos
+
+- **Hover en botones:** Transición de color 200ms
+- **Apertura de modal:** Fade in + scale 300ms
+- **Carga de contenido:** Skeleton screens, no spinners
+
+---
+
+## Mensajes y Notificaciones
+
+### Toast Notifications
+
+- **Posición:** Esquina superior derecha
+- **Ancho:** 360px máximo
+- **Padding:** 16px
+- **Border-radius:** 8px
+- **Duración:** 4 segundos (auto-dismiss)
+
+#### Tipos
+
+- **Éxito:** Fondo Verde Teal, icono de check
+- **Error:** Fondo Rojo, icono de X
+- **Advertencia:** Fondo Amarillo, icono de alerta
+- **Información:** Fondo Azul, icono de info
+
+### Modales
+
+- **Overlay:** Negro con 50% opacidad
+- **Contenedor:** Blanco, border-radius 12px, max-width 600px
+- **Padding:** 32px
+- **Botones:** Alineados a la derecha, primario + secundario
+
+---
+
+## Recursos para Desarrollo
+
+### Assets Requeridos
+
+- Logo en formatos: SVG, PNG (1x, 2x, 3x)
+- Iconos en SVG
+- Favicon: 16×16, 32×32, 180×180 (Apple)
+- Paleta de colores exportada (CSS variables, SCSS variables, JSON)
+
+### Herramientas Recomendadas
+
+- **Diseño:** Figma, Adobe XD
+- **Prototipado:** Figma, InVision
+- **Iconos:** Heroicons, Feather Icons
+- **Gráficos:** Chart.js, Recharts, D3.js
+
+---
+
+Esta guía de estilo debe ser un documento vivo que evoluciona con el producto. Cualquier cambio debe documentarse y comunicarse al equipo.
+

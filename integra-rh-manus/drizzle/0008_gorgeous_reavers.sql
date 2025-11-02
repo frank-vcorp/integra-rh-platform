@@ -1,0 +1,1 @@
+ALTER TABLE `processes` ADD `medioDeRecepcion` enum('whatsapp','correo','telefono','boca_a_boca','portal','presencial','otro');

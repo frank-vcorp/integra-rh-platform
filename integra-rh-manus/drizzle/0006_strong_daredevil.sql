@@ -1,0 +1,1 @@
+ALTER TABLE `candidateComments` ADD `visibility` enum('public','internal') DEFAULT 'internal' NOT NULL;

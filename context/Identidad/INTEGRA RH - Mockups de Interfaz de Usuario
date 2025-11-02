@@ -1,0 +1,141 @@
+# INTEGRA RH - Mockups de Interfaz de Usuario
+
+## Presentación de Diseños
+
+A continuación se presentan los **mockups de interfaz de usuario** para las pantallas principales de la plataforma INTEGRA RH. Cada diseño aplica los principios establecidos en el brief: **minimalismo, funcionalidad, jerarquía visual clara y orientación a datos**.
+
+---
+
+## **1. Dashboard Principal**
+
+### Descripción
+
+El Dashboard es la primera pantalla que ve el usuario al iniciar sesión. Su objetivo es proporcionar una **vista general rápida** del estado actual del sistema y facilitar el acceso a las funciones más utilizadas.
+
+### Elementos Clave
+
+**Navegación Superior:** La barra de navegación presenta el logo de INTEGRA RH (con el diseño de red circular seleccionado) en la esquina superior izquierda, seguido de los elementos del menú principal: Dashboard, Candidates y Jobs. En la esquina superior derecha se encuentra el nombre del usuario ("Emplay") junto con su foto de perfil, permitiendo acceso rápido a configuraciones y cierre de sesión.
+
+**Mensaje de Bienvenida:** Un saludo personalizado ("Welcome, Sarah") crea una experiencia más humana y cercana, alineándose con la personalidad de marca que busca equilibrar profesionalismo con calidez.
+
+**Tarjetas de KPI:** Cuatro tarjetas destacadas muestran las métricas más importantes del sistema: Total de Candidatos (247), Procesos Activos (18), Revisiones Pendientes (12) y Completados Este Mes (34). Cada tarjeta incluye un icono representativo en color teal, facilitando la identificación visual rápida. Los números grandes y en negrita permiten escanear la información en segundos.
+
+**Gráfico de Pipeline de Candidatos:** Un gráfico de barras limpio muestra la distribución de candidatos por etapa del proceso (Sourced, Screening, Interview, Offer). El uso del color teal mantiene la consistencia visual y el diseño minimalista evita distracciones, permitiendo que los datos hablen por sí mismos.
+
+**Tabla de Candidatos Recientes:** Una vista previa de los últimos candidatos procesados incluye columnas para Nombre, Posición, Estado y Fecha. Los estados se visualizan mediante "píldoras" de color: verde para "Approved", amarillo para "In Review" y azul para "New". Esta codificación por colores permite identificar el estado de un candidato de un vistazo, mejorando significativamente la usabilidad.
+
+### Principios de Diseño Aplicados
+
+El dashboard utiliza **espacios en blanco generosos** para evitar la sobrecarga visual. La jerarquía de información está claramente definida: primero los KPIs más importantes, luego visualizaciones de datos agregados y finalmente detalles específicos. La paleta de colores se mantiene consistente con el moodboard: fondo blanco, azul profundo para elementos de navegación, gris oscuro para texto y teal como color de acento.
+
+---
+
+## **2. Listado de Candidatos**
+
+### Descripción
+
+Esta pantalla permite a los usuarios **buscar, filtrar y gestionar** todos los candidatos en el sistema. El diseño prioriza la escaneabilidad y el acceso rápido a la información más relevante.
+
+### Elementos Clave
+
+**Encabezado y Búsqueda:** El título "Candidate List" está acompañado de una barra de búsqueda prominente y botones de filtro para Status, Position y Date. Esta disposición permite a los usuarios encontrar rápidamente candidatos específicos sin necesidad de desplazarse por toda la lista.
+
+**Tabla de Datos:** La tabla presenta columnas bien organizadas: Photo (avatares circulares pequeños que humanizan la interfaz), Name, Email, Position Applied, Status, Application Date y Actions. Cada columna tiene un ancho apropiado para su contenido, evitando truncamiento innecesario.
+
+**Avatares de Candidatos:** Las fotos circulares pequeñas en la primera columna añaden un toque humano al diseño, recordando que detrás de cada fila hay una persona real. Este detalle refuerza la personalidad de marca "humana" que buscamos.
+
+**Sistema de Estados con Colores:** Los estados se visualizan mediante píldoras de color: verde teal para "Approved", amarillo para "In Review", azul teal para "New" y rojo para "Rejected". Esta codificación es intuitiva y permite a los usuarios identificar el estado de múltiples candidatos simultáneamente.
+
+**Acciones Rápidas:** Los iconos de ojo (ver) y lápiz (editar) en la columna Actions permiten acceso inmediato a las funciones más comunes sin necesidad de menús desplegables complejos.
+
+**Paginación:** Los controles de paginación en la parte inferior (Previous, 1, Next) permiten navegar grandes volúmenes de datos de manera eficiente.
+
+### Principios de Diseño Aplicados
+
+La tabla utiliza **líneas sutiles** para separar filas sin crear ruido visual. El espaciado entre elementos es consistente y generoso, facilitando la lectura. Los botones de filtro tienen bordes claros pero no agresivos, manteniendo el estilo minimalista. La tipografía sans-serif (estilo Montserrat o Lato) asegura legibilidad en pantallas de diferentes tamaños.
+
+---
+
+## **3. Expediente del Candidato (Panel de Psicométricas)**
+
+### Descripción
+
+Esta es una de las pantallas más importantes del sistema, ya que presenta toda la información relevante de un candidato específico. El diseño se enfoca en hacer que los **resultados psicométricos sean fáciles de interpretar** y que la información esté organizada de manera lógica.
+
+### Elementos Clave
+
+**Sidebar Izquierdo:** Presenta la foto del candidato (María González), su información de contacto (email y teléfono) y un badge de estado ("Active" en verde). Esta disposición mantiene el contexto del candidato siempre visible mientras el usuario navega por las diferentes secciones.
+
+**Sistema de Pestañas:** Tres pestañas organizan la información: "General Info", "Documents" y "Psychometric Tests" (activa). Este sistema permite acceder a diferentes tipos de información sin salir de la pantalla del candidato.
+
+**Panel de Tests Psicométricos:** Esta es la sección más crítica del diseño. Cuatro barras horizontales muestran los resultados de diferentes competencias: Leadership (85%), Teamwork (72%), Problem Solving (90%) y Stress Management (68%). Las barras utilizan un gradiente de teal a azul, añadiendo un toque visual atractivo sin comprometer la claridad. Los porcentajes están claramente visibles al final de cada barra.
+
+**Resumen Interpretativo:** Debajo de las barras, un cuadro de texto presenta un resumen en lenguaje natural: "María demonstrates strong problem-solving and leadership capabilities. Her ability to work in team is solid, and she shows moderate proficiency in managing stress." Este resumen traduce los números en insights accionables, facilitando la toma de decisiones.
+
+**Timeline del Candidato:** El sidebar derecho muestra una línea de tiempo con los hitos del proceso de selección: Applied (Feb 12, 2024), Screening (Feb 18, 2024), Interview (Feb 24, 2024) y Hired (Mar 4, 2024). Esta visualización permite entender rápidamente el recorrido del candidato por el sistema.
+
+### Principios de Diseño Aplicados
+
+El diseño utiliza una **estructura de tres columnas** (sidebar izquierdo, contenido central, sidebar derecho) que organiza la información de manera lógica y predecible. Las barras de progreso son **gruesas y claras**, evitando que el usuario tenga que esforzarse para interpretar los datos. El uso de gradientes es sutil y no distrae de la información principal. La tipografía mantiene una jerarquía clara: títulos en negrita, etiquetas en peso regular y datos destacados.
+
+---
+
+## **4. Formulario de Nuevo Candidato**
+
+### Descripción
+
+Esta pantalla permite a los usuarios **registrar nuevos candidatos** en el sistema. El diseño prioriza la claridad y la facilidad de uso, organizando los campos en secciones lógicas.
+
+### Elementos Clave
+
+**Título Claro:** "New Candidate" indica inmediatamente el propósito de la pantalla.
+
+**Secciones Organizadas:** El formulario se divide en cuatro secciones claramente identificadas:
+
+1. **Personal Information:** Incluye campos para Full Name, Email y Phone. Los campos están alineados de manera lógica, con Email y Phone en la misma fila para optimizar el espacio.
+
+2. **Professional Information:** Contiene campos para Position Applied, Department (dropdown) y años de experiencia. El dropdown de Department facilita la selección y asegura consistencia en los datos.
+
+3. **Documents:** Un área de drag-and-drop permite subir archivos de manera intuitiva. El texto "Drag and drop files here or Upload" con un icono de carga hace que la funcionalidad sea obvia. Debajo, se muestran los archivos ya cargados (CV.pdf, Certificates.pdf) con iconos de documento, permitiendo al usuario confirmar que los archivos correctos están adjuntos.
+
+4. **Additional Notes:** Un área de texto amplia permite agregar información adicional que no encaja en los campos estructurados.
+
+**Botones de Acción:** En la parte inferior, dos botones permiten completar la acción: "Cancel" (con borde gris, estilo outline) y "Save" (sólido en teal). La diferencia visual entre ambos botones guía al usuario hacia la acción principal (guardar) mientras mantiene la opción de cancelar claramente visible.
+
+### Principios de Diseño Aplicados
+
+El formulario utiliza **etiquetas claras** encima de cada campo, siguiendo las mejores prácticas de usabilidad. Los campos tienen un espaciado generoso, evitando que el formulario se sienta apretado. El área de drag-and-drop tiene un borde punteado sutil que indica interactividad sin ser intrusivo. Los botones de acción están claramente diferenciados por color y estilo, reduciendo la posibilidad de errores del usuario.
+
+---
+
+## Resumen de Principios de Diseño
+
+Todos los mockups siguen consistentemente estos principios:
+
+**Minimalismo:** Se eliminan elementos decorativos innecesarios, permitiendo que la información y la funcionalidad sean las protagonistas.
+
+**Jerarquía Visual Clara:** Los títulos, subtítulos y contenido están claramente diferenciados mediante tamaño, peso y color de tipografía.
+
+**Paleta de Colores Consistente:** Azul profundo (#2C5F8D) para navegación y elementos primarios, gris oscuro (#333333) para texto, teal (#4A9B9B) para acentos y estados positivos, amarillo para estados intermedios y rojo para estados negativos.
+
+**Espacios en Blanco Generosos:** El diseño respira, facilitando la lectura y reduciendo la fatiga visual.
+
+**Tipografía Sans-Serif:** Fuentes limpias y legibles (estilo Montserrat, Lato o Poppins) aseguran claridad en pantallas digitales.
+
+**Orientación a Datos:** Las visualizaciones (gráficos, tablas, barras de progreso) están diseñadas para comunicar información de manera rápida y precisa.
+
+**Consistencia:** Los elementos de interfaz (botones, badges, iconos) mantienen el mismo estilo en todas las pantallas, creando una experiencia coherente.
+
+---
+
+## Próximos Pasos
+
+Con el logo y los mockups de interfaz completados, el siguiente paso natural sería:
+
+1. **Desarrollar un prototipo interactivo** que permita navegar entre las pantallas y validar los flujos de usuario
+2. **Crear una guía de estilo (style guide)** que documente colores, tipografías, espaciados y componentes reutilizables
+3. **Diseñar estados adicionales** (loading, error, empty states) para completar la experiencia de usuario
+4. **Preparar assets para desarrollo** (logo en diferentes formatos, iconos, especificaciones de diseño)
+
+¿Te gustaría que proceda con alguno de estos pasos o hay algún ajuste que te gustaría hacer a los mockups actuales?
+
