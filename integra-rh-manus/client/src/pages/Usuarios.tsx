@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+﻿import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -63,6 +63,34 @@ export default function Usuarios() {
     },
   });
 
+  
+
+  const inviteMutation = trpc.users.invite.useMutation({
+    onSuccess: (res:any) => {
+      utils.users.list.invalidate();
+      if (res?.emailed) {
+        toast.success('Invitación enviada por correo');
+      } else if (res?.resetLink) {
+        try { navigator.clipboard?.writeText(res.resetLink); } catch {}
+        toast.success('Enlace de invitación generado (copiado al portapapeles)');
+        // Ofrecer compartir por WhatsApp con un número proporcionado al vuelo
+        const share = confirm('¿Quieres compartir el acceso por WhatsApp ahora?');
+        if (share) {
+          const phone = prompt('Número (incluye LADA, ej. +52XXXXXXXXXX):', '');
+          if (phone) {
+            const digits = phone.replace(/[^0-9+]/g, '');
+            const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
+            const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+            try { window.open(url, '_blank'); } catch {}
+          }
+        }
+      } else {
+        toast.success('Invitación generada');
+      }
+    },
+    onError: (e:any) => toast.error('Error al invitar: '+e.message)
+  });
+
   const deleteMutation = trpc.users.delete.useMutation({
     onSuccess: () => {
       utils.users.list.invalidate();
@@ -79,6 +107,7 @@ export default function Usuarios() {
     const data = {
       name: formData.get("name") as string,
       email: formData.get("email") as string || undefined,
+      whatsapp: (formData.get("whatsapp") as string || '').trim() || undefined,
       role: selectedRole,
       clientId: selectedRole === "client" && selectedClient ? parseInt(selectedClient) : undefined,
     };
@@ -164,6 +193,7 @@ export default function Usuarios() {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>WhatsApp</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>Cliente Asociado</TableHead>
                   <TableHead>Último Acceso</TableHead>
@@ -175,6 +205,7 @@ export default function Usuarios() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email || "-"}</TableCell>
+                    <TableCell>{user.whatsapp || '-'}</TableCell>
                     <TableCell>
                       <span
                         className={`badge ${
@@ -190,6 +221,32 @@ export default function Usuarios() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">
+                        {user.email && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => inviteMutation.mutate({
+                              name: user.name || user.email,
+                              email: user.email,
+                              role: user.role,
+                              // evita enviar null: usar undefined si no hay clientId
+                              clientId: (user.clientId ?? undefined),
+                            }, {
+                              onSuccess: (res:any) => {
+                                if (res?.resetLink && user.whatsapp) {
+                                  const digits = String(user.whatsapp).replace(/[^0-9+]/g, '');
+                                  if (digits) {
+                                    const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
+                                    const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+                                    try { window.open(url, '_blank'); } catch {}
+                                  }
+                                }
+                              }
+                            })}
+                          >
+                            Invitar
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -242,6 +299,10 @@ export default function Usuarios() {
                   defaultValue={editingUser?.email}
                   placeholder="usuario@ejemplo.com"
                 />
+              </div>
+              <div>
+                <Label htmlFor="whatsapp">WhatsApp (formato +52...)</Label>
+                <Input id="whatsapp" name="whatsapp" placeholder="+52XXXXXXXXXX" defaultValue={editingUser?.whatsapp || ''} />
               </div>
               <div>
                 <Label htmlFor="role">Rol *</Label>
@@ -297,3 +358,4 @@ export default function Usuarios() {
     </div>
   );
 }
+

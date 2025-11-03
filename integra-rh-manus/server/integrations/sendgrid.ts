@@ -4,8 +4,8 @@
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || "";
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
-const FROM_EMAIL = "noreply@integra-rh.com"; // TODO: Configurar dominio real
-const FROM_NAME = "INTEGRA-RH";
+const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "noreply@integra-rh.com";
+const FROM_NAME = process.env.SENDGRID_FROM_NAME || "INTEGRA-RH";
 
 interface EmailParams {
   to: string;
@@ -20,6 +20,19 @@ interface EmailParams {
  */
 export async function enviarCorreo(params: EmailParams): Promise<boolean> {
   try {
+    if (!SENDGRID_API_KEY) {
+      console.warn("[SendGrid] No API key configured; skipping send.");
+      return false;
+    }
+    const content = params.text
+      ? [
+          { type: "text/plain", value: params.text },
+          { type: "text/html", value: params.html },
+        ]
+      : [
+          { type: "text/html", value: params.html },
+        ];
+
     const response = await fetch(SENDGRID_API_URL, {
       method: "POST",
       headers: {
@@ -42,20 +55,7 @@ export async function enviarCorreo(params: EmailParams): Promise<boolean> {
           email: FROM_EMAIL,
           name: FROM_NAME,
         },
-        content: [
-          {
-            type: "text/html",
-            value: params.html,
-          },
-          ...(params.text
-            ? [
-                {
-                  type: "text/plain",
-                  value: params.text,
-                },
-              ]
-            : []),
-        ],
+        content,
       }),
     });
 

@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import '@/lib/firebase'; // Asegúrate que la ruta es correcta
 import { useAuth } from '@/_core/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
@@ -13,6 +13,9 @@ export default function Login() {
   const [location, setLocation] = useLocation();
   const { user, loading } = useAuth();
   const utils = trpc.useUtils();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -37,6 +40,33 @@ export default function Login() {
         console.error('Redirect login also failed:', redirectErr);
         // Aquí podrías mostrar un toast o mensaje de error al usuario.
       }
+    }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const auth = getAuth();
+    setSubmitting(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      await utils.auth.me.invalidate();
+      setLocation('/');
+    } catch (err:any) {
+      console.error('Email login failed:', err);
+      alert('No fue posible iniciar sesión. Verifica tu correo y contraseña.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!email) { alert('Escribe tu correo para enviarte el enlace de restablecimiento.'); return; }
+    try {
+      await sendPasswordResetEmail(getAuth(), email);
+      alert('Te enviamos un correo para restablecer tu contraseña.');
+    } catch (e) {
+      console.error('Reset failed', e);
+      alert('No pudimos enviar el correo de restablecimiento.');
     }
   };
   
@@ -83,10 +113,26 @@ export default function Login() {
         <p className="text-gray-600 mb-8">
           Inicia sesión para acceder a tu panel de control.
         </p>
-        <Button onClick={handleLogin} className="w-full">
+        <Button onClick={handleLogin} className="w-full mb-4">
           <Chrome className="w-4 h-4 mr-2" />
           Iniciar sesión con Google
         </Button>
+        <div className="mt-2 text-left">
+          <form onSubmit={handleEmailLogin} className="space-y-3">
+            <div>
+              <label className="text-sm text-gray-600">Correo</label>
+              <input type="email" className="mt-1 w-full border rounded-md h-10 px-3" value={email} onChange={e=> setEmail(e.target.value)} placeholder="usuario@empresa.com" required />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Contraseña</label>
+              <input type="password" className="mt-1 w-full border rounded-md h-10 px-3" value={password} onChange={e=> setPassword(e.target.value)} placeholder="••••••••" required />
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <button type="button" onClick={handleReset} className="text-blue-600 hover:underline">Olvidé mi contraseña</button>
+            </div>
+            <Button type="submit" className="w-full" disabled={submitting}>Entrar</Button>
+          </form>
+        </div>
       </div>
       <p className="mt-6 text-xs text-gray-500">
         &copy; {new Date().getFullYear()} Integra RH. Todos los derechos reservados.

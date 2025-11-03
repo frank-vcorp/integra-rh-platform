@@ -14,6 +14,8 @@ export const users = mysqlTable("users", {
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
+  // Número de contacto para WhatsApp (E.164 sugerido, pero almacenamos libre)
+  whatsapp: varchar("whatsapp", { length: 50 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["admin", "client"]).default("admin").notNull(),
   // Para clientes empresariales: referencia al cliente
