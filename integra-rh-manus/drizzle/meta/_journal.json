@@ -92,6 +92,13 @@
       "when": 1762181746089,
       "tag": "0012_tan_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1763580227188,
+      "tag": "0013_client_panel_detail",
+      "breakpoints": true
     }
   ]
 }

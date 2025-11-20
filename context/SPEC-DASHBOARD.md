@@ -96,6 +96,7 @@ classDiagram
 ## UI (nivel 1/2)
 - Nivel 1 (tarjeta/lista semáforo): candidato, puesto, fechas, especialista, estatus general, % avance.
 - Nivel 2 (detalle expandible): secciones para Inv. Laboral, Inv. Legal, Buró, Visita con estados, tags y enlaces/adjuntos.
+- Rol cliente: solo lectura (sin formularios ni mutaciones).
 
 ## Pendientes
 - Definir catálogo de valores por bloque (estatus/labels) y cálculo de % avance.

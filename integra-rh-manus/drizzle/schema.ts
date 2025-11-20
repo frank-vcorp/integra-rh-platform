@@ -175,6 +175,9 @@ export const processes = mysqlTable("processes", {
   candidatoId: int("candidatoId").notNull(),
   clienteId: int("clienteId").notNull(),
   puestoId: int("puestoId").notNull(),
+  // Especialista de atracción que gestiona el proceso (FK opcional o nombre libre)
+  especialistaAtraccionId: int("especialistaAtraccionId"),
+  especialistaAtraccionNombre: varchar("especialistaAtraccionNombre", { length: 255 }),
   // Clave única del proceso (ej: ILA-2025-001, ESE-2025-015)
   clave: varchar("clave", { length: 50 }).notNull().unique(),
   // Proceso a realizar (anteriormente "Tipo de Producto")
@@ -196,6 +199,7 @@ export const processes = mysqlTable("processes", {
   ]).notNull(),
   consecutivo: int("consecutivo").notNull(),
   fechaRecepcion: timestamp("fechaRecepcion").notNull(),
+  fechaCierre: timestamp("fechaCierre"),
   fechaEnvio: timestamp("fechaEnvio"),
   quienEnvio: varchar("quienEnvio", { length: 255 }),
   // Cómo llegó el proceso (canal de recepción)
@@ -224,6 +228,35 @@ export const processes = mysqlTable("processes", {
     "con_reservas",
     "no_recomendable"
   ]).default("pendiente"),
+  // Estatus visual y detalle granular para panel de clientes
+  estatusVisual: mysqlEnum("estatusVisual", [
+    "nuevo",
+    "en_proceso",
+    "pausado",
+    "cerrado",
+    "descartado",
+  ]).default("en_proceso").notNull(),
+  investigacionLaboral: json("investigacionLaboral").$type<{
+    resultado?: string;
+    detalles?: string;
+    completado?: boolean;
+  }>(),
+  investigacionLegal: json("investigacionLegal").$type<{
+    antecedentes?: string;
+    flagRiesgo?: boolean;
+    archivoAdjuntoUrl?: string;
+  }>(),
+  buroCredito: json("buroCredito").$type<{
+    estatus?: string;
+    score?: string;
+    aprobado?: boolean;
+  }>(),
+  visitaDetalle: json("visitaDetalle").$type<{
+    tipo?: "virtual" | "presencial";
+    comentarios?: string;
+    fechaRealizacion?: string;
+    enlaceReporteUrl?: string;
+  }>(),
   archivoDictamenUrl: varchar("archivoDictamenUrl", { length: 500 }),
   archivoDictamenPath: varchar("archivoDictamenPath", { length: 500 }),
   shareableId: varchar("shareableId", { length: 100 }),

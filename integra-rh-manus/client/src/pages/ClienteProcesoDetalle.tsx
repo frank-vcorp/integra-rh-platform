@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, User, Briefcase, Calendar, Award } from "lucide-react";
+import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck } from "lucide-react";
 import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
@@ -71,6 +71,71 @@ export default function ClienteProcesoDetalle() {
     no_recomendable: "text-red-600",
   };
 
+  const blocks = [
+    {
+      key: "investigacionLaboral",
+      label: "Investigación Laboral",
+      icon: <Shield className="h-4 w-4 text-blue-600" />,
+      data: (process as any)?.investigacionLaboral as any,
+      render: (d: any) => ({
+        estado: d?.resultado || "Sin resultado",
+        detalle: d?.detalles,
+        flag: d?.completado ? "completo" : "pendiente",
+      }),
+    },
+    {
+      key: "investigacionLegal",
+      label: "Investigación Legal",
+      icon: <Landmark className="h-4 w-4 text-indigo-600" />,
+      data: (process as any)?.investigacionLegal as any,
+      render: (d: any) => ({
+        estado: d?.antecedentes || "Sin antecedentes registrados",
+        detalle: d?.flagRiesgo ? "Con riesgo" : undefined,
+        link: d?.archivoAdjuntoUrl,
+        flag: d ? "en curso" : "pendiente",
+      }),
+    },
+    {
+      key: "buroCredito",
+      label: "Buró de Crédito",
+      icon: <FileText className="h-4 w-4 text-amber-600" />,
+      data: (process as any)?.buroCredito as any,
+      render: (d: any) => ({
+        estado: d?.estatus || "Sin registro",
+        detalle: d?.score ? `Score: ${d.score}` : undefined,
+        flag: d?.aprobado === true ? "aprobado" : d?.aprobado === false ? "rechazado" : "pendiente",
+      }),
+    },
+    {
+      key: "visitaDetalle",
+      label: "Visita Domiciliaria/Virtual",
+      icon: <Home className="h-4 w-4 text-emerald-600" />,
+      data: (process as any)?.visitaDetalle || (process as any)?.visitStatus,
+      render: (d: any) => ({
+        estado: d?.tipo ? d.tipo.toUpperCase() : d?.status || "No asignada",
+        detalle: d?.comentarios || d?.observaciones,
+        fecha: d?.fechaRealizacion || d?.scheduledDateTime,
+        link: d?.enlaceReporteUrl,
+      }),
+    },
+  ];
+
+  const calcAvance = () => {
+    const considered = blocks.length;
+    const completed = blocks.reduce((acc, b) => {
+      const d: any = b.data;
+      if (!d) return acc;
+      if (b.key === "investigacionLaboral" && d?.completado) return acc + 1;
+      if (b.key === "investigacionLegal" && d?.antecedentes) return acc + 1;
+      if (b.key === "buroCredito" && (d?.aprobado === true || d?.aprobado === false)) return acc + 1;
+      if (b.key === "visitaDetalle" && (d?.fechaRealizacion || d?.status === "realizada")) return acc + 1;
+      return acc;
+    }, 0);
+    return Math.round((completed / considered) * 100);
+  };
+
+  const avance = calcAvance();
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -121,6 +186,27 @@ export default function ClienteProcesoDetalle() {
                   })}
                 </p>
               </div>
+              {process.fechaCierre && (
+                <div>
+                  <p className="text-sm text-gray-600">Fecha de Cierre</p>
+                  <p className="font-semibold">
+                    {new Date(process.fechaCierre).toLocaleDateString('es-MX', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+              {(process as any)?.especialistaAtraccionNombre && (
+                <div>
+                  <p className="text-sm text-gray-600">Especialista de Atracción</p>
+                  <p className="font-semibold flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-blue-600" />
+                    {(process as any).especialistaAtraccionNombre}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-600">Estatus Actual</p>
                 <p className="font-semibold">
@@ -157,6 +243,69 @@ export default function ClienteProcesoDetalle() {
                   La calificación estará disponible una vez finalizado el proceso
                 </p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Avance y bloques de investigación (solo lectura) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Avance por Bloque (solo lectura)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Estatus visual</p>
+                <p className="font-semibold capitalize">
+                  {(process as any)?.estatusVisual?.replace(/_/g, " ") || "en proceso"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Avance estimado</p>
+                <p className="text-2xl font-bold">{isNaN(avance) ? "0" : avance}%</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {blocks.map((block) => {
+                const info = block.render(block.data || {});
+                return (
+                  <div key={block.key} className="rounded-lg border p-3 bg-white shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {block.icon}
+                        <p className="font-semibold text-gray-900">{block.label}</p>
+                      </div>
+                      <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
+                        {info.estado || "Sin datos"}
+                      </span>
+                    </div>
+                    {info.detalle && (
+                      <p className="text-sm text-gray-600 mb-1">{info.detalle}</p>
+                    )}
+                    {info.fecha && (
+                      <p className="text-xs text-gray-500">Fecha: {new Date(info.fecha).toLocaleString()}</p>
+                    )}
+                    {info.link && (
+                      <a
+                        href={info.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 underline block mt-1"
+                      >
+                        Ver adjunto
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="text-xs text-gray-500">
+              Vista solo lectura para clientes. La edición se realiza por el equipo de Paula.
             </div>
           </CardContent>
         </Card>
