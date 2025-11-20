@@ -15,7 +15,7 @@ export const usersRouter = router({
         name: z.string().min(1).optional(),
         email: z.string().email().optional(),
         whatsapp: z.string().min(5).max(50).optional(),
-        role: z.enum(["user", "admin"]).optional(),
+        role: z.enum(["admin", "client"]).optional(),
         clientId: z.number().int().optional(),
       })
     )
@@ -37,7 +37,7 @@ export const usersRouter = router({
         name: z.string().min(1).optional(),
         email: z.string().email().optional(),
         whatsapp: z.string().min(5).max(50).optional(),
-        role: z.enum(["user", "admin"]).optional(),
+        role: z.enum(["admin", "client"]).optional(),
         clientId: z.number().int().nullable().optional(),
       })
     )
