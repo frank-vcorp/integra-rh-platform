@@ -7,10 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock } from "lucide-react";
+import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ProcesoDetalle() {
   const params = useParams();
@@ -28,6 +28,13 @@ export default function ProcesoDetalle() {
   });
   const genDictamen = trpc.processes.generarDictamen.useMutation({
     onSuccess: () => utils.processes.getById.invalidate({ id: processId }),
+  });
+  const updatePanelDetail = trpc.processes.updatePanelDetail.useMutation({
+    onSuccess: () => {
+      utils.processes.getById.invalidate({ id: processId });
+      toast.success("Bloques actualizados");
+    },
+    onError: (e:any) => toast.error(e.message || "Error al guardar"),
   });
   // Llamar hooks siempre en el mismo orden. Evitar condicionales.
   const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery(undefined as any, {
@@ -147,6 +154,13 @@ export default function ProcesoDetalle() {
     { value: 'con_reservas', label: 'Con reservas' },
     { value: 'no_recomendable', label: 'No recomendable' },
   ];
+  const ESTATUS_VISUAL = [
+    { value: "nuevo", label: "Nuevo" },
+    { value: "en_proceso", label: "En proceso" },
+    { value: "pausado", label: "Pausado" },
+    { value: "cerrado", label: "Cerrado" },
+    { value: "descartado", label: "Descartado" },
+  ];
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: posts = [] } = trpc.posts.list.useQuery();
@@ -197,6 +211,78 @@ export default function ProcesoDetalle() {
     onError: (e:any) => toast.error('Error: '+e.message),
   });
   const [commentOpen, setCommentOpen] = useState(false);
+  const [panelForm, setPanelForm] = useState({
+    especialistaAtraccionNombre: "",
+    estatusVisual: "en_proceso",
+    fechaCierre: "",
+    investigacionLaboral: { resultado: "", detalles: "", completado: false },
+    investigacionLegal: { antecedentes: "", flagRiesgo: false, archivoAdjuntoUrl: "" },
+    buroCredito: { estatus: "", score: "", aprobado: null as null | boolean },
+    visitaDetalle: { tipo: "", comentarios: "", fechaRealizacion: "", enlaceReporteUrl: "" },
+  });
+
+  useEffect(() => {
+    if (!process) return;
+    setPanelForm({
+      especialistaAtraccionNombre: (process as any).especialistaAtraccionNombre || "",
+      estatusVisual: (process as any).estatusVisual || "en_proceso",
+      fechaCierre: process.fechaCierre ? new Date(process.fechaCierre).toISOString().split("T")[0] : "",
+      investigacionLaboral: {
+        resultado: (process as any).investigacionLaboral?.resultado || "",
+        detalles: (process as any).investigacionLaboral?.detalles || "",
+        completado: Boolean((process as any).investigacionLaboral?.completado),
+      },
+      investigacionLegal: {
+        antecedentes: (process as any).investigacionLegal?.antecedentes || "",
+        flagRiesgo: Boolean((process as any).investigacionLegal?.flagRiesgo),
+        archivoAdjuntoUrl: (process as any).investigacionLegal?.archivoAdjuntoUrl || "",
+      },
+      buroCredito: {
+        estatus: (process as any).buroCredito?.estatus || "",
+        score: (process as any).buroCredito?.score || "",
+        aprobado: (process as any).buroCredito?.aprobado ?? null,
+      },
+      visitaDetalle: {
+        tipo: (process as any).visitaDetalle?.tipo || "",
+        comentarios: (process as any).visitaDetalle?.comentarios || "",
+        fechaRealizacion: (process as any).visitaDetalle?.fechaRealizacion
+          ? new Date((process as any).visitaDetalle?.fechaRealizacion).toISOString().split("T")[0]
+          : "",
+        enlaceReporteUrl: (process as any).visitaDetalle?.enlaceReporteUrl || "",
+      },
+    });
+  }, [process]);
+
+  const handleSavePanel = () => {
+    if (!process) return;
+    updatePanelDetail.mutate({
+      id: processId,
+      especialistaAtraccionNombre: panelForm.especialistaAtraccionNombre || null,
+      estatusVisual: panelForm.estatusVisual as any,
+      fechaCierre: panelForm.fechaCierre || null,
+      investigacionLaboral: {
+        resultado: panelForm.investigacionLaboral.resultado || undefined,
+        detalles: panelForm.investigacionLaboral.detalles || undefined,
+        completado: panelForm.investigacionLaboral.completado,
+      },
+      investigacionLegal: {
+        antecedentes: panelForm.investigacionLegal.antecedentes || undefined,
+        flagRiesgo: panelForm.investigacionLegal.flagRiesgo,
+        archivoAdjuntoUrl: panelForm.investigacionLegal.archivoAdjuntoUrl || undefined,
+      },
+      buroCredito: {
+        estatus: panelForm.buroCredito.estatus || undefined,
+        score: panelForm.buroCredito.score || undefined,
+        aprobado: panelForm.buroCredito.aprobado === null ? undefined : panelForm.buroCredito.aprobado,
+      },
+      visitaDetalle: {
+        tipo: panelForm.visitaDetalle.tipo as any || undefined,
+        comentarios: panelForm.visitaDetalle.comentarios || undefined,
+        fechaRealizacion: panelForm.visitaDetalle.fechaRealizacion || undefined,
+        enlaceReporteUrl: panelForm.visitaDetalle.enlaceReporteUrl || undefined,
+      },
+    });
+  };
 
   const findName = (id: number | null | undefined, arr: any[], field: string) => {
     if (!id) return "-";
@@ -309,6 +395,191 @@ export default function ProcesoDetalle() {
               <p className="font-medium">{new Date(process.fechaRecepcion).toLocaleDateString()}</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Bloques panel cliente (captura interna) */}
+      <Card>
+        <CardHeader className="flex items-center justify-between flex-row">
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" /> Bloques de detalle (panel cliente)
+          </CardTitle>
+          {!isClientAuth && (
+            <Button size="sm" onClick={handleSavePanel} disabled={updatePanelDetail.isPending}>
+              <Save className="h-4 w-4 mr-2" /> Guardar bloques
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Especialista de Atracción</p>
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-blue-600" />
+                <Input
+                  value={panelForm.especialistaAtraccionNombre}
+                  onChange={e => setPanelForm(f => ({ ...f, especialistaAtraccionNombre: e.target.value }))}
+                  placeholder="Nombre del especialista"
+                  disabled={isClientAuth}
+                />
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Estatus visual</p>
+              <select
+                className="border rounded-md h-10 px-3 w-full"
+                value={panelForm.estatusVisual}
+                onChange={e => setPanelForm(f => ({ ...f, estatusVisual: e.target.value }))}
+                disabled={isClientAuth}
+              >
+                {ESTATUS_VISUAL.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Fecha de cierre</p>
+              <Input
+                type="date"
+                value={panelForm.fechaCierre}
+                onChange={e => setPanelForm(f => ({ ...f, fechaCierre: e.target.value }))}
+                disabled={isClientAuth}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border rounded p-3 bg-white shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="h-4 w-4 text-blue-600" />
+                <p className="font-semibold">Investigación Laboral</p>
+              </div>
+              <Label className="text-xs">Resultado</Label>
+              <Input
+                value={panelForm.investigacionLaboral.resultado}
+                onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, resultado: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+              <Label className="text-xs mt-2">Detalles</Label>
+              <Textarea
+                value={panelForm.investigacionLaboral.detalles}
+                onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, detalles: e.target.value } }))}
+                rows={2}
+                disabled={isClientAuth}
+              />
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <input
+                  id="invLabDone"
+                  type="checkbox"
+                  checked={panelForm.investigacionLaboral.completado}
+                  onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, completado: e.target.checked } }))}
+                  disabled={isClientAuth}
+                />
+                <Label htmlFor="invLabDone">Marcado como completo</Label>
+              </div>
+            </div>
+
+            <div className="border rounded p-3 bg-white shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Landmark className="h-4 w-4 text-indigo-600" />
+                <p className="font-semibold">Investigación Legal</p>
+              </div>
+              <Label className="text-xs">Antecedentes</Label>
+              <Input
+                value={panelForm.investigacionLegal.antecedentes}
+                onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, antecedentes: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+              <Label className="text-xs mt-2">URL adjunto (opcional)</Label>
+              <Input
+                value={panelForm.investigacionLegal.archivoAdjuntoUrl}
+                onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, archivoAdjuntoUrl: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <input
+                  id="invLegalRiesgo"
+                  type="checkbox"
+                  checked={panelForm.investigacionLegal.flagRiesgo}
+                  onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, flagRiesgo: e.target.checked } }))}
+                  disabled={isClientAuth}
+                />
+                <Label htmlFor="invLegalRiesgo">Con riesgo</Label>
+              </div>
+            </div>
+
+            <div className="border rounded p-3 bg-white shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-amber-600" />
+                <p className="font-semibold">Buró de Crédito</p>
+              </div>
+              <Label className="text-xs">Estatus</Label>
+              <Input
+                value={panelForm.buroCredito.estatus}
+                onChange={e => setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, estatus: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+              <Label className="text-xs mt-2">Score</Label>
+              <Input
+                value={panelForm.buroCredito.score}
+                onChange={e => setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, score: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <Label className="text-xs">Resultado</Label>
+                <select
+                  className="border rounded-md h-9 px-2"
+                  value={panelForm.buroCredito.aprobado === null ? "" : panelForm.buroCredito.aprobado ? "1" : "0"}
+                  onChange={e => {
+                    const val = e.target.value === "" ? null : e.target.value === "1";
+                    setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, aprobado: val } }));
+                  }}
+                  disabled={isClientAuth}
+                >
+                  <option value="">Sin definir</option>
+                  <option value="1">Aprobado</option>
+                  <option value="0">No aprobado</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="border rounded p-3 bg-white shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Home className="h-4 w-4 text-emerald-600" />
+                <p className="font-semibold">Visita (virtual/presencial)</p>
+              </div>
+              <Label className="text-xs">Tipo</Label>
+              <select
+                className="border rounded-md h-9 px-2 w-full"
+                value={panelForm.visitaDetalle.tipo}
+                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, tipo: e.target.value } }))}
+                disabled={isClientAuth}
+              >
+                <option value="">Sin definir</option>
+                <option value="virtual">Virtual</option>
+                <option value="presencial">Presencial</option>
+              </select>
+              <Label className="text-xs mt-2">Fecha realización</Label>
+              <Input
+                type="date"
+                value={panelForm.visitaDetalle.fechaRealizacion}
+                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, fechaRealizacion: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+              <Label className="text-xs mt-2">Comentarios</Label>
+              <Textarea
+                value={panelForm.visitaDetalle.comentarios}
+                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, comentarios: e.target.value } }))}
+                rows={2}
+                disabled={isClientAuth}
+              />
+              <Label className="text-xs mt-2">Enlace a reporte</Label>
+              <Input
+                value={panelForm.visitaDetalle.enlaceReporteUrl}
+                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, enlaceReporteUrl: e.target.value } }))}
+                disabled={isClientAuth}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Captura interna; el cliente solo lo ve en modo lectura.</p>
         </CardContent>
       </Card>
 

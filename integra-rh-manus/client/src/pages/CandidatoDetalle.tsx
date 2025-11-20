@@ -634,10 +634,21 @@ export default function CandidatoDetalle() {
           ) : (
             <div className="space-y-2">
               {procesos.map((p:any) => (
-                <div key={p.id} className="border rounded p-2 flex items-center justify-between">
-                  <div>
+                <div key={p.id} className="border rounded p-3 flex items-center justify-between bg-white shadow-sm">
+                  <div className="space-y-1">
                     <div className="font-medium">{p.clave} — {p.tipoProducto}</div>
-                    <div className="text-xs text-muted-foreground">Estatus: {p.estatusProceso}</div>
+                    <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                      <span>Estatus proceso: {p.estatusProceso}</span>
+                      {p.estatusVisual && <span>• Estatus visual: {p.estatusVisual}</span>}
+                      {p.especialistaAtraccionNombre && <span>• Especialista: {p.especialistaAtraccionNombre}</span>}
+                      {p.fechaCierre && <span>• Cierre: {new Date(p.fechaCierre).toLocaleDateString()}</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex gap-3 flex-wrap">
+                      {p.investigacionLaboral?.resultado && <span>Inv. laboral: {p.investigacionLaboral.resultado}</span>}
+                      {p.investigacionLegal?.antecedentes && <span>Inv. legal: {p.investigacionLegal.antecedentes}</span>}
+                      {p.buroCredito?.estatus && <span>Buró: {p.buroCredito.estatus}</span>}
+                      {p.visitaDetalle?.tipo && <span>Visita: {p.visitaDetalle.tipo}</span>}
+                    </div>
                   </div>
                   <Link href={`/procesos/${p.id}`}>
                     <Button size="sm" variant="outline">Ver</Button>

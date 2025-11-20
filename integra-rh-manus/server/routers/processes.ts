@@ -98,6 +98,50 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 
+  updatePanelDetail: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      especialistaAtraccionId: z.number().nullable().optional(),
+      especialistaAtraccionNombre: z.string().trim().nullable().optional(),
+      estatusVisual: z.enum(["nuevo","en_proceso","pausado","cerrado","descartado"]),
+      fechaCierre: z.string().nullable().optional(),
+      investigacionLaboral: z.object({
+        resultado: z.string().trim().optional(),
+        detalles: z.string().trim().optional(),
+        completado: z.boolean().optional(),
+      }).partial().optional(),
+      investigacionLegal: z.object({
+        antecedentes: z.string().trim().optional(),
+        flagRiesgo: z.boolean().optional(),
+        archivoAdjuntoUrl: z.string().trim().optional(),
+      }).partial().optional(),
+      buroCredito: z.object({
+        estatus: z.string().trim().optional(),
+        score: z.string().trim().optional(),
+        aprobado: z.boolean().optional(),
+      }).partial().optional(),
+      visitaDetalle: z.object({
+        tipo: z.enum(["virtual","presencial"]).optional(),
+        comentarios: z.string().trim().optional(),
+        fechaRealizacion: z.string().optional(),
+        enlaceReporteUrl: z.string().trim().optional(),
+      }).partial().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const payload: any = {
+        especialistaAtraccionId: input.especialistaAtraccionId ?? null,
+        especialistaAtraccionNombre: input.especialistaAtraccionNombre ?? null,
+        estatusVisual: input.estatusVisual,
+        fechaCierre: input.fechaCierre ? new Date(input.fechaCierre) : null,
+        investigacionLaboral: input.investigacionLaboral,
+        investigacionLegal: input.investigacionLegal,
+        buroCredito: input.buroCredito,
+        visitaDetalle: input.visitaDetalle,
+      };
+      await db.updateProcess(input.id, payload);
+      return { ok: true } as const;
+    }),
+
   generarDictamen: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
