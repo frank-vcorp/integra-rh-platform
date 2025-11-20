@@ -73,13 +73,18 @@ export default function CandidatoDetalle() {
     onSuccess: () => toast.success("Invitación reenviada"),
     onError: (e:any) => toast.error("Error: "+e.message),
   });
-  const consultarResultados = trpc.psicometricas.consultarResultados.useMutation({
-    onSuccess: (data:any) => {
-      setResultadosData(data);
-      setResultadosOpen(true);
-    },
-    onError: (e:any) => toast.error("Error: "+e.message),
-  });
+  const consultarResultados = trpc.psicometricas.consultarResultados.useQuery(
+    { asignacionId: candidate?.psicometricos?.clavePsicometricas || "" },
+    {
+      enabled: false,
+      retry: false,
+      onSuccess: (data:any) => {
+        setResultadosData(data);
+        setResultadosOpen(true);
+      },
+      onError: (e:any) => toast.error("Error: "+(e.message || "No se pudieron consultar los resultados")),
+    }
+  );
   const updateCandidate = trpc.candidates.update.useMutation({
     onSuccess: () => {
       utils.candidates.getById.invalidate({ id: candidateId });
@@ -542,9 +547,9 @@ export default function CandidatoDetalle() {
               onClick={() => {
                 const clave = candidate.psicometricos?.clavePsicometricas || '';
                 if (!clave) { toast.error('No hay clave de asignación registrada'); return; }
-                consultarResultados.mutate({ asignacionId: clave });
+                consultarResultados.refetch();
               }}
-              disabled={!candidate.psicometricos?.clavePsicometricas || consultarResultados.isPending}
+              disabled={!candidate.psicometricos?.clavePsicometricas || consultarResultados.isFetching}
             >
               <Eye className="h-4 w-4 mr-2"/> Ver resultados
             </Button>
