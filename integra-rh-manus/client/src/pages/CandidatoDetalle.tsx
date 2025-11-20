@@ -81,6 +81,7 @@ export default function CandidatoDetalle() {
       onSuccess: (data:any) => {
         setResultadosData(data);
         setResultadosOpen(true);
+        utils.candidates.getById.invalidate({ id: candidateId });
       },
       onError: (e:any) => toast.error("Error: "+(e.message || "No se pudieron consultar los resultados")),
     }
