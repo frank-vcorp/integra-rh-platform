@@ -113,7 +113,7 @@ export default function Usuarios() {
     };
 
     if (editingUser) {
-      updateMutation.mutate({ id: editingUser.id, data });
+      updateMutation.mutate({ id: editingUser.id, ...data });
     } else {
       createMutation.mutate(data);
     }
