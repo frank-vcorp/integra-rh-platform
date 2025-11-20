@@ -42,8 +42,11 @@ export const usersRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      await updateUser(id, data as any);
+      const { id, ...raw } = input;
+      const data = Object.fromEntries(
+        Object.entries(raw).filter(([, value]) => value !== undefined)
+      );
+      await updateUser(id, { ...(data as any), updatedAt: new Date() } as any);
       return { ok: true } as const;
     }),
 
