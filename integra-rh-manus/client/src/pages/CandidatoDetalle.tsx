@@ -634,25 +634,44 @@ export default function CandidatoDetalle() {
           ) : (
             <div className="space-y-2">
               {procesos.map((p:any) => (
-                <div key={p.id} className="border rounded p-3 flex items-center justify-between bg-white shadow-sm">
-                  <div className="space-y-1">
-                    <div className="font-medium">{p.clave} — {p.tipoProducto}</div>
-                    <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
-                      <span>Estatus proceso: {p.estatusProceso}</span>
-                      {p.estatusVisual && <span>• Estatus visual: {p.estatusVisual}</span>}
-                      {p.especialistaAtraccionNombre && <span>• Especialista: {p.especialistaAtraccionNombre}</span>}
-                      {p.fechaCierre && <span>• Cierre: {new Date(p.fechaCierre).toLocaleDateString()}</span>}
+                <div key={p.id} className="border rounded p-3 bg-white shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{p.clave} — {p.tipoProducto}</div>
+                      <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                        <span>Estatus: {p.estatusProceso}</span>
+                        {p.estatusVisual && <span>• Estatus visual: {p.estatusVisual}</span>}
+                        {p.fechaCierre && <span>• Cierre: {new Date(p.fechaCierre).toLocaleDateString()}</span>}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground flex gap-3 flex-wrap">
-                      {p.investigacionLaboral?.resultado && <span>Inv. laboral: {p.investigacionLaboral.resultado}</span>}
-                      {p.investigacionLegal?.antecedentes && <span>Inv. legal: {p.investigacionLegal.antecedentes}</span>}
-                      {p.buroCredito?.estatus && <span>Buró: {p.buroCredito.estatus}</span>}
-                      {p.visitaDetalle?.tipo && <span>Visita: {p.visitaDetalle.tipo}</span>}
+                    <Link href={`/procesos/${p.id}`}>
+                      <Button size="sm" variant="outline">Ver</Button>
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <div className="border rounded p-2">
+                      <div className="font-semibold text-gray-900 text-sm">Especialista</div>
+                      <div>{p.especialistaAtraccionNombre || "Sin asignar"}</div>
+                    </div>
+                    <div className="border rounded p-2">
+                      <div className="font-semibold text-gray-900 text-sm">Investigación Legal</div>
+                      <div>{p.investigacionLegal?.antecedentes || "Sin datos"}</div>
+                      {p.investigacionLegal?.flagRiesgo && <div className="text-red-600 font-semibold">Con riesgo</div>}
+                    </div>
+                    <div className="border rounded p-2">
+                      <div className="font-semibold text-gray-900 text-sm">Buró de Crédito</div>
+                      <div>{p.buroCredito?.estatus || "Sin datos"}</div>
+                      {p.buroCredito?.score && <div>Score: {p.buroCredito.score}</div>}
+                    </div>
+                    <div className="border rounded p-2 md:col-span-3">
+                      <div className="font-semibold text-gray-900 text-sm">Visita</div>
+                      <div className="flex gap-2 flex-wrap">
+                        <span>Tipo: {p.visitaDetalle?.tipo || "Sin datos"}</span>
+                        {p.visitaDetalle?.fechaRealizacion && <span>• {new Date(p.visitaDetalle.fechaRealizacion).toLocaleDateString()}</span>}
+                        {p.visitaDetalle?.comentarios && <span className="text-gray-700">• {p.visitaDetalle.comentarios}</span>}
+                      </div>
                     </div>
                   </div>
-                  <Link href={`/procesos/${p.id}`}>
-                    <Button size="sm" variant="outline">Ver</Button>
-                  </Link>
                 </div>
               ))}
             </div>
