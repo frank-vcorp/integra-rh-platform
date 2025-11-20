@@ -128,7 +128,7 @@ export default function Usuarios() {
 
   const handleDelete = (id: number) => {
     if (confirm("¿Estás seguro de eliminar este usuario?")) {
-      deleteMutation.mutate(id);
+      deleteMutation.mutate({ id });
     }
   };
 
