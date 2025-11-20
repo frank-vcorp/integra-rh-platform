@@ -13,7 +13,7 @@
   ],
   "hosting": {
     "target": "integra-rh",
-    "public": "public",
+    "public": "integra-rh-manus/dist/public",
     "ignore": [
       "firebase.json",
       "**/.*",

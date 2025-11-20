@@ -19,34 +19,69 @@ export async function createContext(
     const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
     if (typeof header === "string" && header.startsWith("Bearer ")) {
       const idToken = header.slice("Bearer ".length);
+      let decoded: any | null = null;
+      // 1) Verificar token (aislado de DB)
       try {
-        const decoded = await adminAuth.verifyIdToken(idToken);
-        // Try to load user from DB if available
-        const openId = decoded.uid;
-        const existing = await db.getUserByOpenId(openId);
-        if (existing) {
-          user = existing as unknown as User;
-        } else {
-          // Upsert (best-effort) and create a minimal user object
-          await db.upsertUser({
-            openId,
-            email: decoded.email ?? null,
-            name: (decoded as any).name ?? null,
-            loginMethod: "google",
-          } as any);
-          const fetched = await db.getUserByOpenId(openId);
-          user = (fetched ?? {
+        decoded = await adminAuth.verifyIdToken(idToken);
+      } catch (err) {
+        try {
+          const msg = (err as any)?.message || String(err);
+          console.warn("[Auth] Firebase verifyIdToken failed:", msg);
+        } catch {}
+        decoded = null;
+      }
+
+      if (decoded) {
+        const openId = decoded.uid as string;
+        // 2) Intentar cargar de DB (no derribar auth si falla DB)
+        try {
+          const existing = await db.getUserByOpenId(openId);
+          if (existing) {
+            user = existing as unknown as User;
+          }
+        } catch (e) {
+          try {
+            console.warn("[Auth] DB getUserByOpenId failed; continuing with token claims", (e as any)?.message || e);
+          } catch {}
+        }
+
+        if (!user) {
+          // 3) Intentar upsert best‑effort (ignorar fallo)
+          try {
+            await db.upsertUser({
+              openId,
+              email: decoded.email ?? null,
+              name: (decoded as any).name ?? null,
+              loginMethod: "google",
+            } as any);
+            const fetched = await db.getUserByOpenId(openId);
+            if (fetched) user = fetched as unknown as User;
+          } catch (e) {
+            try {
+              console.warn("[Auth] DB upsertUser failed; falling back to ephemeral user", (e as any)?.message || e);
+            } catch {}
+          }
+        }
+
+        if (!user) {
+          // 4) Fallback efímero con claims del token (no persiste)
+          const role = (decoded as any)?.role ?? "admin";
+          const clientId = typeof (decoded as any)?.clientId === "number" ? (decoded as any).clientId : null;
+          user = {
             id: 0,
             openId,
             email: decoded.email ?? null,
             name: (decoded as any).name ?? null,
-            role: "admin",
-            clientId: null,
-          }) as unknown as User;
+            role,
+            clientId,
+            // Campos requeridos por el tipo; valores de relleno
+            createdAt: new Date() as any,
+            updatedAt: new Date() as any,
+            lastSignedIn: new Date() as any,
+            loginMethod: "google" as any,
+            whatsapp: null as any,
+          } as unknown as User;
         }
-      } catch (err) {
-        console.warn("[Auth] Firebase verifyIdToken failed", err);
-        // keep user as null
       }
     }
   }

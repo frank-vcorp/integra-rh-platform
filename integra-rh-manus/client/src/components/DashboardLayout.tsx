@@ -135,7 +135,8 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const menuItems = user?.role === 'admin' ? adminMenuItems : clientMenuItems;
+  // Si aún no cargó el usuario del backend, mostramos menú admin por defecto
+  const menuItems = user?.role !== 'client' ? adminMenuItems : clientMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
 
@@ -287,7 +288,7 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        {isMobile && (
+        {isMobile ? (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
@@ -299,6 +300,19 @@ function DashboardLayoutContent({
                 </div>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Salir
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex border-b h-12 items-center justify-end bg-background/95 px-3 sticky top-0 z-40">
+            <Button variant="outline" size="sm" onClick={logout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Salir
+            </Button>
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>

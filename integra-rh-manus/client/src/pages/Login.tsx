@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import '@/lib/firebase'; // Asegúrate que la ruta es correcta
-import { useAuth } from '@/_core/hooks/useAuth';
+import '@/lib/firebase'; // Inicializa Firebase
+import { useAuth as useFirebaseAuth } from '@/contexts/AuthContext';
 import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Chrome } from 'lucide-react';
@@ -11,14 +11,15 @@ const provider = new GoogleAuthProvider();
 
 export default function Login() {
   const [location, setLocation] = useLocation();
-  const { user, loading } = useAuth();
+  const { user, loading } = useFirebaseAuth();
   const utils = trpc.useUtils();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (loading || !user) return;
+    if (window.location.pathname !== '/') {
       setLocation('/');
     }
   }, [user, loading, setLocation]);
@@ -26,7 +27,8 @@ export default function Login() {
   const handleLogin = async () => {
     const auth = getAuth();
     try {
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      try { await cred.user.getIdToken(true); } catch {}
       // Después de un login exitoso, el token se adjuntará automáticamente
       // a las siguientes peticiones tRPC gracias a la configuración en main.tsx.
       // Invalidamos la query 'auth.me' para forzar al hook useAuth a recargar los datos del usuario.
@@ -48,7 +50,8 @@ export default function Login() {
     const auth = getAuth();
     setSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      try { await cred.user.getIdToken(true); } catch {}
       await utils.auth.me.invalidate();
       setLocation('/');
     } catch (err:any) {
@@ -77,6 +80,7 @@ export default function Login() {
         const auth = getAuth();
         const res = await getRedirectResult(auth);
         if (res?.user) {
+          try { await res.user.getIdToken(true); } catch {}
           await utils.auth.me.invalidate();
           setLocation('/');
         }

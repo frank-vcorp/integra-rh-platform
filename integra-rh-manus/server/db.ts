@@ -1,5 +1,6 @@
 import { eq, and, desc, asc, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import {
   InsertUser,
   users,
@@ -26,21 +27,50 @@ import {
   surveyorMessages,
   InsertSurveyorMessage,
 } from "../drizzle/schema";
-import { ENV } from './_core/env';
-import { sql } from 'drizzle-orm';
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
+// Cloud SQL Instance Connection Name, se usa en producción
+const INSTANCE_CONNECTION_NAME = `integra-rh:us-central1:integra-rh-v2-db-dev`;
+
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
+  if (_db) return _db;
+
+  try {
+    // Conexión especial para el entorno de Cloud Run
+    if (process.env.K_SERVICE) {
+      console.log("[Database] Cloud Run environment detected. Connecting via socket.");
+      
+      if (!process.env.DATABASE_URL) {
+        throw new Error("DATABASE_URL secret is not set in Cloud Run environment.");
+      }
+
+      const url = new URL(process.env.DATABASE_URL);
+      const dbUser = decodeURIComponent(url.username);
+      const dbPassword = decodeURIComponent(url.password);
+      const dbName = url.pathname.slice(1);
+
+      const pool = mysql.createPool({
+        user: dbUser,
+        password: dbPassword,
+        database: dbName,
+        socketPath: `/cloudsql/${INSTANCE_CONNECTION_NAME}`,
+      });
+      _db = drizzle(pool);
+    } else if (process.env.DATABASE_URL) {
+      // Conexión para desarrollo local
+      console.log("[Database] Local environment detected. Connecting via TCP.");
       _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
+    } else {
+      console.warn("[Database] DATABASE_URL not set.");
+      return null;
     }
+  } catch (error) {
+    console.error("[Database] Failed to initialize database connection:", error);
+    _db = null;
   }
+
   return _db;
 }
 

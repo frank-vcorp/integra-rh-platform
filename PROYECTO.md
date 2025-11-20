@@ -70,3 +70,43 @@
  - `[✓]` PVM-DEV-01: Scripts y .env — SPEC: `context/SPEC-PVM-DEV-01.md`
    - *Actualizado `.env.example` (VITE_FIREBASE_*, VITE_APP_*, PSICOMETRICAS_*, SENDGRID_API_KEY) y `.env` local; unificada `VITE_API_URL=/api/trpc`.*
  - `[ ]` PVM-REL-01: Deploy stg (API + Web) — SPEC: `context/SPEC-PVM-REL-01.md`
+**Estado Actual (19/11/2025)**
+
+- Hosting activo en `https://integra-rh.web.app/` sirviendo `integra-rh-manus/dist/public`; CORS habilitado para ese dominio.
+- Autenticación: logout limpia Firebase + sesión local y redirige al login; login refresca ID token tras Google/password.
+- Backend: contexto auth tolerante a fallos de DB y crea usuario efímero con claims; soporte Cloud Run (socket `/cloudsql/...`) y Dockerfile multistage.
+- Build: `pnpm run build` usa `NODE_ENV=production`; `firebase.json` apunta a `dist/public`.
+- Se mantienen: invitaciones #WhatsApp, SendGrid operativo, Admin SDK configurado, migración `users.whatsapp` aplicada.
+
+**Cambios Clave**
+
+- `client/src/_core/hooks/useAuth.ts`: logout sincroniza Firebase, limpia tokens cliente y redirige.
+- `client/src/components/DashboardLayout.tsx`: botón de salir en móvil/desktop, menú admin por defecto hasta conocer rol.
+- `client/src/pages/Login.tsx`: usa `AuthContext` (Firebase), refresca idToken en Google y password.
+- `server/_core/context.ts`: auth resiliente; cae a user efímero con claims si falla DB.
+- `server/_core/index.ts`: CORS para `https://integra-rh.web.app`.
+- `server/routers/auth.ts`: `logout` no-op para compatibilidad con el hook.
+- `server/db.ts`: detección Cloud Run con pool por socket `/cloudsql/integra-rh:us-central1:integra-rh-v2-db-dev`; TCP local.
+- `firebase.json`: hosting desde `integra-rh-manus/dist/public`.
+- `package.json`: build con `NODE_ENV=production`; nuevo `Dockerfile` multistage para Cloud Run.
+- Migración y soporte WhatsApp siguen en `drizzle/0012_tan_ezekiel_stane.sql` y `scripts/fix-users-whatsapp.ts`.
+
+**Cómo correr**
+
+- Server dev: `pnpm tsx watch ./integra-rh-manus/server/_core/index.ts` (desde la raíz o dentro del folder del manus).
+- Test SendGrid: `cd integra-rh-manus && pnpm tsx ./scripts/sendgrid-test.ts correo@destino.com`.
+- Build/hosting: `cd integra-rh-manus && pnpm run build` y `firebase deploy --only hosting`.
+
+**Pendiente / Recomendado**
+
+- Verificar en Firebase Console que esté habilitado Google Sign-in (Auth → Sign-in method → Google) si se usará.
+- Validar end-to-end: login/logout en `https://integra-rh.web.app/` y flujo de invitación (correo + WA).
+- Opcional: máscara/validación visual para WhatsApp; por ahora flexible (placeholder `+52XXXXXXXXXX`).
+- Opcional: botón de “Reenviar invitación” que reutilice el reset link.
+- Opcional: vistas/roles — revisar restricciones de cliente vs admin en secciones sensibles.
+- Opcional: healthcheck/metrics + RBAC base (PVM-OBS/PVM-SEC).
+
+**Checkpoint**
+
+- Commit y tag previos: `checkpoint/20251102-1856-whatsapp-users-sendgrid` (ver `Checkpoints/cp-20251102-1856-whatsapp-users-sendgrid.md`).
+- Checkpoint nuevo: `checkpoint/20251119-1850-auth-cors-cloudrun` (este documento).

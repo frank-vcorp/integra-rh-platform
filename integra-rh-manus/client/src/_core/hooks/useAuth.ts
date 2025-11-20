@@ -2,6 +2,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
+import { getAuth, signOut } from 'firebase/auth';
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -26,7 +27,10 @@ export function useAuth(options?: UseAuthOptions) {
 
   const logout = useCallback(async () => {
     try {
-      await logoutMutation.mutateAsync();
+      // 1) Cerrar sesión en Firebase (elimina el token persistido)
+      try { await signOut(getAuth()); } catch {}
+      // 2) Avisar al backend (no-op pero mantiene compatibilidad)
+      try { await logoutMutation.mutateAsync(); } catch {}
     } catch (error: unknown) {
       if (
         error instanceof TRPCClientError &&
@@ -36,8 +40,18 @@ export function useAuth(options?: UseAuthOptions) {
       }
       throw error;
     } finally {
+      // 3) Limpiar caché local y tokens de acceso de cliente
+      try {
+        sessionStorage.removeItem('clientId');
+        sessionStorage.removeItem('clientAccessToken');
+      } catch {}
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
+      // 4) Redirigir al login
+      if (typeof window !== 'undefined') {
+        const loginUrl = getLoginUrl();
+        window.location.href = loginUrl;
+      }
     }
   }, [logoutMutation, utils]);
 
