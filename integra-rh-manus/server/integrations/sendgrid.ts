@@ -55,6 +55,12 @@ export async function enviarCorreo(params: EmailParams): Promise<boolean> {
           email: FROM_EMAIL,
           name: FROM_NAME,
         },
+        tracking_settings: {
+          click_tracking: {
+            enable: false,
+            enable_text: false,
+          },
+        },
         content,
       }),
     });
