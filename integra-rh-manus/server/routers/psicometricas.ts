@@ -69,12 +69,18 @@ export const psicometricasRouter = router({
       const now = Date.now();
 
       if (candidate?.psicometricos) {
-        const lastStr = (candidate.psicometricos as any).lastConsultAt as string | undefined;
+        const psico: any = candidate.psicometricos;
+        const cached = psico.resultadosJson;
+        const estatus = (psico.estatus || "").toString().toLowerCase();
+        // Si ya está completado y tenemos resultados en caché, no llamar más a la API
+        if (estatus === "completado" && cached !== undefined) {
+          return cached;
+        }
+        const lastStr = psico.lastConsultAt as string | undefined;
         const last = lastStr ? new Date(lastStr).getTime() : 0;
         const nextAllowed = last + cooldownSec * 1000;
-        const cached = (candidate.psicometricos as any).resultadosJson;
         if (last && now < nextAllowed && cached !== undefined) {
-          return cached; // devolver caché sin llamar a la API externa
+          return cached; // devolver caché sin llamar a la API externa mientras dura el cooldown
         }
       }
 
