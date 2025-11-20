@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { arrayBufferToBase64 } from "@/lib/base64";
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, Eye, FolderOpen } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -59,8 +59,14 @@ export default function CandidatoDetalle() {
   });
   const guardarReportePsico = trpc.psicometricas.guardarReporte.useMutation({
     onSuccess: (res) => {
-      utils.documents.getByCandidate.invalidate();
-      toast.success("Reporte guardado en Documentos");
+      utils.documents.getByCandidate.invalidate({ candidatoId });
+      utils.candidates.getById.invalidate({ id: candidateId });
+      const message = res?.status === "Completado" ? "Resultados guardados en el expediente" : "Reporte descargado";
+      toast.success(message);
+      const url = res?.pdf?.url || res?.json?.url;
+      if (url) {
+        try { window.open(url, "_blank"); } catch {}
+      }
     },
     onError: (e:any) => toast.error("Error: "+e.message)
   });
@@ -73,29 +79,6 @@ export default function CandidatoDetalle() {
     onSuccess: () => toast.success("Invitación reenviada"),
     onError: (e:any) => toast.error("Error: "+e.message),
   });
-  const consultarResultados = trpc.psicometricas.consultarResultados.useQuery(
-    { asignacionId: candidate?.psicometricos?.clavePsicometricas || "" },
-    {
-      enabled: false,
-      retry: false,
-      onSuccess: (data:any) => {
-        setResultadosData(data);
-        setResultadosOpen(true);
-        utils.candidates.getById.invalidate({ id: candidateId });
-      },
-      onError: (e:any) => toast.error("Error: "+(e.message || "No se pudieron consultar los resultados")),
-    }
-  );
-  const updateCandidate = trpc.candidates.update.useMutation({
-    onSuccess: () => {
-      utils.candidates.getById.invalidate({ id: candidateId });
-      toast.success("Resultados guardados en el expediente");
-    },
-    onError: (e:any) => toast.error("Error guardando resultados: "+e.message),
-  });
-
-  const [resultadosOpen, setResultadosOpen] = useState(false);
-  const [resultadosData, setResultadosData] = useState<any>(null);
   const createClientLink = trpc.clientAccess.create.useMutation({
     onSuccess: (res:any) => {
       const url = res.url;
@@ -524,6 +507,12 @@ export default function CandidatoDetalle() {
               onClick={() => {
                 const asignacionId = candidate.psicometricos?.clavePsicometricas || '';
                 if (!asignacionId) { toast.error('No hay clave de asignación registrada'); return; }
+                const existingPdf = documents.find((doc: any) => doc.tipoDocumento === "PSICOMETRICO");
+                if (existingPdf) {
+                  toast.info("El reporte ya está disponible en Documentos.");
+                  try { window.open(existingPdf.url, "_blank"); } catch {}
+                  return;
+                }
                 guardarReportePsico.mutate({ candidatoId: candidateId, asignacionId, fileName: `psicometrico-${candidateId}.pdf` });
               }}
               disabled={!candidate.psicometricos?.clavePsicometricas}
@@ -543,41 +532,8 @@ export default function CandidatoDetalle() {
               <RefreshCcw className="h-4 w-4 mr-2"/> Reenviar invitación
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                const clave = candidate.psicometricos?.clavePsicometricas || '';
-                if (!clave) { toast.error('No hay clave de asignación registrada'); return; }
-                consultarResultados.refetch();
-              }}
-              disabled={!candidate.psicometricos?.clavePsicometricas || consultarResultados.isFetching}
-            >
-              <Eye className="h-4 w-4 mr-2"/> Ver resultados
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (!resultadosData) { toast.error('Primero consulta resultados'); return; }
-                updateCandidate.mutate({ id: candidateId, data: { psicometricos: { ...(candidate.psicometricos || {}), resultadosJson: resultadosData } } as any });
-              }}
-              disabled={!resultadosData || updateCandidate.isPending}
-            >
-              Guardar resultados en expediente
-            </Button>
+            {/* Botón "Ver resultados" eliminado: el flujo se maneja al guardar el reporte */}
           </div>
-          {/* Modal resultados JSON */}
-          <Dialog open={resultadosOpen} onOpenChange={setResultadosOpen}>
-            <DialogContent className="max-w-3xl" aria-describedby="resultados-desc">
-              <DialogHeader>
-                <DialogTitle>Resultados Psicométricos</DialogTitle>
-              </DialogHeader>
-              <p id="resultados-desc" className="sr-only">Vista de resultados psicométricos en formato JSON.</p>
-              <pre className="text-xs bg-slate-100 p-3 rounded max-h-[60vh] overflow-auto">
-                {JSON.stringify(resultadosData, null, 2)}
-              </pre>
-            </DialogContent>
-          </Dialog>
         </CardContent>
       </Card>
 

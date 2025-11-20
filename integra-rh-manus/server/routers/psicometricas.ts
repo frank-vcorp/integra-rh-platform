@@ -6,6 +6,21 @@ import * as sendgrid from "../integrations/sendgrid";
 import { descargarReportePDF } from "../integrations/psicometricas";
 import { storage as firebaseStorage } from "../firebase";
 
+const NORMALIZE_STATUS = (raw?: string) => {
+  const value = (raw || "").toString().toLowerCase();
+  if (value.includes("complet")) return "Completado";
+  if (value.includes("progre")) return "En progreso";
+  if (value.includes("asign")) return "Asignado";
+  return value ? value : "Asignado";
+};
+
+function jsonBuffer(data: any) {
+  return Buffer.from(JSON.stringify(data, null, 2), "utf-8");
+}
+
+const simplifyDoc = (doc?: any) =>
+  doc ? { id: doc.id, url: doc.url } : undefined;
+
 export const psicometricasRouter = router({
   getBaterias: adminProcedure
     .query(async () => {
@@ -109,21 +124,81 @@ export const psicometricasRouter = router({
       fileName: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const buffer = await descargarReportePDF(input.asignacionId);
-      const key = `candidates/${input.candidatoId}/psicometria-${Date.now()}.pdf`;
+      const candidate = await db.getCandidateById(input.candidatoId);
+      if (!candidate) {
+        throw new Error("Candidato no encontrado");
+      }
+
+      const docs = await db.getDocumentsByCandidate(input.candidatoId);
+      const existingPdf = docs.find((d: any) => d.tipoDocumento === "PSICOMETRICO");
+      const existingJson = docs.find((d: any) => d.tipoDocumento === "PSICOMETRICO_JSON");
+
+      let resultados: any = candidate.psicometricos?.resultadosJson;
+      let normalizedStatus = NORMALIZE_STATUS(candidate.psicometricos?.estatus);
+
+      if (!resultados) {
+        resultados = await psicometricas.consultarResultados(input.asignacionId);
+        normalizedStatus = NORMALIZE_STATUS(resultados?.estatus);
+      }
+
       const bucket = firebaseStorage.bucket();
-      const file = bucket.file(key);
-      await file.save(buffer, { contentType: "application/pdf", resumable: false });
-      const [signedUrl] = await file.getSignedUrl({ action: "read", expires: new Date(Date.now() + 365*24*60*60*1000) });
-      const id = await db.createDocument({
-        candidatoId: input.candidatoId,
-        tipoDocumento: "PSICOMETRICO",
-        nombreArchivo: input.fileName || `reporte-psicometrico.pdf`,
-        url: signedUrl,
-        fileKey: key,
-        mimeType: "application/pdf",
-        uploadedBy: ctx.user.name || ctx.user.email || "Admin",
-      } as any);
-      return { id, url: signedUrl, key } as const;
+      let jsonDoc = simplifyDoc(existingJson);
+      if (!jsonDoc && resultados) {
+        const jsonKey = `candidates/${input.candidatoId}/psicometria-${Date.now()}.json`;
+        const jsonFile = bucket.file(jsonKey);
+        await jsonFile.save(jsonBuffer(resultados), { contentType: "application/json", resumable: false });
+        const [jsonUrl] = await jsonFile.getSignedUrl({ action: "read", expires: new Date(Date.now() + 365*24*60*60*1000) });
+        const jsonId = await db.createDocument({
+          candidatoId: input.candidatoId,
+          tipoDocumento: "PSICOMETRICO_JSON",
+          nombreArchivo: `psicometria-${input.candidatoId}.json`,
+          url: jsonUrl,
+          fileKey: jsonKey,
+          mimeType: "application/json",
+          uploadedBy: ctx.user.name || ctx.user.email || "Admin",
+        } as any);
+        jsonDoc = { id: jsonId, url: jsonUrl };
+      }
+
+      let pdfDoc = simplifyDoc(existingPdf);
+      if (!pdfDoc) {
+        const buffer = await descargarReportePDF(input.asignacionId);
+        const key = `candidates/${input.candidatoId}/psicometria-${Date.now()}.pdf`;
+        const file = bucket.file(key);
+        await file.save(buffer, { contentType: "application/pdf", resumable: false });
+        const [signedUrl] = await file.getSignedUrl({ action: "read", expires: new Date(Date.now() + 365*24*60*60*1000) });
+        const id = await db.createDocument({
+          candidatoId: input.candidatoId,
+          tipoDocumento: "PSICOMETRICO",
+          nombreArchivo: input.fileName || `reporte-psicometrico.pdf`,
+          url: signedUrl,
+          fileKey: key,
+          mimeType: "application/pdf",
+          uploadedBy: ctx.user.name || ctx.user.email || "Admin",
+        } as any);
+        pdfDoc = { id, url: signedUrl };
+      }
+
+      try {
+        const current = (candidate.psicometricos || {}) as any;
+        await db.updateCandidate(input.candidatoId, {
+          psicometricos: {
+            ...current,
+            clavePsicometricas: input.asignacionId,
+            estatus: normalizedStatus,
+            resultadosJson: resultados ?? current.resultadosJson,
+            lastConsultAt: new Date().toISOString(),
+            fechaFinalizacion: normalizedStatus === "Completado"
+              ? new Date().toISOString()
+              : current.fechaFinalizacion ?? null,
+          } as any,
+        } as any);
+      } catch {}
+
+      return {
+        status: normalizedStatus,
+        pdf: pdfDoc,
+        json: jsonDoc,
+      } as const;
     }),
 });
