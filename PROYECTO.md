@@ -32,10 +32,10 @@
 - `[✓]` PVM-API-01: Scaffold API tRPC + Zod
 - `[✓]` PVM-HIS-01: tRPC — workHistory get/create/update/delete
 - `[✓]` PVM-COM-01: tRPC — candidateComments get/create
-- `[>]` PVM-PRC-01: tRPC — processes.* (listar, detalle, crear)
+- `[✓]` PVM-PRC-01: tRPC — processes.* (listar, detalle, crear)
   - `[✓]` Corrección en UI: ProcesoDetalle sin hooks condicionales (estable)
-  - `[>]` Alinear queries/mutations (list/getById/update) con el front actual
-  - `[ ]` Crear proceso (endpoint + UI)
+  - `[✓]` Alinear queries/mutations (list/getById/update) con el front actual
+  - `[✓]` Crear proceso (endpoint + UI)
 - `[✓]` PVM-INT-API-01: Psicométricas — asignar/reenviar/consultar (tRPC)
 - `[✓]` PVM-INT-API-02: Email — invitación psicométrica (tRPC)
 - `[✓]` PVM-WHB-01: Webhook Psicométricas `POST /api/webhooks/psicometricas`
@@ -56,12 +56,12 @@
 ### PVM - Frontend (React)
  - `[✓]` PVM-WEB-01: Inicializar Vite + React — SPEC: `context/SPEC-PVM-WEB-01.md`
  - `[✓]` PVM-WEB-02: Login con Firebase Auth — SPEC: `context/SPEC-PVM-WEB-02.md`
- - `[>]` PVM-WEB-03: Listado de Clientes — SPEC: `context/SPEC-PVM-WEB-03.md`
- - `[ ]` PVM-WEB-04: Detalle de Cliente — SPEC: `context/SPEC-PVM-WEB-04.md`
- - `[ ]` PVM-WEB-05: Historial laboral en CandidatoDetalle
- - `[ ]` PVM-WEB-06: Bitácora de candidato (comentarios)
- - `[ ]` PVM-WEB-07: UI Psicométricas (asignar/reenviar/ver resultados)
- - `[ ]` PVM-WEB-08: Envío de invitaciones (email)
+ - `[✓]` PVM-WEB-03: Listado de Clientes — SPEC: `context/SPEC-PVM-WEB-03.md`
+ - `[✓]` PVM-WEB-04: Detalle de Cliente — SPEC: `context/SPEC-PVM-WEB-04.md`
+ - `[✓]` PVM-WEB-05: Historial laboral en CandidatoDetalle
+ - `[✓]` PVM-WEB-06: Bitácora de candidato (comentarios)
+ - `[✓]` PVM-WEB-07: UI Psicométricas (asignar/reenviar/ver resultados)
+ - `[✓]` PVM-WEB-08: Envío de invitaciones (email)
 
 ### PVM - Tareas Transversales
  - `[ ]` PVM-OBS-01: Logger estructurado y requestId — SPEC: `context/SPEC-PVM-OBS-01.md`
@@ -71,16 +71,18 @@
    - *Actualizado `.env.example` (VITE_FIREBASE_*, VITE_APP_*, PSICOMETRICAS_*, SENDGRID_API_KEY) y `.env` local; unificada `VITE_API_URL=/api/trpc`.*
  - `[ ]` PVM-REL-01: Deploy stg (API + Web) — SPEC: `context/SPEC-PVM-REL-01.md`
 ### PVM - Dashboard Clientes (Nuevo)
- - `[ ]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
- - `[ ]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Prioridad alta.
+ - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
+ - `[✓]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Incluye portal de cliente por enlace con branding Sinergia RH.
 
-**Estado Actual (19/11/2025)**
+**Estado Actual (21/11/2025)**
 
 - Hosting activo en `https://integra-rh.web.app/` sirviendo `integra-rh-manus/dist/public`; CORS habilitado para ese dominio.
 - Autenticación: logout limpia Firebase + sesión local y redirige al login; login refresca ID token tras Google/password.
 - Backend: contexto auth tolerante a fallos de DB y crea usuario efímero con claims; soporte Cloud Run (socket `/cloudsql/...`) y Dockerfile multistage.
 - Build: `pnpm run build` usa `NODE_ENV=production`; `firebase.json` apunta a `dist/public`.
 - Se mantienen: invitaciones #WhatsApp, SendGrid operativo, Admin SDK configurado, migración `users.whatsapp` aplicada.
+- Portal de Cliente: acceso mediante enlace con token (`clientAccessTokens` + `clientPortal.listDataByToken`), dashboard resumido por procesos/candidatos y branding principal Sinergia RH (Soportado por Integra-RH).
+- Despliegue: servicio `api` actualizado en Cloud Run (rev api-00016-x9j) y hosting en `https://integra-rh.web.app/` consumiendo esa API.
 
 **Cambios Clave**
 
@@ -115,4 +117,5 @@
 **Checkpoint**
 
 - Commit y tag previos: `checkpoint/20251102-1856-whatsapp-users-sendgrid` (ver `Checkpoints/cp-20251102-1856-whatsapp-users-sendgrid.md`).
-- Checkpoint nuevo: `checkpoint/20251119-1850-auth-cors-cloudrun` (este documento).
+- Checkpoint intermedio: `checkpoint/20251119-1850-auth-cors-cloudrun` (este documento).
+- Checkpoint nuevo: `checkpoint/20251121-1545-client-portal-token` (ver `Checkpoints/CHK_2025-11-21_1545.md`).
