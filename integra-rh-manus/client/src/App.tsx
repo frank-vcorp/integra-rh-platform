@@ -36,6 +36,7 @@ function Router() {
       <Route path="/cliente/proceso/:id" component={ClienteProcesoDetalle} />
       <Route path="/cliente/candidato/:id" component={ClienteCandidatoDetalle} />
       <Route path="/cliente/:token" component={ClienteAcceso} />
+      <Route path="/cliente" component={ClienteAcceso} />
       {/* Ruta de Login */}
       <Route path="/login" component={LoginPage} />
 

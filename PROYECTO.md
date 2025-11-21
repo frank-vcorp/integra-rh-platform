@@ -94,12 +94,14 @@
 - `firebase.json`: hosting desde `integra-rh-manus/dist/public`.
 - `package.json`: build con `NODE_ENV=production`; nuevo `Dockerfile` multistage para Cloud Run.
 - Migración y soporte WhatsApp siguen en `drizzle/0012_tan_ezekiel_stane.sql` y `scripts/fix-users-whatsapp.ts`.
+- `integra-rh-manus/scripts/seed-demo.ts`: genera/actualiza dataset demo (cliente Sycom, puesto, candidato con psico JSON/PDF y proceso completo) usando el correo `frank.saavedra.marin@gmail.com`.
 
 **Cómo correr**
 
 - Server dev: `pnpm tsx watch ./integra-rh-manus/server/_core/index.ts` (desde la raíz o dentro del folder del manus).
 - Test SendGrid: `cd integra-rh-manus && pnpm tsx ./scripts/sendgrid-test.ts correo@destino.com`.
 - Build/hosting: `cd integra-rh-manus && pnpm run build` y `firebase deploy --only hosting`.
+- Seed demo: `cd integra-rh-manus && pnpm tsx scripts/seed-demo.ts` (idempotente; refresca cliente/panel de Paula).
 
 **Pendiente / Recomendado**
 

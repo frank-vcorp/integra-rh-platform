@@ -16,8 +16,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CAUSALES_SALIDA, CausalSalidaType } from "@/lib/constants";
+import { CAUSALES_SALIDA, CausalSalidaType, ESTATUS_INVESTIGACION, EstatusInvestigacionType, ESTATUS_INVESTIGACION_LABELS } from "@/lib/constants";
 import { calcularTiempoTrabajado } from "@/lib/dateUtils";
+
+const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
+  en_revision: "bg-yellow-100 text-yellow-800",
+  revisado: "bg-blue-100 text-blue-800",
+  terminado: "bg-green-100 text-green-800",
+};
+
+const getInvestigacionLabel = (estatus?: string) =>
+  estatus && estatus in ESTATUS_INVESTIGACION_LABELS
+    ? ESTATUS_INVESTIGACION_LABELS[estatus as EstatusInvestigacionType]
+    : ESTATUS_INVESTIGACION_LABELS["en_revision"];
+
+const getInvestigacionClass = (estatus?: string) =>
+  estatus && estatus in INVESTIGACION_BADGE
+    ? INVESTIGACION_BADGE[estatus as EstatusInvestigacionType]
+    : INVESTIGACION_BADGE["en_revision"];
 
 export default function CandidatoDetalle() {
   const params = useParams();
@@ -219,6 +235,8 @@ export default function CandidatoDetalle() {
     const causalJefe = formData.get("causalSalidaJefeInmediato") as string;
     const fechaInicio = formData.get("fechaInicio") as string || undefined;
     const fechaFin = formData.get("fechaFin") as string || undefined;
+    const estatusInvestigacion = formData.get("estatusInvestigacion") as EstatusInvestigacionType | null;
+    const comentarioInvestigacion = formData.get("comentarioInvestigacion") as string | null;
     
     // Calcular tiempo trabajado automáticamente
     const tiempoTrabajado = calcularTiempoTrabajado(fechaInicio, fechaFin);
@@ -233,6 +251,8 @@ export default function CandidatoDetalle() {
       causalSalidaRH: (causalRH && causalRH !== "") ? causalRH as CausalSalidaType : undefined,
       causalSalidaJefeInmediato: (causalJefe && causalJefe !== "") ? causalJefe as CausalSalidaType : undefined,
       observaciones: formData.get("observaciones") as string || undefined,
+      estatusInvestigacion: (estatusInvestigacion || undefined) as EstatusInvestigacionType | undefined,
+      comentarioInvestigacion: comentarioInvestigacion || undefined,
     };
 
     if (editingWorkHistory) {
@@ -369,6 +389,24 @@ export default function CandidatoDetalle() {
                       <p className="text-xs text-muted-foreground">
                         Tiempo trabajado: {item.tiempoTrabajado || calcularTiempoTrabajado(item.fechaInicio, item.fechaFin) || "-"}
                       </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span
+                          className={`text-xs font-semibold px-2 py-1 rounded ${getInvestigacionClass(item.estatusInvestigacion as string)}`}
+                        >
+                          {getInvestigacionLabel(item.estatusInvestigacion as string)}
+                        </span>
+                        {item.resultadoVerificacion && (
+                          <span className="text-xs text-muted-foreground">
+                            Dictamen: {item.resultadoVerificacion.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </div>
+                      {item.comentarioInvestigacion && (
+                        <p className="text-sm mt-2">
+                          <span className="text-muted-foreground">Comentario de verificación:</span>{" "}
+                          {item.comentarioInvestigacion}
+                        </p>
+                      )}
                       {item.observaciones && (
                         <p className="text-sm mt-2">
                           <span className="text-muted-foreground">Observaciones:</span> {item.observaciones}
@@ -925,6 +963,30 @@ export default function CandidatoDetalle() {
                   id="observaciones"
                   name="observaciones"
                   defaultValue={editingWorkHistory?.observaciones}
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="estatusInvestigacion">Estatus de verificación</Label>
+                <select
+                  id="estatusInvestigacion"
+                  name="estatusInvestigacion"
+                  defaultValue={editingWorkHistory?.estatusInvestigacion || "en_revision"}
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                >
+                  {ESTATUS_INVESTIGACION.map((status) => (
+                    <option key={status} value={status}>
+                      {ESTATUS_INVESTIGACION_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="comentarioInvestigacion">Comentario de verificación</Label>
+                <Textarea
+                  id="comentarioInvestigacion"
+                  name="comentarioInvestigacion"
+                  defaultValue={editingWorkHistory?.comentarioInvestigacion || ""}
                   rows={3}
                 />
               </div>

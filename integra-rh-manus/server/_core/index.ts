@@ -30,7 +30,15 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
-  app.use(cors({ origin: 'https://integra-rh.web.app', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
+  app.use(
+    cors({
+      origin: 'https://integra-rh.web.app',
+      methods: ['GET', 'POST', 'OPTIONS'],
+      // No fijamos allowedHeaders para que CORS refleje los headers
+      // solicitados (incluyendo x-client-token) automáticamente.
+      credentials: true,
+    })
+  );
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));

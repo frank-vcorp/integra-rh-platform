@@ -1,10 +1,30 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, User, Briefcase, FileText } from "lucide-react";
+import { ArrowLeft, User, Briefcase, FileText, Layers } from "lucide-react";
 import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
+import { ESTATUS_INVESTIGACION_LABELS, EstatusInvestigacionType } from "@/lib/constants";
+import { calcularTiempoTrabajado } from "@/lib/dateUtils";
+
+const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
+  en_revision: "bg-yellow-100 text-yellow-800",
+  revisado: "bg-blue-100 text-blue-800",
+  terminado: "bg-green-100 text-green-800",
+};
+
+const getInvestigacionLabel = (estatus?: string) =>
+  estatus && estatus in ESTATUS_INVESTIGACION_LABELS
+    ? ESTATUS_INVESTIGACION_LABELS[estatus as EstatusInvestigacionType]
+    : ESTATUS_INVESTIGACION_LABELS["en_revision"];
+
+const getInvestigacionClass = (estatus?: string) =>
+  estatus && estatus in INVESTIGACION_BADGE
+    ? INVESTIGACION_BADGE[estatus as EstatusInvestigacionType]
+    : INVESTIGACION_BADGE["en_revision"];
+
+const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("es-MX") : "-");
 
 /**
  * Vista de detalle de candidato para clientes
@@ -17,6 +37,7 @@ export default function ClienteCandidatoDetalle() {
 
   const { data: candidate, isLoading: candidateLoading } = trpc.candidates.getById.useQuery({ id: candidatoId });
   const { data: allProcesses = [] } = trpc.processes.list.useQuery();
+  const { data: workHistory = [], isLoading: workHistoryLoading } = trpc.workHistory.getByCandidate.useQuery({ candidatoId });
   
   // Filtrar procesos del candidato que pertenecen al cliente
   const candidateProcesses = allProcesses.filter(
@@ -178,6 +199,58 @@ export default function ClienteCandidatoDetalle() {
                         </Button>
                       </Link>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Historial laboral */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5" />
+              Historial Laboral
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {workHistoryLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+              </div>
+            ) : workHistory.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">
+                <p>Sin registros de historial laboral</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {workHistory.map((item: any) => (
+                  <div key={item.id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                      <div>
+                        <h4 className="font-semibold text-lg">{item.empresa}</h4>
+                        <p className="text-sm text-gray-600">{item.puesto || "Sin puesto registrado"}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(item.fechaInicio)} — {item.fechaFin ? formatDate(item.fechaFin) : "Actual"} •{" "}
+                          {item.tiempoTrabajado || calcularTiempoTrabajado(item.fechaInicio, item.fechaFin) || "-"}
+                        </p>
+                      </div>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded ${getInvestigacionClass(item.estatusInvestigacion)}`}>
+                        {getInvestigacionLabel(item.estatusInvestigacion)}
+                      </span>
+                    </div>
+                    {item.comentarioInvestigacion && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-gray-600">Comentario de verificación:</span>{" "}
+                        {item.comentarioInvestigacion}
+                      </p>
+                    )}
+                    {item.observaciones && (
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-gray-600">Observaciones:</span> {item.observaciones}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

@@ -3,6 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "../db";
 
+const ESTATUS_INVESTIGACION = ["en_revision", "revisado", "terminado"] as const;
+
 export const workHistoryRouter = router({
   getByCandidate: protectedProcedure
     .input(z.object({ candidatoId: z.number() }))
@@ -31,6 +33,8 @@ export const workHistoryRouter = router({
         resultadoVerificacion: z
           .enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
         observaciones: z.string().optional(),
+        estatusInvestigacion: z.enum(ESTATUS_INVESTIGACION).optional(),
+        comentarioInvestigacion: z.string().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -54,6 +58,8 @@ export const workHistoryRouter = router({
           resultadoVerificacion: z
             .enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
           observaciones: z.string().optional(),
+          estatusInvestigacion: z.enum(ESTATUS_INVESTIGACION).optional(),
+          comentarioInvestigacion: z.string().optional(),
         }),
       })
     )
@@ -69,4 +75,3 @@ export const workHistoryRouter = router({
       return { success: true } as const;
     }),
 });
-

@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { useParams, useLocation } from 'wouter';
-import { trpc } from '@/lib/trpc';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useMemo } from "react";
+import { useParams, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Loader2 } from "lucide-react";
 
 /**
  * Página de acceso de clientes mediante token único
@@ -10,12 +10,30 @@ import { Loader2 } from 'lucide-react';
 export default function ClienteAcceso() {
   const params = useParams();
   const [, setLocation] = useLocation();
-  const token = params.token as string;
+
+  const token = useMemo(() => {
+    if (params.token) return params.token as string;
+    const search = new URLSearchParams(window.location.search);
+    return search.get("token") ?? "";
+  }, [params.token]);
+
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center space-y-3">
+          <h1 className="text-2xl font-bold text-gray-900">Enlace inválido</h1>
+          <p className="text-gray-600">
+            El enlace de acceso no contiene un token. Solicita nuevamente tu acceso a INTEGRA-RH.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const { data, isLoading, error } = trpc.clientAccess.validateToken.useQuery(
     { token },
     {
-      enabled: !!token,
+      enabled: Boolean(token),
       retry: false,
     }
   );

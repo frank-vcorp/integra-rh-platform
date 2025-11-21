@@ -1,17 +1,37 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import { storage as firebaseStorage } from "../firebase";
+import { TRPCError } from "@trpc/server";
 
 export const processesRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role === "admin") {
+  list: publicProcedure.query(async ({ ctx }) => {
+    console.log("[processes.list] headers:", ctx.req.headers);
+
+    // 1) Si hay usuario en contexto (admin o client) usarlo
+    if (ctx.user?.role === "admin") {
       return db.getAllProcesses();
     }
-    if (ctx.user.clientId) {
+    if (ctx.user?.role === "client" && ctx.user.clientId) {
       return db.getProcessesByClient(ctx.user.clientId);
     }
-    return [];
+
+    // 2) Si no hay usuario, intentar autenticar con ClientToken directo
+    const authHeader =
+      ctx.req.headers["authorization"] ||
+      (ctx.req.headers["Authorization" as any] as string | string[] | undefined);
+    const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+
+    if (typeof header === "string" && header.startsWith("ClientToken ")) {
+      const token = header.slice("ClientToken ".length).trim();
+      const { validateClientToken } = await import("../auth/clientTokens");
+      const client = await validateClientToken(token);
+      if (client) {
+        return db.getProcessesByClient(client.id);
+      }
+    }
+
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Please login (10001)" });
   }),
 
   getById: protectedProcedure

@@ -1,16 +1,50 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
+import { TRPCError } from "@trpc/server";
 
 export const candidatesRouter = router({
-  list: protectedProcedure.query(async () => {
-    return db.getAllCandidates();
+  list: publicProcedure.query(async ({ ctx }) => {
+    console.log("[candidates.list] headers:", ctx.req.headers);
+
+    // 1) Si hay usuario en contexto (admin o client) usarlo
+    if (ctx.user?.role === "admin") {
+      return db.getAllCandidates();
+    }
+    if (ctx.user?.role === "client" && ctx.user.clientId) {
+      return db.getCandidatesByClient(ctx.user.clientId);
+    }
+
+    // 2) Si no hay usuario, intentar autenticar con ClientToken directo
+    const authHeader =
+      ctx.req.headers["authorization"] ||
+      (ctx.req.headers["Authorization" as any] as string | string[] | undefined);
+    const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+
+    if (typeof header === "string" && header.startsWith("ClientToken ")) {
+      const token = header.slice("ClientToken ".length).trim();
+      const { validateClientToken } = await import("../auth/clientTokens");
+      const client = await validateClientToken(token);
+      if (client) {
+        return db.getCandidatesByClient(client.id);
+      }
+    }
+
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Please login (10001)" });
   }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
-      return db.getCandidateById(input.id);
+    .query(async ({ input, ctx }) => {
+      const candidate = await db.getCandidateById(input.id);
+      if (
+        ctx.user?.role === "client" &&
+        candidate &&
+        candidate.clienteId !== ctx.user.clientId
+      ) {
+        return null;
+      }
+      return candidate;
     }),
 
   create: adminProcedure
@@ -56,4 +90,3 @@ export const candidatesRouter = router({
       return { success: true } as const;
     }),
 });
-

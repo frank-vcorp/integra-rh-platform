@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Building2, Pencil, Trash2 } from "lucide-react";
+import { Plus, Building2, Pencil, Trash2, Share2, Copy, Mail, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -29,6 +29,11 @@ export default function Clientes() {
   const [editingClient, setEditingClient] = useState<any>(null);
   const [showContinueFlow, setShowContinueFlow] = useState(false);
   const [createdClientId, setCreatedClientId] = useState<number | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkClient, setLinkClient] = useState<any>(null);
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkPhone, setLinkPhone] = useState("");
+  const [generatedLink, setGeneratedLink] = useState("");
 
   const { data: clients = [], isLoading } = trpc.clients.list.useQuery();
   const utils = trpc.useUtils();
@@ -64,6 +69,22 @@ export default function Clientes() {
     },
     onError: (error) => {
       toast.error("Error al eliminar cliente: " + error.message);
+    },
+  });
+
+  const shareLinkMutation = trpc.clientAccess.create.useMutation({
+    onSuccess: (res: any) => {
+      setGeneratedLink(res.url);
+      toast.success("Enlace generado");
+      try {
+        navigator.clipboard?.writeText(res.url);
+        toast.info("Enlace copiado al portapapeles");
+      } catch {
+        // ignore
+      }
+    },
+    onError: (error) => {
+      toast.error("No se pudo generar el enlace: " + error.message);
     },
   });
 
@@ -113,6 +134,61 @@ export default function Clientes() {
   const handleOpenDialog = () => {
     setEditingClient(null);
     setDialogOpen(true);
+  };
+
+  const openLinkDialog = (client: any) => {
+    setLinkClient(client);
+    setLinkEmail(client?.email || "");
+    setLinkPhone(client?.telefono || "");
+    setGeneratedLink("");
+    setLinkDialogOpen(true);
+  };
+
+  const buildFollowupMessage = (url: string) => {
+    const name = linkClient?.nombreEmpresa || "tu empresa";
+    return `Integra RH - Seguimiento de procesos\n\nHola ${name}, te compartimos el portal para dar seguimiento en tiempo real a tus procesos y candidatos:\n${url}\n\nPuedes consultarlo cuando gustes para revisar avances, visitas y dictámenes.`;
+  };
+
+  const handleGenerateLink = () => {
+    if (!linkClient) return;
+    shareLinkMutation.mutate({
+      clientId: linkClient.id,
+      ttlDays: 14,
+      baseUrl: window.location.origin,
+    });
+  };
+
+  const copyMessage = () => {
+    if (!generatedLink) return;
+    const msg = buildFollowupMessage(generatedLink);
+    navigator.clipboard?.writeText(msg)
+      .then(() => toast.success("Mensaje copiado"))
+      .catch(() => toast.error("No se pudo copiar el mensaje"));
+  };
+
+  const sendWhatsapp = () => {
+    if (!generatedLink || !linkPhone) {
+      toast.error("Necesitas capturar un teléfono y generar el enlace");
+      return;
+    }
+    const digits = linkPhone.replace(/[^0-9+]/g, "");
+    if (!digits) {
+      toast.error("Teléfono no válido");
+      return;
+    }
+    const msg = buildFollowupMessage(generatedLink);
+    const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
+
+  const sendMail = () => {
+    if (!generatedLink || !linkEmail) {
+      toast.error("Necesitas capturar un correo y generar el enlace");
+      return;
+    }
+    const subject = "Integra RH - Seguimiento de procesos y candidatos";
+    const body = buildFollowupMessage(generatedLink);
+    window.open(`mailto:${linkEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   const filteredClients = clients.filter(
@@ -209,6 +285,13 @@ export default function Clientes() {
                           onClick={() => handleDelete(client.id)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openLinkDialog(client)}
+                        >
+                          <Share2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -324,6 +407,76 @@ export default function Clientes() {
                 Terminar aquí
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogo para compartir enlace */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Compartir acceso con el cliente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Este enlace permite a {linkClient?.nombreEmpresa ?? "el cliente"} dar seguimiento a todos sus procesos y candidatos en Integra RH.
+            </p>
+            <div>
+              <Label htmlFor="linkEmail">Correo del cliente (para enviar mensaje)</Label>
+              <Input
+                id="linkEmail"
+                type="email"
+                value={linkEmail}
+                onChange={(e) => setLinkEmail(e.target.value)}
+                placeholder="cliente@empresa.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="linkPhone">WhatsApp</Label>
+              <Input
+                id="linkPhone"
+                value={linkPhone}
+                onChange={(e) => setLinkPhone(e.target.value)}
+                placeholder="+52 55 0000 0000"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleGenerateLink} disabled={shareLinkMutation.isPending}>
+                {generatedLink ? "Regenerar enlace" : "Generar enlace"}
+              </Button>
+              {generatedLink && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(generatedLink);
+                    toast.success("Enlace copiado");
+                  }}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar enlace
+                </Button>
+              )}
+            </div>
+            {generatedLink && (
+              <div className="space-y-3">
+                <div className="bg-muted rounded p-3 text-sm break-all">{generatedLink}</div>
+                <div className="flex flex-col gap-2">
+                  <Button variant="secondary" onClick={copyMessage}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copiar mensaje completo
+                  </Button>
+                  <Button variant="outline" onClick={sendMail} disabled={!linkEmail}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Enviar por correo
+                  </Button>
+                  <Button variant="outline" onClick={sendWhatsapp} disabled={!linkPhone}>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Compartir por WhatsApp
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

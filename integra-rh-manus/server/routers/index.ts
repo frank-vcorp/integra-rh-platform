@@ -15,6 +15,7 @@ import { surveyorsRouter } from './surveyors';
 import { usersRouter } from './users';
 import { paymentsRouter } from './payments';
 import { surveyorMessagesRouter } from './surveyorMessages';
+import { clientPortalRouter } from './clientPortal';
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -41,6 +42,7 @@ export const appRouter = router({
 
   // Routers públicos para acceso de clientes mediante token
   clientAccess: clientAccessRouter,
+  clientPortal: clientPortalRouter,
 
   // Historial laboral y comentarios de candidatos
   workHistory: workHistoryRouter,

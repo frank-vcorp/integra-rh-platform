@@ -58,15 +58,28 @@ const trpcClient = trpc.createClient({
       url: import.meta.env.VITE_API_URL || "/api/trpc",
       transformer: superjson,
       async headers() {
+        const headers: Record<string, string> = {};
+
+        // Token de Firebase para usuarios internos (admin / backoffice)
         const auth = getAuth();
         const user = auth.currentUser;
-        if (!user) {
-          return {};
+        if (user) {
+          const token = await user.getIdToken();
+          headers.Authorization = `Bearer ${token}`;
+          return headers;
         }
-        const token = await user.getIdToken();
-        return {
-          Authorization: `Bearer ${token}`,
-        };
+
+        // Token de acceso de cliente (enlace sin credenciales)
+        try {
+          const clientToken = sessionStorage.getItem("clientAccessToken");
+          if (clientToken) {
+            headers.Authorization = `ClientToken ${clientToken}`;
+          }
+        } catch {
+          // sessionStorage puede no estar disponible en algunos contextos
+        }
+
+        return headers;
       },
       fetch(input, init) {
         return globalThis.fetch(input, {

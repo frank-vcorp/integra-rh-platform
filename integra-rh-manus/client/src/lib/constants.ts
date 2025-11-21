@@ -37,6 +37,20 @@ export const CAUSALES_SALIDA = [
 
 export type CausalSalidaType = typeof CAUSALES_SALIDA[number];
 
+export const ESTATUS_INVESTIGACION = [
+  "en_revision",
+  "revisado",
+  "terminado",
+] as const;
+
+export type EstatusInvestigacionType = typeof ESTATUS_INVESTIGACION[number];
+
+export const ESTATUS_INVESTIGACION_LABELS: Record<EstatusInvestigacionType, string> = {
+  en_revision: "En investigación",
+  revisado: "Revisado",
+  terminado: "Finalizado",
+};
+
 // Psicométricas — baterías disponibles (ajustar según proveedor)
 export const BATERIAS_PSICOMETRICAS = [
   "BATERIA_BASICA",

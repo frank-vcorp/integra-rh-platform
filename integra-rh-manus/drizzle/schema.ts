@@ -142,6 +142,12 @@ export const workHistory = mysqlTable("workHistory", {
     "con_reservas",
     "no_recomendable"
   ]).default("pendiente"),
+  estatusInvestigacion: mysqlEnum("estatusInvestigacion", [
+    "en_revision",
+    "revisado",
+    "terminado",
+  ]).default("en_revision").notNull(),
+  comentarioInvestigacion: text("comentarioInvestigacion"),
   observaciones: text("observaciones"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

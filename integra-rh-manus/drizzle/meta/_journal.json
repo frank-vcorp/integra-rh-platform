@@ -99,6 +99,13 @@
       "when": 1763580227188,
       "tag": "0013_client_panel_detail",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1763674128147,
+      "tag": "0014_work_history_investigacion",
+      "breakpoints": true
     }
   ]
 }
