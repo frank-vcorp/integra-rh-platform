@@ -723,7 +723,7 @@ export default function ProcesoDetalle() {
                       type="checkbox"
                       checked={notifySelected.includes(s.id)}
                       onChange={(e)=>{
-                        setNotifySelected(prev=> e.target.checked ? [...new Set([...prev, s.id])] : prev.filter(id=> id!==s.id));
+                        setNotifySelected(prev=> e.target.checked ? Array.from(new Set([...prev, s.id])) : prev.filter(id=> id!==s.id));
                       }}
                     />
                     <span>{s.nombre}{s.telefono ? ` — ${s.telefono}` : ''}</span>
@@ -820,7 +820,15 @@ export default function ProcesoDetalle() {
             const tipo = (fd.get('tipoDocumento') as string) || 'OTRO';
             if (!file) return;
             const arrayBuf = await file.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+            
+            let binary = '';
+            const bytes = new Uint8Array(arrayBuf);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+
             uploadProcessDoc.mutate({ procesoId: processId, tipoDocumento: tipo, fileName: file.name, contentType: file.type || 'application/octet-stream', base64 } as any);
             (e.currentTarget as HTMLFormElement).reset();
           }} className="space-y-2 mb-4">

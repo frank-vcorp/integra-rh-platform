@@ -2,17 +2,23 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
 import type { User } from "../../drizzle/schema";
 import { auth as adminAuth } from "../firebase";
 import * as db from "../db";
+import { logger } from "./logger";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
+  requestId: string;
 };
 
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
   let user: User | null = null;
+  const requestId =
+    (opts.req as any).requestId ?? logger.ensureRequestId(
+      (opts.req.headers["x-request-id"] as string | undefined) ?? undefined
+    );
 
   // -------------------------------------------------------------------------
   // 1) Autenticación vía Firebase ID token (usuarios internos)
@@ -32,7 +38,10 @@ export async function createContext(
       } catch (err) {
         try {
           const msg = (err as any)?.message || String(err);
-          console.warn("[Auth] Firebase verifyIdToken failed:", msg);
+          logger.warn("[Auth] Firebase verifyIdToken failed", {
+            requestId,
+            error: msg,
+          });
         } catch {}
         decoded = null;
       }
@@ -47,9 +56,12 @@ export async function createContext(
           }
         } catch (e) {
           try {
-            console.warn(
+            logger.warn(
               "[Auth] DB getUserByOpenId failed; continuing with token claims",
-              (e as any)?.message || e
+              {
+                requestId,
+                error: (e as any)?.message || e,
+              }
             );
           } catch {}
         }
@@ -67,9 +79,12 @@ export async function createContext(
             if (fetched) user = fetched as unknown as User;
           } catch (e) {
             try {
-              console.warn(
+              logger.warn(
                 "[Auth] DB upsertUser failed; falling back to ephemeral user",
-                (e as any)?.message || e
+                {
+                  requestId,
+                  error: (e as any)?.message || e,
+                }
               );
             } catch {}
           }
@@ -133,9 +148,12 @@ export async function createContext(
         }
       } catch (e) {
         try {
-          console.warn(
+          logger.warn(
             "[Auth] validateClientToken failed; treating as anonymous",
-            (e as any)?.message || e
+            {
+              requestId,
+              error: (e as any)?.message || e,
+            }
           );
         } catch {}
       }
@@ -146,5 +164,6 @@ export async function createContext(
     req: opts.req,
     res: opts.res,
     user,
+    requestId,
   };
 }

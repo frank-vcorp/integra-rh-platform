@@ -5,6 +5,7 @@ import * as sendgrid from '../integrations/sendgrid';
 import { getDb } from '../db';
 import { clients, clientAccessTokens } from '../../drizzle/schema';
 import { and, eq, gt, isNull } from 'drizzle-orm';
+import { logAuditEvent } from "../_core/audit";
 
 export const clientAccessRouter = router({
   /**
@@ -49,7 +50,7 @@ export const clientAccessRouter = router({
       emailContext: z.object({ nombreEmpresa: z.string().optional(), nombreCandidato: z.string().optional(), claveProceso: z.string().optional() }).optional(),
       baseUrl: z.string().optional().default('http://localhost:3000'),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const token = await createClientAccessToken(input.clientId, input.ttlDays, { procesoId: input.procesoId, candidatoId: input.candidatoId });
       const url = getClientAccessUrl(token, input.baseUrl!);
       if (input.sendEmailTo) {
@@ -61,6 +62,19 @@ export const clientAccessRouter = router({
           url
         );
       }
+
+      await logAuditEvent(ctx, {
+        action: "client_link_created",
+        entityType: "client_access_token",
+        entityId: input.clientId,
+        details: {
+          token,
+          procesoId: input.procesoId,
+          candidatoId: input.candidatoId,
+          sendEmailTo: input.sendEmailTo,
+        },
+      });
+
       return { token, url } as const;
     }),
 

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Building2, Briefcase, FileText, UserCheck, DollarSign, UserCog } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Building2, Briefcase, FileText, UserCheck, DollarSign, UserCog, ScrollText } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -37,6 +37,7 @@ const adminMenuItems = [
   { icon: UserCheck, label: "Encuestadores", path: "/encuestadores" },
   { icon: DollarSign, label: "Pagos", path: "/pagos" },
   { icon: UserCog, label: "Usuarios", path: "/usuarios" },
+  { icon: ScrollText, label: "Registros", path: "/usuarios/registros" },
 ];
 
 const clientMenuItems = [

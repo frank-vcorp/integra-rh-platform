@@ -5,6 +5,7 @@ import * as psicometricas from "../integrations/psicometricas";
 import * as sendgrid from "../integrations/sendgrid";
 import { descargarReportePDF } from "../integrations/psicometricas";
 import { storage as firebaseStorage } from "../firebase";
+import { logAuditEvent } from "../_core/audit";
 
 const NORMALIZE_STATUS = (raw?: string) => {
   const value = (raw || "").toString().toLowerCase();
@@ -28,7 +29,7 @@ export const psicometricasRouter = router({
     }),
   asignarBateria: adminProcedure
     .input(z.object({ candidatoId: z.number(), bateria: z.string().optional(), tests: z.array(z.number()).min(1), vacante: z.string().optional() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const candidate = await db.getCandidateById(input.candidatoId);
       if (!candidate) return { error: "Candidato no encontrado" } as any;
 
@@ -64,6 +65,18 @@ export const psicometricasRouter = router({
           nombreEmpresa: client?.nombreEmpresa || "Sin especificar",
         });
       }
+
+      // Auditoría: asignación de batería psicométrica
+      await logAuditEvent(ctx, {
+        action: "assign_psychometrics",
+        entityType: "candidate",
+        entityId: candidate.id,
+        details: {
+          asignacionId: (result as any)?.id,
+          tests: input.tests,
+          bateria: input.bateria,
+        },
+      });
 
       return result;
     }),
@@ -195,10 +208,24 @@ export const psicometricasRouter = router({
         } as any);
       } catch {}
 
-      return {
+      const payload = {
         status: normalizedStatus,
         pdf: pdfDoc,
         json: jsonDoc,
       } as const;
+
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "candidate_psicometricos",
+        entityId: input.candidatoId,
+        details: {
+          asignacionId: input.asignacionId,
+          status: normalizedStatus,
+          pdfDocumentId: (pdfDoc as any)?.id,
+          jsonDocumentId: (jsonDoc as any)?.id,
+        },
+      });
+
+      return payload;
     }),
 });

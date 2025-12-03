@@ -26,6 +26,10 @@ import {
   InsertDocument,
   surveyorMessages,
   InsertSurveyorMessage,
+  auditLogs,
+  InsertAuditLog,
+  candidateConsents,
+  InsertCandidateConsent,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -582,4 +586,58 @@ export async function deleteDocument(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(documents).where(eq(documents.id, id));
+}
+
+// ============================================================================
+// AUDITORÍA
+// ============================================================================
+
+export async function createAuditLog(entry: InsertAuditLog) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot create audit log: database not available");
+    return;
+  }
+  await db.insert(auditLogs).values(entry);
+}
+
+// ============================================================================
+// CANDIDATE CONSENTS
+// ============================================================================
+
+export async function createCandidateConsent(data: InsertCandidateConsent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(candidateConsents).values(data);
+  return result[0].insertId;
+}
+
+export async function getLatestPendingConsentByToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(candidateConsents)
+    .where(and(eq(candidateConsents.token, token), eq(candidateConsents.isGiven, false)))
+    .orderBy(desc(candidateConsents.createdAt))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateCandidateConsent(id: number, data: Partial<InsertCandidateConsent>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(candidateConsents).set(data).where(eq(candidateConsents.id, id));
+}
+
+export async function getLatestConsentByCandidateId(candidateId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(candidateConsents)
+    .where(eq(candidateConsents.candidatoId, candidateId))
+    .orderBy(desc(candidateConsents.createdAt))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
 }

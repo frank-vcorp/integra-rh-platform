@@ -322,3 +322,72 @@ export async function notificarProcesoCompletado(params: {
     html,
   });
 }
+
+/**
+ * Envía email con enlace para otorgar consentimiento de uso de datos
+ */
+export async function enviarCorreoConsentimiento(params: {
+  candidatoEmail: string;
+  candidatoNombre: string;
+  consentUrl: string;
+}): Promise<boolean> {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #2563eb; color: white; padding: 20px; text-align: center; }
+    .content { padding: 30px 20px; background: #f9fafb; }
+    .button { 
+      display: inline-block; 
+      padding: 12px 30px; 
+      background: #2563eb; 
+      color: white; 
+      text-decoration: none; 
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>INTEGRA-RH</h1>
+      <p>Consentimiento de Uso de Datos</p>
+    </div>
+    <div class="content">
+      <p>Hola <strong>${params.candidatoNombre}</strong>,</p>
+      
+      <p>Para continuar con tu proceso, es necesario que nos autorices el tratamiento de tus datos personales de acuerdo con la legislación vigente.</p>
+      
+      <p>Por favor, haz clic en el siguiente enlace para revisar nuestro aviso de privacidad y otorgar tu consentimiento:</p>
+      
+      <p style="text-align: center;">
+        <a href="${params.consentUrl}" class="button">Revisar y Firmar Consentimiento</a>
+      </p>
+      
+      <p><strong>Nota importante:</strong> Este enlace es único y personal. Si tienes alguna duda, por favor, contacta a tu reclutador.</p>
+      
+      <p>Saludos cordiales,<br>
+      <strong>Equipo INTEGRA-RH</strong></p>
+    </div>
+    <div class="footer">
+      <p>Este es un correo automático, por favor no responder directamente.</p>
+      <p>&copy; ${new Date().getFullYear()} INTEGRA-RH. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return enviarCorreo({
+    to: params.candidatoEmail,
+    toName: params.candidatoNombre,
+    subject: `Acción Requerida: Consentimiento de Uso de Datos Personales`,
+    html,
+  });
+}

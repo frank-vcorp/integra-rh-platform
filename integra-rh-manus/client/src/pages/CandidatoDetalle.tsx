@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { arrayBufferToBase64 } from "@/lib/base64";
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -12,6 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,12 +47,37 @@ export default function CandidatoDetalle() {
   const [workHistoryDialogOpen, setWorkHistoryDialogOpen] = useState(false);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [editingWorkHistory, setEditingWorkHistory] = useState<any>(null);
+  const [consentAction, setConsentAction] = useState<'email' | 'whatsapp' | 'copy' | null>(null);
 
   const { data: candidate, isLoading } = trpc.candidates.getById.useQuery({ id: candidateId });
   const { data: workHistory = [] } = trpc.workHistory.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: comments = [] } = trpc.candidateComments.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: documents = [] } = trpc.documents.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: procesos = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId: candidateId });
+  const { data: consent, refetch: refetchConsent } = trpc.candidateConsent.getConsentByCandidateId.useQuery({ candidateId: candidateId });
+
+  const sendConsentLink = trpc.candidateConsent.sendConsentLink.useMutation({
+    onSuccess: (data) => {
+      refetchConsent();
+      if (consentAction === 'email') {
+        toast.success("Enlace de consentimiento enviado por email.");
+      } else if (consentAction === 'whatsapp') {
+        if (candidate?.telefono) {
+          const whatsappUrl = `https://api.whatsapp.com/send?phone=${candidate.telefono.replace(/\D/g, '')}&text=Hola ${candidate.nombreCompleto}, por favor firma el consentimiento en el siguiente enlace: ${data.consentUrl}`;
+          window.open(whatsappUrl, '_blank');
+        } else {
+          toast.error("El candidato no tiene un teléfono registrado.");
+        }
+      } else if (consentAction === 'copy') {
+        navigator.clipboard.writeText(data.consentUrl);
+        toast.success("Enlace copiado al portapapeles.");
+      }
+    },
+    onError: (err) => {
+      toast.error(`Error al generar enlace: ${err.message}`);
+    },
+  });
+
   // Llamar incondicionalmente a los hooks; usar initialData/enabled para orden estable
   const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery(undefined, {
     initialData: [],
@@ -75,7 +105,7 @@ export default function CandidatoDetalle() {
   });
   const guardarReportePsico = trpc.psicometricas.guardarReporte.useMutation({
     onSuccess: (res) => {
-      utils.documents.getByCandidate.invalidate({ candidatoId });
+      utils.documents.getByCandidate.invalidate({ candidatoId: candidateId });
       utils.candidates.getById.invalidate({ id: candidateId });
       const message = res?.status === "Completado" ? "Resultados guardados en el expediente" : "Reporte descargado";
       toast.success(message);
@@ -183,7 +213,15 @@ export default function CandidatoDetalle() {
     const tipo = formData.get("tipoDocumento") as string;
     if (!file) return;
     const arrayBuf = await file.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)));
+    
+    let binary = '';
+    const bytes = new Uint8Array(arrayBuf);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+
     uploadDocumentMutation.mutate({
       candidatoId: candidateId,
       tipoDocumento: tipo,
@@ -193,6 +231,7 @@ export default function CandidatoDetalle() {
     });
     form.reset();
   };
+
 
   // Helper: pick icon by file extension
   const getFileIcon = (fileName?: string) => {
@@ -347,6 +386,89 @@ export default function CandidatoDetalle() {
                 {new Date(candidate.createdAt).toLocaleDateString()}
               </p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Consent */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5" />
+            Consentimiento de Datos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Estado del Consentimiento</p>
+              {(() => {
+                if (consent?.isGiven) {
+                  return <p className="text-sm text-green-600">Otorgado el {new Date(consent.givenAt!).toLocaleString()}</p>;
+                }
+                if (consent) {
+                  return <p className="text-sm text-yellow-600">Enlace enviado, pendiente de firma.</p>;
+                }
+                return <p className="text-sm text-gray-500">Pendiente de envío.</p>;
+              })()}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={consent?.isGiven || sendConsentLink.isPending}>
+                  {sendConsentLink.isPending ? 'Generando...' : 'Obtener Enlace'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setConsentAction('email');
+                    if (candidate?.email) {
+                      sendConsentLink.mutate({
+                        candidateId: candidate.id,
+                        candidateEmail: candidate.email,
+                        candidateName: candidate.nombreCompleto,
+                      });
+                    } else {
+                      toast.error("El candidato no tiene un email registrado.");
+                    }
+                  }}
+                >
+                  Enviar por Email
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setConsentAction('whatsapp');
+                    if (candidate?.email) {
+                      sendConsentLink.mutate({
+                        candidateId: candidate.id,
+                        candidateEmail: candidate.email, // email is still needed for the record
+                        candidateName: candidate.nombreCompleto,
+                      });
+                    } else {
+                      toast.error("El candidato no tiene un email para registrar el envío.");
+                    }
+                  }}
+                >
+                  Enviar por WhatsApp
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setConsentAction('copy');
+                    if (candidate?.email) {
+                      sendConsentLink.mutate({
+                        candidateId: candidate.id,
+                        candidateEmail: candidate.email,
+                        candidateName: candidate.nombreCompleto,
+                      });
+                    } else {
+                      toast.error("El candidato no tiene un email para registrar el envío.");
+                    }
+                  }}
+                >
+                  Copiar Enlace
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>

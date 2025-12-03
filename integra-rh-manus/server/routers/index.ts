@@ -16,6 +16,8 @@ import { usersRouter } from './users';
 import { paymentsRouter } from './payments';
 import { surveyorMessagesRouter } from './surveyorMessages';
 import { clientPortalRouter } from './clientPortal';
+import { auditRouter } from './audit';
+import { candidateConsentRouter } from './candidateConsent';
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -47,6 +49,7 @@ export const appRouter = router({
   // Historial laboral y comentarios de candidatos
   workHistory: workHistoryRouter,
   candidateComments: candidateCommentsRouter,
+  candidateConsent: candidateConsentRouter,
 
   // Candidatos y Procesos
   candidates: candidatesRouter,
@@ -60,6 +63,7 @@ export const appRouter = router({
   users: usersRouter,
   payments: paymentsRouter,
   surveyorMessages: surveyorMessagesRouter,
+  audit: auditRouter,
 });
 
 // Exportamos el tipo del router. El cliente lo usará para tener autocompletado y tipado.

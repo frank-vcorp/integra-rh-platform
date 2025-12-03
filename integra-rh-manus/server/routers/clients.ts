@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.ts';
 import { TRPCError } from '@trpc/server';
 import { createClient, getAllClients, getClientById } from "../db";
+import { logAuditEvent } from "../_core/audit";
 
 export const clientsRouter = router({
   /**
@@ -48,6 +49,14 @@ export const clientsRouter = router({
         telefono: input.telefono ?? null,
         email: input.email ?? null,
       } as any);
+
+      await logAuditEvent(ctx, {
+        action: "create",
+        entityType: "client",
+        entityId: id,
+        details: input,
+      });
+
       return { id } as const;
     }),
 
@@ -79,6 +88,14 @@ export const clientsRouter = router({
         email: data.email ?? null,
       };
       await updateClient(id, payload);
+
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "client",
+        entityId: id,
+        details: payload,
+      });
+
       return { ok: true } as const;
     }),
 
@@ -91,6 +108,13 @@ export const clientsRouter = router({
       }
       const { deleteClient } = await import('../db');
       await deleteClient(input.id);
+
+      await logAuditEvent(ctx, {
+        action: "delete",
+        entityType: "client",
+        entityId: input.id,
+      });
+
       return { ok: true } as const;
     }),
 });

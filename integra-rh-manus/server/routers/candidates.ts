@@ -2,6 +2,7 @@ import { router, publicProcedure, protectedProcedure, adminProcedure } from "../
 import { z } from "zod";
 import * as db from "../db";
 import { TRPCError } from "@trpc/server";
+import { logAuditEvent } from "../_core/audit";
 
 export const candidatesRouter = router({
   list: publicProcedure.query(async ({ ctx }) => {
@@ -58,8 +59,20 @@ export const candidatesRouter = router({
         puestoId: z.number().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const id = await db.createCandidate(input as any);
+
+      await logAuditEvent(ctx, {
+        action: "create",
+        entityType: "candidate",
+        entityId: id,
+        details: {
+          nombreCompleto: input.nombreCompleto,
+          clienteId: input.clienteId,
+          puestoId: input.puestoId,
+        },
+      });
+
       return { id } as const;
     }),
 
@@ -78,15 +91,30 @@ export const candidatesRouter = router({
         }),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await db.updateCandidate(input.id, input.data as any);
+
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "candidate",
+        entityId: input.id,
+        details: input.data as any,
+      });
+
       return { success: true } as const;
     }),
 
   delete: adminProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await db.deleteCandidate(input.id);
+
+      await logAuditEvent(ctx, {
+        action: "delete",
+        entityType: "candidate",
+        entityId: input.id,
+      });
+
       return { success: true } as const;
     }),
 });

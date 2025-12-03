@@ -8,6 +8,8 @@ import { appRouter } from "../routers/index";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleWebhookPsicometricas } from "../integrations/psicometricas";
+import { logger } from "./logger";
+import { randomUUID } from "crypto";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -30,6 +32,21 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+
+  // Asignar un requestId a cada petición y loguear entrada.
+  app.use((req, _res, next) => {
+    const existingId =
+      (req.headers["x-request-id"] as string | undefined) ?? undefined;
+    const requestId = logger.ensureRequestId(existingId);
+    (req as any).requestId = requestId;
+    logger.info("incoming_request", {
+      requestId,
+      method: req.method,
+      path: req.path,
+    });
+    next();
+  });
+
   app.use(
     cors({
       origin: 'https://integra-rh.web.app',
@@ -59,14 +76,19 @@ async function startServer() {
       if (secret) {
         const hdrSecret = (req.header("x-psico-secret") || req.header("x-psicometricas-secret") || "").toString();
         if (!hdrSecret || hdrSecret !== secret) {
-          console.warn("[Webhook] psicometricas unauthorized: bad secret");
+          logger.warn("[Webhook] psicometricas unauthorized: bad secret", {
+            requestId: (req as any).requestId,
+          });
           return res.status(401).json({ ok: false });
         }
       }
       await handleWebhookPsicometricas(req.body);
       res.status(200).json({ ok: true });
     } catch (err) {
-      console.error("[Webhook] psicometricas failed", err);
+      logger.error("[Webhook] psicometricas failed", {
+        requestId: (req as any).requestId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       res.status(500).json({ ok: false });
     }
   });
@@ -81,12 +103,22 @@ async function startServer() {
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    logger.warn("port_busy", {
+      preferredPort,
+      port,
+    });
   }
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    logger.info("server_started", {
+      port,
+      url: `http://localhost:${port}/`,
+    });
   });
 }
 
-startServer().catch(console.error);
+startServer().catch(err => {
+  logger.error("server_fatal_error", {
+    error: err instanceof Error ? err.message : String(err),
+  });
+});

@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as db from "../db";
 import { storage as firebaseStorage } from "../firebase";
 import { TRPCError } from "@trpc/server";
+import { logAuditEvent } from "../_core/audit";
 
 export const processesRouter = router({
   list: publicProcedure.query(async ({ ctx }) => {
@@ -69,7 +70,7 @@ export const processesRouter = router({
         fechaRecepcion: z.date().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       // Determinar fecha y año
       const fechaRecepcion = input.fechaRecepcion ?? new Date();
       const year = fechaRecepcion.getFullYear();
@@ -101,20 +102,50 @@ export const processesRouter = router({
         consecutivo,
         clave,
       } as any);
+
+      await logAuditEvent(ctx, {
+        action: "create",
+        entityType: "process",
+        entityId: id,
+        details: {
+          candidatoId: input.candidatoId,
+          clienteId: input.clienteId,
+          puestoId: input.puestoId,
+          tipoProducto: input.tipoProducto,
+          clave,
+        },
+      });
+
       return { id, clave } as const;
     }),
 
   updateStatus: adminProcedure
     .input(z.object({ id: z.number(), estatusProceso: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await db.updateProcess(input.id, { estatusProceso: input.estatusProceso } as any);
+
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "process_status",
+        entityId: input.id,
+        details: { estatusProceso: input.estatusProceso },
+      });
+
       return { ok: true } as const;
     }),
 
   updateCalificacion: adminProcedure
     .input(z.object({ id: z.number(), calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable"]) }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await db.updateProcess(input.id, { calificacionFinal: input.calificacionFinal } as any);
+
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "process_score",
+        entityId: input.id,
+        details: { calificacionFinal: input.calificacionFinal },
+      });
+
       return { ok: true } as const;
     }),
 

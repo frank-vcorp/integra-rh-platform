@@ -64,12 +64,18 @@
  - `[✓]` PVM-WEB-08: Envío de invitaciones (email)
 
 ### PVM - Tareas Transversales
- - `[ ]` PVM-OBS-01: Logger estructurado y requestId — SPEC: `context/SPEC-PVM-OBS-01.md`
+ - `[✓]` PVM-OBS-01: Logger estructurado y requestId — SPEC: `context/SPEC-PVM-OBS-01.md`
+   - Logger JSON central (`server/_core/logger.ts`) y `requestId` por petición (contexto tRPC + middleware Express).
+   - Base para auditoría: logs estructurados en Cloud Run enlazables por `requestId`.
  - `[ ]` PVM-OBS-02: Healthcheck y métricas básicas — SPEC: `context/SPEC-PVM-OBS-02.md`
  - `[ ]` PVM-SEC-01: RBAC base (admin/cliente) — SPEC: `context/SPEC-PVM-SEC-01.md`
  - `[✓]` PVM-DEV-01: Scripts y .env — SPEC: `context/SPEC-PVM-DEV-01.md`
    - *Actualizado `.env.example` (VITE_FIREBASE_*, VITE_APP_*, PSICOMETRICAS_*, SENDGRID_API_KEY) y `.env` local; unificada `VITE_API_URL=/api/trpc`.*
  - `[ ]` PVM-REL-01: Deploy stg (API + Web) — SPEC: `context/SPEC-PVM-REL-01.md`
+
+### UI-REF: Refinamiento de UI/UX
+ - `[✓]` UI-REF-01: Implementar Sistema de Diseño (shadcn/ui + Tremor) — SPEC: `context/SPEC-UI-REF-01.md`
+
 ### PVM - Dashboard Clientes (Nuevo)
  - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
  - `[✓]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Incluye portal de cliente por enlace con branding Sinergia RH.

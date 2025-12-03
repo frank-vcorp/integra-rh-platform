@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
@@ -19,152 +19,127 @@ import ClienteFormularioIntegrado from "./pages/ClienteFormularioIntegrado";
 import CandidatoFormularioIntegrado from "./pages/CandidatoFormularioIntegrado";
 import PuestoProcesoFlow from "./pages/PuestoProcesoFlow";
 import Usuarios from "./pages/Usuarios";
+import UsuariosRegistros from "./pages/UsuariosRegistros";
 import ClienteAcceso from "./pages/ClienteAcceso";
 import ClienteDashboard from "./pages/ClienteDashboard";
 import ClienteProcesoDetalle from "./pages/ClienteProcesoDetalle";
 import ClienteCandidatoDetalle from "./pages/ClienteCandidatoDetalle";
 import Visitas from "./pages/Visitas";
+import { ConsentPage } from "./pages/ConsentPage";
 
 import LoginPage from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+// This component wraps our protected routes, applying the DashboardLayout.
+const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <DashboardLayout>{children}</DashboardLayout>
+  </ProtectedRoute>
+);
+
 function Router() {
   return (
     <Switch>
-      {/* Rutas públicas para acceso de clientes mediante token */}
+      {/* Public consent route */}
+      <Route path="/consentir/:token" component={ConsentPage} />
+
+      {/* Public client access routes */}
       <Route path="/cliente/dashboard" component={ClienteDashboard} />
       <Route path="/cliente/proceso/:id" component={ClienteProcesoDetalle} />
       <Route path="/cliente/candidato/:id" component={ClienteCandidatoDetalle} />
       <Route path="/cliente/:token" component={ClienteAcceso} />
       <Route path="/cliente" component={ClienteAcceso} />
-      {/* Ruta de Login */}
+      
+      {/* Login Route */}
       <Route path="/login" component={LoginPage} />
 
-      {/* Rutas protegidas con DashboardLayout */}
+      {/* Protected Routes */}
       <Route path="/">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/" component={Dashboard} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <Dashboard />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/clientes">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/clientes" component={Clientes} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <Clientes />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/puestos">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/puestos" component={Puestos} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <Puestos />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/candidatos/:id">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/candidatos/:id" component={CandidatoDetalle} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <CandidatoDetalle />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/candidatos">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/candidatos" component={Candidatos} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <Candidatos />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/flujo-completo">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/flujo-completo" component={ClienteFormularioIntegrado} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <ClienteFormularioIntegrado />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/flujo-candidato">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/flujo-candidato" component={CandidatoFormularioIntegrado} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <CandidatoFormularioIntegrado />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/flujo-puesto">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/flujo-puesto" component={PuestoProcesoFlow} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <PuestoProcesoFlow />
+        </ProtectedLayout>
       </Route>
-      
-      {/* Procesos - listado */}
       <Route path="/procesos">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/procesos" component={Procesos} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <Procesos />
+        </ProtectedLayout>
       </Route>
-
-      {/* Procesos - detalle */}
       <Route path="/procesos/:id">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/procesos/:id" component={ProcesoDetalle} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <ProcesoDetalle />
+        </ProtectedLayout>
       </Route>
-      
       <Route path="/encuestadores">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/encuestadores" component={Encuestadores} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <Encuestadores />
+        </ProtectedLayout>
       </Route>
-
       <Route path="/encuestadores/:id">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/encuestadores/:id" component={EncuestadorDetalle} />
-          </DashboardLayout>
-        </ProtectedRoute>
+        <ProtectedLayout>
+          <EncuestadorDetalle />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/visitas">
+        <ProtectedLayout>
+          <Visitas />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/pagos">
+        <ProtectedLayout>
+          <Pagos />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/usuarios">
+        <ProtectedLayout>
+          <Usuarios />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/usuarios/registros">
+        <ProtectedLayout>
+          <UsuariosRegistros />
+        </ProtectedLayout>
       </Route>
 
-      <Route path="/visitas">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/visitas" component={Visitas} />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/pagos">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/pagos" component={Pagos} />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/usuarios">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <Route path="/usuarios" component={Usuarios} />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      
+      {/* Fallback and Not Found */}
       <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
+      <Route>
+        <Redirect to="/404" />
+      </Route>
     </Switch>
   );
 }

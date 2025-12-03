@@ -403,3 +403,53 @@ export const clientAccessTokens = mysqlTable("clientAccessTokens", {
 
 export type ClientAccessToken = typeof clientAccessTokens.$inferSelect;
 export type InsertClientAccessToken = typeof clientAccessTokens.$inferInsert;
+
+// ============================================================================
+// AUDITORÍA (Historial de cambios y acciones)
+// ============================================================================
+
+export const auditLogs = mysqlTable("audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  userId: int("userId"),
+  actorType: mysqlEnum("actorType", ["admin", "client", "system"]).default("system").notNull(),
+  action: varchar("action", { length: 100 }).notNull(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: varchar("entityId", { length: 100 }),
+  requestId: varchar("requestId", { length: 64 }),
+  details: json("details"),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+// ============================================================================
+// CONSENTIMIENTO DE CANDIDATOS
+// ============================================================================
+
+/**
+ * Almacena la evidencia del consentimiento de los candidatos para el uso de sus datos.
+ */
+export const candidateConsents = mysqlTable("candidate_consents", {
+  id: int("id").autoincrement().primaryKey(),
+  candidatoId: int("candidatoId").notNull().references(() => candidates.id, { onDelete: 'cascade' }),
+  
+  // Token para el enlace único
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+
+  // Evidencia del consentimiento
+  isGiven: boolean("is_given").default(false).notNull(),
+  givenAt: timestamp("givenAt"),
+  ipAddress: varchar("ip_address", { length: 45 }), // Supports IPv6
+  userAgent: varchar("user_agent", { length: 255 }),
+  signatureStoragePath: varchar("signature_storage_path", { length: 512 }),
+  privacyPolicyVersion: varchar("privacy_policy_version", { length: 50 }),
+
+  // Timestamps de registro
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CandidateConsent = typeof candidateConsents.$inferSelect;
+export type InsertCandidateConsent = typeof candidateConsents.$inferInsert;
