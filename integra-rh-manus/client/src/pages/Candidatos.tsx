@@ -251,10 +251,17 @@ export default function Candidatos() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Lista de Candidatos
-          </CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Lista de Candidatos
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Consulta a todos los candidatos y accede rápido a su expediente.
+              </p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {candidates.length === 0 ? (

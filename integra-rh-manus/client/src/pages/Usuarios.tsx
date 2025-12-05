@@ -172,10 +172,15 @@ export default function Usuarios() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCog className="h-5 w-5" />
-            Lista de Usuarios
-          </CardTitle>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <UserCog className="h-5 w-5" />
+              Lista de Usuarios
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Gestiona los usuarios internos y accesos de clientes a la plataforma.
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           {users.length === 0 ? (

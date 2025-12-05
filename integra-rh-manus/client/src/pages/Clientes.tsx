@@ -288,11 +288,16 @@ export default function Clientes() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Lista de Clientes
-            </CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Lista de Clientes
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Busca, filtra y gestiona las empresas con las que trabajas.
+              </p>
+            </div>
             <div className="w-full max-w-sm">
               <Input
                 placeholder="Buscar por nombre o email..."

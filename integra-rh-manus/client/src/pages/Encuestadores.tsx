@@ -171,10 +171,15 @@ export default function Encuestadores() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5" />
-            Lista de Encuestadores
-          </CardTitle>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Lista de Encuestadores
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Consulta disponibilidad y datos clave de los encuestadores de campo.
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           {surveyors.length === 0 ? (

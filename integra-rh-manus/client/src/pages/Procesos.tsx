@@ -337,10 +337,15 @@ export default function Procesos() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Lista de Procesos
-          </CardTitle>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Lista de Procesos
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Revisa el estatus de cada proceso y entra al detalle cuando lo necesites.
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           {processes.length === 0 ? (

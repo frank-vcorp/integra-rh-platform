@@ -141,10 +141,15 @@ export default function Puestos() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5" />
-            Lista de Puestos
-          </CardTitle>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5" />
+              Lista de Puestos
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Administra los puestos activos por cliente para asignar procesos.
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           {posts.length === 0 ? (

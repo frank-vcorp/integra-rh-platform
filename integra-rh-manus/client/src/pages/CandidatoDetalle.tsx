@@ -547,7 +547,7 @@ export default function CandidatoDetalle() {
       </Card>
 
       {/* Data Consent */}
-      <Card>
+      <Card className="border-primary/20 bg-primary/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5" />
@@ -641,7 +641,7 @@ export default function CandidatoDetalle() {
       </Card>
 
       {/* Work History */}
-      <Card>
+      <Card className="border-primary/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5" />
