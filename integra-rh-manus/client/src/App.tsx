@@ -26,6 +26,7 @@ import ClienteProcesoDetalle from "./pages/ClienteProcesoDetalle";
 import ClienteCandidatoDetalle from "./pages/ClienteCandidatoDetalle";
 import Visitas from "./pages/Visitas";
 import { ConsentPage } from "./pages/ConsentPage";
+import SearchResults from "./pages/SearchResults";
 
 import LoginPage from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -132,6 +133,11 @@ function Router() {
       <Route path="/usuarios/registros">
         <ProtectedLayout>
           <UsuariosRegistros />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/buscar">
+        <ProtectedLayout>
+          <SearchResults />
         </ProtectedLayout>
       </Route>
 

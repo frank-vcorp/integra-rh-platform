@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -240,11 +241,18 @@ export default function ClienteDashboard() {
                             {new Date(process.fechaRecepcion).toLocaleDateString('es-MX')}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Link href={`/cliente/proceso/${process.id}`}>
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link href={`/cliente/proceso/${process.id}`}>
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Ver detalle del proceso y su avance.
+                              </TooltipContent>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       );

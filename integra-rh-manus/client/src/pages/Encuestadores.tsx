@@ -187,51 +187,178 @@ export default function Encuestadores() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Visitas</TableHead>
-                  <TableHead>Comentarios</TableHead>
-                  <TableHead>Cobertura</TableHead>
-                  <TableHead>Base</TableHead>
-                  <TableHead>Estatus</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {surveyors.map((surveyor) => (
-                  <TableRow key={surveyor.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/encuestadores/${surveyor.id}`} className="text-blue-600 hover:underline">
-                        {surveyor.nombre}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{surveyor.telefono || "-"}</TableCell>
-                    <TableCell>{surveyor.email || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      {(() => {
-                        const visits = (processes as any[]).filter((p:any) => p.visitStatus && p.visitStatus.encuestadorId === surveyor.id);
-                        if (visits.length === 0) return <span className="text-muted-foreground">—</span>;
-                        const upcoming = visits
-                          .filter((v:any) => v.visitStatus?.scheduledDateTime)
-                          .sort((a:any,b:any)=> new Date(a.visitStatus.scheduledDateTime).getTime() - new Date(b.visitStatus.scheduledDateTime).getTime())[0];
-                        return (
-                          <span>
-                            {visits.length} {visits.length === 1 ? 'visita' : 'visitas'}
-                            {upcoming ? ` • Próx: ${new Date(upcoming.visitStatus.scheduledDateTime).toLocaleString()}` : ''}
+            <>
+              {/* Escritorio: tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Visitas</TableHead>
+                      <TableHead>Comentarios</TableHead>
+                      <TableHead>Cobertura</TableHead>
+                      <TableHead>Base</TableHead>
+                      <TableHead>Estatus</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {surveyors.map((surveyor) => (
+                      <TableRow key={surveyor.id}>
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/encuestadores/${surveyor.id}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {surveyor.nombre}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{surveyor.telefono || "-"}</TableCell>
+                        <TableCell>{surveyor.email || "-"}</TableCell>
+                        <TableCell className="text-xs">
+                          {(() => {
+                            const visits = (processes as any[]).filter(
+                              (p: any) =>
+                                p.visitStatus &&
+                                p.visitStatus.encuestadorId === surveyor.id,
+                            );
+                            if (visits.length === 0)
+                              return (
+                                <span className="text-muted-foreground">
+                                  —
+                                </span>
+                              );
+                            const upcoming = visits
+                              .filter(
+                                (v: any) =>
+                                  v.visitStatus?.scheduledDateTime,
+                              )
+                              .sort(
+                                (a: any, b: any) =>
+                                  new Date(
+                                    a.visitStatus.scheduledDateTime,
+                                  ).getTime() -
+                                  new Date(
+                                    b.visitStatus.scheduledDateTime,
+                                  ).getTime(),
+                              )[0];
+                            return (
+                              <span>
+                                {visits.length}{" "}
+                                {visits.length === 1 ? "visita" : "visitas"}
+                                {upcoming
+                                  ? ` • Próx: ${new Date(
+                                      upcoming.visitStatus
+                                        .scheduledDateTime,
+                                    ).toLocaleString()}`
+                                  : ""}
+                              </span>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-xs truncate"
+                          title={(surveyor as any).notas || ""}
+                        >
+                          {(surveyor as any).notas || "—"}
+                        </TableCell>
+                        <TableCell>{surveyor.cobertura || "local"}</TableCell>
+                        <TableCell>{surveyor.ciudadBase || "-"}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`badge ${
+                              surveyor.activo
+                                ? "badge-success"
+                                : "badge-neutral"
+                            }`}
+                          >
+                            {surveyor.activo ? "Activo" : "Inactivo"}
                           </span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate" title={(surveyor as any).notas || ''}>{(surveyor as any).notas || '—'}</TableCell>
-                    <TableCell>{surveyor.cobertura || 'local'}</TableCell>
-                    <TableCell>{surveyor.ciudadBase || '-'}</TableCell>
-                    <TableCell>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {surveyor.telefono && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label="WhatsApp"
+                                onClick={() => {
+                                  const digits = String(
+                                    surveyor.telefono,
+                                  ).replace(/[^0-9+]/g, "");
+                                  const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
+                                  const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(
+                                    digits,
+                                  )}&text=${encodeURIComponent(msg)}`;
+                                  window.open(url, "_blank");
+                                }}
+                              >
+                                <Phone className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Link
+                              href={`/encuestadores/${surveyor.id}?section=visitas`}
+                            >
+                              <Button variant="ghost" size="sm">
+                                Ver
+                              </Button>
+                            </Link>
+                            {!isClient && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleActive(surveyor)}
+                                >
+                                  {surveyor.activo ? "Inactivar" : "Activar"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(surveyor)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(surveyor.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Móvil: tarjetas */}
+              <div className="space-y-3 md:hidden">
+                {surveyors.map((surveyor) => (
+                  <div
+                    key={surveyor.id}
+                    className="rounded-lg border p-3 bg-white shadow-sm text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Link
+                          href={`/encuestadores/${surveyor.id}`}
+                          className="font-semibold text-sm text-blue-600"
+                        >
+                          {surveyor.nombre}
+                        </Link>
+                        <p className="text-[11px] text-muted-foreground">
+                          {surveyor.ciudadBase || "Sin ciudad base"}
+                        </p>
+                      </div>
                       <span
-                        className={`badge ${
+                        className={`badge text-[10px] ${
                           surveyor.activo
                             ? "badge-success"
                             : "badge-neutral"
@@ -239,58 +366,89 @@ export default function Encuestadores() {
                       >
                         {surveyor.activo ? "Activo" : "Inactivo"}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {surveyor.telefono && (
+                    </div>
+                    <div className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+                      <div>
+                        <span className="font-semibold">Tel: </span>
+                        {surveyor.telefono || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Email: </span>
+                        {surveyor.email || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Cobertura: </span>
+                        {surveyor.cobertura || "local"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Comentarios: </span>
+                        {(surveyor as any).notas || "—"}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-end gap-1">
+                      {surveyor.telefono && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            const digits = String(
+                              surveyor.telefono,
+                            ).replace(/[^0-9+]/g, "");
+                            const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
+                            const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(
+                              digits,
+                            )}&text=${encodeURIComponent(msg)}`;
+                            window.open(url, "_blank");
+                          }}
+                        >
+                          <Phone className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Link
+                        href={`/encuestadores/${surveyor.id}?section=visitas`}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                      {!isClient && (
+                        <>
                           <Button
                             variant="ghost"
-                            size="sm"
-                            aria-label="WhatsApp"
-                            onClick={() => {
-                              const digits = String(surveyor.telefono).replace(/[^0-9+]/g, '');
-                              const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
-                              const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
-                              window.open(url, '_blank');
-                            }}
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleToggleActive(surveyor)}
                           >
-                            <Phone className="h-4 w-4" />
+                            <Pencil className="h-3 w-3" />
                           </Button>
-                        )}
-                        <Link href={`/encuestadores/${surveyor.id}?section=visitas`}>
-                          <Button variant="ghost" size="sm">Ver</Button>
-                        </Link>
-                        {!isClient && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleToggleActive(surveyor)}
-                            >
-                              {surveyor.activo ? "Inactivar" : "Activar"}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(surveyor)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(surveyor.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleEdit(surveyor)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleDelete(surveyor.id)}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

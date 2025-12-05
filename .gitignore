@@ -12,3 +12,5 @@ firebase-debug.*.log
 
 # Data exports (do not version raw data)
 integra-rh-manus/data/exports/*.json
+integra-rh-manus/backups/
+integra-rh-manus/y/

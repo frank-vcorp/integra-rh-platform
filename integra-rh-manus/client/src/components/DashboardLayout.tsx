@@ -21,11 +21,12 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Building2, Briefcase, FileText, UserCheck, DollarSign, UserCog, ScrollText } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Building2, Briefcase, FileText, UserCheck, DollarSign, UserCog, ScrollText, Search } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -232,7 +233,12 @@ function DashboardLayoutContent({
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      onClick={() => setLocation(item.path)}
+                      onClick={() => {
+                        setLocation(item.path);
+                        if (!isCollapsed) {
+                          toggleSidebar();
+                        }
+                      }}
                       tooltip={item.label}
                       className={`h-10 transition-all font-normal`}
                     >
@@ -292,7 +298,12 @@ function DashboardLayoutContent({
         {isMobile ? (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
+              <SidebarTrigger
+                className={cn(
+                  "h-9 w-9 rounded-lg bg-background",
+                  isCollapsed ? "animate-pulse" : ""
+                )}
+              />
               <div className="flex items-center gap-3">
                 <div className="flex flex-col gap-1">
                   <span className="tracking-tight text-foreground">
@@ -309,7 +320,25 @@ function DashboardLayoutContent({
             </div>
           </div>
         ) : (
-          <div className="flex border-b h-12 items-center justify-end bg-background/95 px-3 sticky top-0 z-40">
+          <div className="flex border-b h-12 items-center justify-between bg-background/95 px-3 sticky top-0 z-40 gap-3">
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="relative w-full">
+                <Search className="h-4 w-4 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  type="search"
+                  placeholder="Buscar candidato, cliente, puesto o proceso..."
+                  className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const term = (e.currentTarget as HTMLInputElement).value.trim();
+                      if (!term) return;
+                      window.location.href = `/buscar?q=${encodeURIComponent(term)}`;
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <Button variant="outline" size="sm" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />
               Salir

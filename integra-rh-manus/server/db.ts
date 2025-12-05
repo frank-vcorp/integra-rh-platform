@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, like, sql } from "drizzle-orm";
+import { eq, and, desc, asc, like, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import {
@@ -35,41 +35,18 @@ import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Cloud SQL Instance Connection Name, se usa en producción
-const INSTANCE_CONNECTION_NAME = `integra-rh:us-central1:integra-rh-v2-db-dev`;
-
 export async function getDb() {
   if (_db) return _db;
 
   try {
-    // Conexión especial para el entorno de Cloud Run
-    if (process.env.K_SERVICE) {
-      console.log("[Database] Cloud Run environment detected. Connecting via socket.");
-      
-      if (!process.env.DATABASE_URL) {
-        throw new Error("DATABASE_URL secret is not set in Cloud Run environment.");
-      }
-
-      const url = new URL(process.env.DATABASE_URL);
-      const dbUser = decodeURIComponent(url.username);
-      const dbPassword = decodeURIComponent(url.password);
-      const dbName = url.pathname.slice(1);
-
-      const pool = mysql.createPool({
-        user: dbUser,
-        password: dbPassword,
-        database: dbName,
-        socketPath: `/cloudsql/${INSTANCE_CONNECTION_NAME}`,
-      });
-      _db = drizzle(pool);
-    } else if (process.env.DATABASE_URL) {
-      // Conexión para desarrollo local
-      console.log("[Database] Local environment detected. Connecting via TCP.");
-      _db = drizzle(process.env.DATABASE_URL);
-    } else {
+    if (!process.env.DATABASE_URL) {
       console.warn("[Database] DATABASE_URL not set.");
       return null;
     }
+
+    console.log("[Database] Initializing MySQL pool from DATABASE_URL.");
+    const pool = mysql.createPool(process.env.DATABASE_URL);
+    _db = drizzle(pool);
   } catch (error) {
     console.error("[Database] Failed to initialize database connection:", error);
     _db = null;
@@ -282,6 +259,47 @@ export async function getCandidatesByClient(clienteId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(candidates).where(eq(candidates.clienteId, clienteId)).orderBy(desc(candidates.createdAt));
+}
+
+export async function getCandidatesWithInvestigationProgress(clienteId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const baseCandidates = clienteId
+    ? await db
+        .select()
+        .from(candidates)
+        .where(eq(candidates.clienteId, clienteId))
+        .orderBy(desc(candidates.createdAt))
+    : await db.select().from(candidates).orderBy(desc(candidates.createdAt));
+
+  if (baseCandidates.length === 0) return [];
+
+  const candidateIds = baseCandidates.map((c) => c.id);
+  const allWorkHistory = await db
+    .select()
+    .from(workHistory)
+    .where(inArray(workHistory.candidatoId, candidateIds));
+
+  return baseCandidates.map((c) => {
+    const items = allWorkHistory.filter((w) => w.candidatoId === c.id);
+    if (items.length === 0) {
+      return { ...c, investigacionProgreso: 0 };
+    }
+    const total = items.length;
+    const terminados = items.filter(
+      (w) => w.estatusInvestigacion === "terminado"
+    ).length;
+    const revisados = items.filter(
+      (w) => w.estatusInvestigacion === "revisado"
+    ).length;
+    const pesoTerminado = 1;
+    const pesoRevisado = 0.5;
+    const avance =
+      (terminados * pesoTerminado + revisados * pesoRevisado) / total;
+    const porcentaje = Math.round(avance * 100);
+    return { ...c, investigacionProgreso: porcentaje };
+  });
 }
 
 export async function getCandidateById(id: number) {

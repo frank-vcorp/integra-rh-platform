@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "f207e273-a82d-498f-9571-aab2eeb80cb3",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "2c7279da-fd1e-490d-a73f-d6ffc8ecbbdd",
+  "prevId": "f207e273-a82d-498f-9571-aab2eeb80cb3",
   "tables": {
     "audit_logs": {
       "name": "audit_logs",
@@ -699,20 +699,6 @@
         "observaciones": {
           "name": "observaciones",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "investigacionDetalle": {
-          "name": "investigacionDetalle",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "desempenoScore": {
-          "name": "desempenoScore",
-          "type": "int",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1519,6 +1505,20 @@
         "observaciones": {
           "name": "observaciones",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "investigacionDetalle": {
+          "name": "investigacionDetalle",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "desempenoScore": {
+          "name": "desempenoScore",
+          "type": "int",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

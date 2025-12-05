@@ -10,10 +10,10 @@ export const candidatesRouter = router({
 
     // 1) Si hay usuario en contexto (admin o client) usarlo
     if (ctx.user?.role === "admin") {
-      return db.getAllCandidates();
+      return db.getCandidatesWithInvestigationProgress();
     }
     if (ctx.user?.role === "client" && ctx.user.clientId) {
-      return db.getCandidatesByClient(ctx.user.clientId);
+      return db.getCandidatesWithInvestigationProgress(ctx.user.clientId);
     }
 
     // 2) Si no hay usuario, intentar autenticar con ClientToken directo

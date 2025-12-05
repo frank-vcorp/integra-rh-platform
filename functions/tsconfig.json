@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "outDir": "./lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@integra-rh-manus/*": ["../integra-rh-manus/*"],
+      "@shared/*": ["../integra-rh-manus/shared/*"],
+      "server/storage": ["../integra-rh-manus/server/storage"]
+    }
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "./_core/vite.ts", "./_core/localDevServer.ts"]
+}

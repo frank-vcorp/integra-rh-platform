@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { add } from "date-fns";
 import * as sendgrid from '../integrations/sendgrid';
 import { storage as firebaseStorage } from "../firebase";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 const PRIVACY_POLICY_VERSION = "1.0.0";
 const PRIVACY_POLICY_TEXT = `
@@ -32,6 +33,20 @@ const PRIVACY_POLICY_TEXT = `
   <p>Última actualización: ${PRIVACY_POLICY_VERSION}</p>
 `;
 
+function buildConsentUrl(token: string): string {
+  // Soportar configuraciones donde APP_BASE_URL/VITE_APP_URL puedan venir como "undefined"/"null"
+  const rawBase =
+    process.env.APP_BASE_URL ??
+    process.env.VITE_APP_URL ??
+    "";
+  const safeBase =
+    !rawBase || rawBase === "undefined" || rawBase === "null"
+      ? "https://integra-rh.web.app"
+      : rawBase;
+  const normalizedBase = safeBase.replace(/\/$/, "");
+  return `${normalizedBase}/consentir/${token}`;
+}
+
 export const candidateConsentRouter = router({
 
   /**
@@ -55,7 +70,7 @@ export const candidateConsentRouter = router({
         privacyPolicyVersion: PRIVACY_POLICY_VERSION,
       });
 
-      const consentUrl = `${process.env.VITE_APP_URL}/consentir/${token}`;
+      const consentUrl = buildConsentUrl(token);
 
       await sendgrid.enviarCorreoConsentimiento({
         candidatoEmail: input.candidateEmail,
@@ -115,30 +130,210 @@ export const candidateConsentRouter = router({
       const consent = await db.getLatestPendingConsentByToken(input.token);
 
       if (!consent || consent.isGiven || consent.expiresAt < new Date()) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "El enlace es inválido o ha expirado." });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "El enlace es inválido o ha expirado.",
+        });
       }
-      
-      // Upload signature to storage
-      const buffer = Buffer.from(input.signature, 'base64');
-      const signaturePath = `consents/${consent.candidatoId}/signature-${consent.id}-${Date.now()}.png`;
-      
+
+      const candidate = await db.getCandidateById(consent.candidatoId);
+      if (!candidate) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "No se encontró al candidato asociado.",
+        });
+      }
+
+      // Upload signature image to storage
+      const signatureBuffer = Buffer.from(input.signature, "base64");
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, "-");
+      const signaturePath = `consents/${consent.candidatoId}/signature-${consent.id}-${timestamp}.png`;
+
       const bucket = firebaseStorage.bucket();
-      const file = bucket.file(signaturePath);
-      
-      await file.save(buffer, {
-        contentType: 'image/png',
+      const signatureFile = bucket.file(signaturePath);
+
+      await signatureFile.save(signatureBuffer, {
+        contentType: "image/png",
         resumable: false,
       });
+
+      // Generate a simple unique digital signature code for this consent
+      const digitalSignatureCode = `CONS-${consent.id}-${consent.token.slice(
+        0,
+        8,
+      )}`;
+
+      // Build a PDF with the privacy policy, candidate data and embedded signature image
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([595.28, 841.89]); // A4
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const { width, height } = page.getSize();
+
+      let cursorY = height - 50;
+      const marginX = 50;
+      const lineHeight = 14;
+
+      const drawText = (
+        text: string,
+        options: { bold?: boolean; size?: number } = {},
+      ) => {
+        const size = options.size ?? 12;
+        const usedFont = options.bold ? fontBold : font;
+        const maxWidth = width - marginX * 2;
+
+        const words = text.split(/\s+/);
+        let line = "";
+
+        for (const word of words) {
+          const testLine = line ? `${line} ${word}` : word;
+          const textWidth = usedFont.widthOfTextAtSize(testLine, size);
+          if (textWidth > maxWidth && line) {
+            page.drawText(line, {
+              x: marginX,
+              y: cursorY,
+              size,
+              font: usedFont,
+              color: rgb(0, 0, 0),
+            });
+            cursorY -= lineHeight;
+            line = word;
+          } else {
+            line = testLine;
+          }
+        }
+
+        if (line) {
+          page.drawText(line, {
+            x: marginX,
+            y: cursorY,
+            size,
+            font: usedFont,
+            color: rgb(0, 0, 0),
+          });
+          cursorY -= lineHeight;
+        }
+      };
+
+      // Header
+      drawText("Consentimiento para uso de datos personales", {
+        bold: true,
+        size: 16,
+      });
+      cursorY -= 10;
+
+      drawText(`Candidato: ${candidate.nombreCompleto}`, { bold: true });
+      if (candidate.email) {
+        drawText(`Correo: ${candidate.email}`);
+      }
+      if (candidate.telefono) {
+        drawText(`Teléfono: ${candidate.telefono}`);
+      }
+      drawText(
+        `Fecha y hora de consentimiento: ${now.toLocaleString("es-MX", {
+          timeZone: "America/Mexico_City",
+        })}`,
+      );
+      drawText(
+        `Firma digital única: ${digitalSignatureCode}`,
+      );
+
+      const ipAddress =
+        (ctx.req.ip as string | undefined) ||
+        (ctx.req.headers["x-forwarded-for"] as string | undefined) ||
+        "";
+      const userAgent =
+        (ctx.req.headers["user-agent"] as string | undefined) || "";
+
+      if (ipAddress) {
+        drawText(`IP de origen: ${ipAddress}`);
+      }
+      if (userAgent) {
+        drawText(`Navegador/Dispositivo: ${userAgent}`);
+      }
+
+      cursorY -= 10;
+      drawText("Aviso de privacidad (versión " + PRIVACY_POLICY_VERSION + "):", {
+        bold: true,
+      });
+
+      // Simple HTML-to-text conversion for the privacy policy
+      const plainPolicy = PRIVACY_POLICY_TEXT.replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      drawText(plainPolicy);
+
+      // Space for signature image
+      cursorY -= 20;
+      drawText("Firma autógrafa del candidato:", { bold: true });
+      cursorY -= 10;
+
+      try {
+        const pngImage = await pdfDoc.embedPng(signatureBuffer);
+        const pngDims = pngImage.scale(0.4);
+        const sigWidth = Math.min(pngDims.width, width - marginX * 2);
+        const scale = sigWidth / pngDims.width;
+        const sigHeight = pngDims.height * scale;
+        const sigY = Math.max(cursorY - sigHeight, 80);
+
+        page.drawImage(pngImage, {
+          x: marginX,
+          y: sigY,
+          width: sigWidth,
+          height: sigHeight,
+        });
+      } catch {
+        // Si falla la incrustación, continuamos; la imagen sigue en Storage
+      }
+
+      const pdfBytes = await pdfDoc.save();
+
+      const pdfKey = `consents/${consent.candidatoId}/consent-${consent.id}-${timestamp}.pdf`;
+      const pdfFile = bucket.file(pdfKey);
+      await pdfFile.save(Buffer.from(pdfBytes), {
+        contentType: "application/pdf",
+        resumable: false,
+      });
+
+      const [signedUrl] = await pdfFile.getSignedUrl({
+        action: "read",
+        expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      });
+
+      // Register the PDF as a candidate document so it appears in the expediente
+      try {
+        await db.createDocument({
+          candidatoId: consent.candidatoId,
+          tipoDocumento: "CONSENTIMIENTO_DATOS_PERSONALES",
+          nombreArchivo: `Consentimiento-datos-personales-${consent.candidatoId}.pdf`,
+          url: signedUrl,
+          fileKey: pdfKey,
+          mimeType: "application/pdf",
+          uploadedBy: candidate.nombreCompleto || "Candidato",
+        } as any);
+      } catch (err) {
+        // No bloqueamos el flujo de consentimiento si falla solo el registro del documento
+        console.error(
+          "[CandidateConsent] Failed to create consent document record",
+          err,
+        );
+      }
 
       // Update consent record in DB
       await db.updateCandidateConsent(consent.id, {
         isGiven: true,
-        givenAt: new Date(),
-        ipAddress: ctx.req.ip,
-        userAgent: ctx.req.headers['user-agent'],
+        givenAt: now,
+        ipAddress,
+        userAgent,
         signatureStoragePath: signaturePath,
       });
 
-      return { success: true };
+      return {
+        success: true,
+        digitalSignature: digitalSignatureCode,
+        pdfUrl: signedUrl,
+      } as const;
     }),
 });

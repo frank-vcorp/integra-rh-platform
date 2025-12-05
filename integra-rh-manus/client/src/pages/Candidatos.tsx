@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -10,8 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Users, Pencil, Trash2, Eye } from "lucide-react";
-import { useState } from "react";
+import { Plus, Users, Pencil, Trash2, Eye, ArrowUpDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -42,10 +43,6 @@ export default function Candidatos() {
   const isClient = user?.role === "client";
 
   const { data: allCandidates = [], isLoading } = trpc.candidates.list.useQuery();
-  // Filtrar candidatos según rol
-  const candidates = isClient
-    ? allCandidates.filter(c => c.clienteId === user?.clientId)
-    : allCandidates;
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
   const utils = trpc.useUtils();
@@ -157,6 +154,69 @@ export default function Candidatos() {
     ? allPosts.filter((p) => p.clienteId === parseInt(selectedClient))
     : allPosts;
 
+  // Filtrar candidatos según rol + buscador global
+  const searchParam =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+          .get("search")
+          ?.toLowerCase() || ""
+      : "";
+
+  const candidatesBase = (
+    isClient
+      ? allCandidates.filter((c) => c.clienteId === user?.clientId)
+      : allCandidates
+  ).filter((c) => {
+    if (!searchParam) return true;
+    const haystack = [
+      c.nombreCompleto,
+      c.email,
+      c.telefono,
+      c.medioDeRecepcion,
+      getClientName(c.clienteId),
+      getPostName(c.puestoId),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(searchParam);
+  });
+
+  const [candidateSortKey, setCandidateSortKey] = useState<"nombre" | "cliente" | "progreso">("nombre");
+  const [candidateSortDir, setCandidateSortDir] = useState<"asc" | "desc">("asc");
+
+  const candidates = useMemo(() => {
+    const list = [...candidatesBase];
+    list.sort((a, b) => {
+      let av: string = "";
+      let bv: string = "";
+      if (candidateSortKey === "cliente") {
+        av = (getClientName(a.clienteId) || "").toLowerCase();
+        bv = (getClientName(b.clienteId) || "").toLowerCase();
+      } else if (candidateSortKey === "progreso") {
+        av = a.investigacionProgreso ?? 0;
+        bv = b.investigacionProgreso ?? 0;
+      } else {
+        av = (a.nombreCompleto || "").toLowerCase();
+        bv = (b.nombreCompleto || "").toLowerCase();
+      }
+      if (av < bv) return candidateSortDir === "asc" ? -1 : 1;
+      if (av > bv) return candidateSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [candidatesBase, candidateSortKey, candidateSortDir, clients]);
+
+  const toggleCandidateSort = (key: "nombre" | "cliente" | "progreso") => {
+    setCandidateSortKey((prev) => {
+      if (prev === key) {
+        setCandidateSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setCandidateSortDir("asc");
+      return key;
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -175,10 +235,17 @@ export default function Candidatos() {
             Gestiona los candidatos del sistema
           </p>
         </div>
-        <Button onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Candidato
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button onClick={handleOpenDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Candidato
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Crea un candidato nuevo para iniciar su expediente.
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Table */}
@@ -200,56 +267,183 @@ export default function Candidatos() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre Completo</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Puesto</TableHead>
-                  <TableHead>Medio de Recepción</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Vista de tabla para escritorio */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleCandidateSort("nombre")}
+                        >
+                          Nombre Completo
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleCandidateSort("cliente")}
+                        >
+                          Cliente
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
+                      <TableHead>Puesto</TableHead>
+                      <TableHead>Medio de Recepción</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {candidates.map((candidate) => (
+                      <TableRow key={candidate.id}>
+                        <TableCell className="font-medium">
+                          {candidate.nombreCompleto}
+                        </TableCell>
+                        <TableCell>{candidate.email || "-"}</TableCell>
+                        <TableCell>{candidate.telefono || "-"}</TableCell>
+                        <TableCell>{getClientName(candidate.clienteId)}</TableCell>
+                        <TableCell>{getPostName(candidate.puestoId)}</TableCell>
+                        <TableCell>{candidate.medioDeRecepcion || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link href={`/candidatos/${candidate.id}`}>
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Ver detalle y expediente del candidato.
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(candidate)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Editar datos básicos del candidato.
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(candidate.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Eliminar candidato del sistema.
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Vista en tarjetas para móvil */}
+              <div className="space-y-3 md:hidden">
                 {candidates.map((candidate) => (
-                  <TableRow key={candidate.id}>
-                    <TableCell className="font-medium">
-                      {candidate.nombreCompleto}
-                    </TableCell>
-                    <TableCell>{candidate.email || "-"}</TableCell>
-                    <TableCell>{candidate.telefono || "-"}</TableCell>
-                    <TableCell>{getClientName(candidate.clienteId)}</TableCell>
-                    <TableCell>{getPostName(candidate.puestoId)}</TableCell>
-                    <TableCell>{candidate.medioDeRecepcion || "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/candidatos/${candidate.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(candidate)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(candidate.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                  <div
+                    key={candidate.id}
+                    className="rounded-lg border p-3 bg-white shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-sm">
+                          {candidate.nombreCompleto}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {getClientName(candidate.clienteId)}
+                        </p>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                      <div className="flex gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link href={`/candidatos/${candidate.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Ver detalle y expediente.
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleEdit(candidate)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar datos básicos.</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleDelete(candidate.id)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Eliminar candidato.</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">
+                      <div>
+                        <span className="font-semibold">Email: </span>
+                        {candidate.email || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Tel: </span>
+                        {candidate.telefono || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Puesto: </span>
+                        {getPostName(candidate.puestoId) || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Medio: </span>
+                        {candidate.medioDeRecepcion || "-"}
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

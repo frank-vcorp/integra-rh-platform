@@ -188,85 +188,164 @@ export default function Usuarios() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>WhatsApp</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Cliente Asociado</TableHead>
-                  <TableHead>Último Acceso</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Escritorio: tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>WhatsApp</TableHead>
+                      <TableHead>Rol</TableHead>
+                      <TableHead>Cliente Asociado</TableHead>
+                      <TableHead>Último Acceso</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email || "-"}</TableCell>
+                        <TableCell>{user.whatsapp || '-'}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`badge ${
+                              user.role === "admin" ? "badge-primary" : "badge-info"
+                            }`}
+                          >
+                            {user.role === "admin" ? "Administrador" : "Cliente"}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getClientName(user.clientId)}</TableCell>
+                        <TableCell>
+                          {new Date(user.lastSignedIn).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-2">
+                            {user.email && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => inviteMutation.mutate({
+                                  name: user.name || user.email,
+                                  email: user.email,
+                                  role: user.role,
+                                  clientId: (user.clientId ?? undefined),
+                                }, {
+                                  onSuccess: (res:any) => {
+                                    if (res?.resetLink && user.whatsapp) {
+                                      const digits = String(user.whatsapp).replace(/[^0-9+]/g, '');
+                                      if (digits) {
+                                        const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
+                                        const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+                                        try { window.open(url, '_blank'); } catch {}
+                                      }
+                                    }
+                                  }
+                                })}
+                              >
+                                Invitar
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(user)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(user.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Móvil: tarjetas */}
+              <div className="space-y-3 md:hidden">
                 {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email || "-"}</TableCell>
-                    <TableCell>{user.whatsapp || '-'}</TableCell>
-                    <TableCell>
+                  <div
+                    key={user.id}
+                    className="rounded-lg border p-3 bg-white shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-sm">{user.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {user.email || "Sin email"}
+                        </p>
+                      </div>
                       <span
-                        className={`badge ${
+                        className={`badge text-[10px] ${
                           user.role === "admin" ? "badge-primary" : "badge-info"
                         }`}
                       >
                         {user.role === "admin" ? "Administrador" : "Cliente"}
                       </span>
-                    </TableCell>
-                    <TableCell>{getClientName(user.clientId)}</TableCell>
-                    <TableCell>
-                      {new Date(user.lastSignedIn).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        {user.email && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => inviteMutation.mutate({
+                    </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">
+                      <div>
+                        <span className="font-semibold">WhatsApp: </span>
+                        {user.whatsapp || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Cliente: </span>
+                        {getClientName(user.clientId)}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Último acceso: </span>
+                        {new Date(user.lastSignedIn).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-end gap-1">
+                      {user.email && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() =>
+                            inviteMutation.mutate({
                               name: user.name || user.email,
                               email: user.email,
                               role: user.role,
-                              // evita enviar null: usar undefined si no hay clientId
-                              clientId: (user.clientId ?? undefined),
-                            }, {
-                              onSuccess: (res:any) => {
-                                if (res?.resetLink && user.whatsapp) {
-                                  const digits = String(user.whatsapp).replace(/[^0-9+]/g, '');
-                                  if (digits) {
-                                    const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
-                                    const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
-                                    try { window.open(url, '_blank'); } catch {}
-                                  }
-                                }
-                              }
-                            })}
-                          >
-                            Invitar
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(user)}
+                              clientId: user.clientId ?? undefined,
+                            })
+                          }
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Mail className="h-3 w-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleEdit(user)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleDelete(user.id)}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

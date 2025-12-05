@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, User, Briefcase, FileText, Layers } from "lucide-react";
 import { useParams, Link } from "wouter";
@@ -193,11 +194,18 @@ export default function ClienteCandidatoDetalle() {
                         </div>
                       </div>
                       
-                      <Link href={`/cliente/proceso/${process.id}`}>
-                        <Button variant="outline" size="sm">
-                          Ver Detalle
-                        </Button>
-                      </Link>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={`/cliente/proceso/${process.id}`}>
+                            <Button variant="outline" size="sm">
+                              Ver Detalle
+                            </Button>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Abrir el detalle del proceso y su dictamen.
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 ))}

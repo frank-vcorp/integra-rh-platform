@@ -106,6 +106,8 @@ export const workHistory = mysqlTable("workHistory", {
   fechaInicio: varchar("fechaInicio", { length: 50 }),
   fechaFin: varchar("fechaFin", { length: 50 }),
   tiempoTrabajado: varchar("tiempoTrabajado", { length: 100 }),
+  // Tiempo reportado por la empresa cuando no se tienen fechas exactas
+  tiempoTrabajadoEmpresa: varchar("tiempoTrabajadoEmpresa", { length: 100 }),
   // Causales de salida
   causalSalidaRH: mysqlEnum("causalSalidaRH", [
     "RENUNCIA VOLUNTARIA",
@@ -149,6 +151,67 @@ export const workHistory = mysqlTable("workHistory", {
   ]).default("en_revision").notNull(),
   comentarioInvestigacion: text("comentarioInvestigacion"),
   observaciones: text("observaciones"),
+  // Detalle estructurado de la investigación telefónica (según SPEC-DATOS-RH)
+  investigacionDetalle: json("investigacionDetalle").$type<{
+    empresa?: {
+      nombreComercial?: string;
+      giro?: string;
+      direccion?: string;
+      telefono?: string;
+    };
+    puesto?: {
+      puestoInicial?: string;
+      puestoFinal?: string;
+      jefeInmediato?: string;
+      principalesActividades?: string;
+      recursosAsignados?: string;
+      horarioTrabajo?: string;
+    };
+    periodo?: {
+      fechaIngreso?: string;
+      fechaSalida?: string;
+      antiguedadTexto?: string;
+      sueldoInicial?: string;
+      sueldoFinal?: string;
+      periodos?: {
+        periodoEmpresa?: string;
+        periodoCandidato?: string;
+      }[];
+    };
+    incidencias?: {
+      motivoSeparacionCandidato?: string;
+      motivoSeparacionEmpresa?: string;
+      incapacidadesCandidato?: string;
+      incapacidadesJefe?: string;
+      inasistencias?: string;
+      antecedentesLegales?: string;
+    };
+    desempeno?: {
+      evaluacionGeneral?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      puntualidad?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      colaboracion?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      responsabilidad?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      actitudAutoridad?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      actitudSubordinados?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      honradezIntegridad?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      calidadTrabajo?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      liderazgo?: "EXCELENTE" | "BUENO" | "REGULAR" | "MALO";
+      conflictividad?: "SI" | "NO";
+      conflictividadComentario?: string;
+    };
+    conclusion?: {
+      esRecomendable?: "SI" | "NO" | "CONDICIONADO";
+      loRecontrataria?: "SI" | "NO";
+      razonRecontratacion?: string;
+      informanteNombre?: string;
+      informanteCargo?: string;
+      informanteTelefono?: string;
+      informanteEmail?: string;
+      comentariosAdicionales?: string;
+    };
+  }>(),
+  // Puntaje numérico de desempeño 0–100 calculado a partir de la matriz
+  desempenoScore: int("desempenoScore"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

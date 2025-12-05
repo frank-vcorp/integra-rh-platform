@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -40,11 +41,33 @@ const getInvestigacionClass = (estatus?: string) =>
     ? INVESTIGACION_BADGE[estatus as EstatusInvestigacionType]
     : INVESTIGACION_BADGE["en_revision"];
 
+const INVESTIGATION_BLOCKS = [
+  {
+    id: 1,
+    title: "1. Datos de la empresa",
+    description: "Nombre comercial, giro, contacto y perfil del puesto.",
+  },
+  {
+    id: 2,
+    title: "2. Tiempo e incidencias",
+    description: "Antigüedad, sueldos, motivos de salida e incidencias.",
+  },
+  {
+    id: 3,
+    title: "3. Desempeño y recomendación",
+    description: "Valoración del desempeño y si lo volverían a contratar.",
+  },
+] as const;
+
 export default function CandidatoDetalle() {
   const params = useParams();
   const candidateId = parseInt(params.id || "0");
 
   const [workHistoryDialogOpen, setWorkHistoryDialogOpen] = useState(false);
+  const [investigationDialogOpen, setInvestigationDialogOpen] = useState(false);
+  const [investigationStep, setInvestigationStep] = useState(1);
+  const [investigationTarget, setInvestigationTarget] = useState<any | null>(null);
+  const [periodRowCount, setPeriodRowCount] = useState(1);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [editingWorkHistory, setEditingWorkHistory] = useState<any>(null);
   const [consentAction, setConsentAction] = useState<'email' | 'whatsapp' | 'copy' | null>(null);
@@ -184,6 +207,23 @@ export default function CandidatoDetalle() {
     },
   });
 
+  const saveInvestigationMutation = trpc.workHistory.saveInvestigation.useMutation({
+    onSuccess: (res) => {
+      utils.workHistory.getByCandidate.invalidate({ candidatoId: candidateId });
+      setInvestigationDialogOpen(false);
+      setInvestigationTarget(null);
+      setInvestigationStep(1);
+      if (typeof res.score === "number") {
+        toast.success(`Investigación guardada. Puntaje de desempeño: ${res.score}/100`);
+      } else {
+        toast.success("Investigación guardada");
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Error al guardar la investigación: " + error.message);
+    },
+  });
+
   // Comment mutations
   const createCommentMutation = trpc.candidateComments.create.useMutation({
     onSuccess: () => {
@@ -273,7 +313,8 @@ export default function CandidatoDetalle() {
     const causalRH = formData.get("causalSalidaRH") as string;
     const causalJefe = formData.get("causalSalidaJefeInmediato") as string;
     const fechaInicio = formData.get("fechaInicio") as string || undefined;
-    const fechaFin = formData.get("fechaFin") as string || undefined;
+    const fechaFin = (formData.get("fechaFin") as string) || undefined;
+    const tiempoTrabajadoEmpresa = (formData.get("tiempoTrabajadoEmpresa") as string) || undefined;
     const estatusInvestigacion = formData.get("estatusInvestigacion") as EstatusInvestigacionType | null;
     const comentarioInvestigacion = formData.get("comentarioInvestigacion") as string | null;
     
@@ -287,6 +328,7 @@ export default function CandidatoDetalle() {
       fechaInicio,
       fechaFin,
       tiempoTrabajado: tiempoTrabajado || undefined,
+      tiempoTrabajadoEmpresa: tiempoTrabajadoEmpresa || undefined,
       causalSalidaRH: (causalRH && causalRH !== "") ? causalRH as CausalSalidaType : undefined,
       causalSalidaJefeInmediato: (causalJefe && causalJefe !== "") ? causalJefe as CausalSalidaType : undefined,
       observaciones: formData.get("observaciones") as string || undefined,
@@ -324,6 +366,115 @@ export default function CandidatoDetalle() {
     }
   };
 
+  const handleInvestigationSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!investigationTarget) return;
+
+    const formData = new FormData(e.currentTarget);
+    const getString = (name: string) => {
+      const v = formData.get(name) as string | null;
+      return v && v.trim() !== "" ? v.trim() : undefined;
+    };
+
+    const empresa = {
+      giro: getString("empresaGiro"),
+      direccion: getString("empresaDireccion"),
+      telefono: getString("empresaTelefono"),
+    };
+    const puesto = {
+      puestoInicial: getString("puestoInicial"),
+      puestoFinal: getString("puestoFinal"),
+      jefeInmediato: getString("jefeInmediato"),
+      principalesActividades: getString("principalesActividades"),
+      recursosAsignados: getString("recursosAsignados"),
+      horarioTrabajo: getString("horarioTrabajo"),
+    };
+    const periodos: { periodoEmpresa?: string; periodoCandidato?: string }[] = [];
+    for (let idx = 0; idx < periodRowCount; idx++) {
+      const periodoEmpresa = getString(`periodoEmpresa_${idx}`);
+      const periodoCandidato = getString(`periodoCandidato_${idx}`);
+      if (periodoEmpresa || periodoCandidato) {
+        periodos.push({ periodoEmpresa, periodoCandidato });
+      }
+    }
+    const periodo = {
+      // antiguedadTexto se mantiene por compatibilidad aunque ya no se captura
+      antiguedadTexto: getString("antiguedadTexto"),
+      sueldoInicial: getString("sueldoInicial"),
+      sueldoFinal: getString("sueldoFinal"),
+      periodos: periodos.length > 0 ? periodos : undefined,
+    };
+    const incidencias = {
+      motivoSeparacionCandidato: getString("motivoSeparacionCandidato"),
+      motivoSeparacionEmpresa: getString("motivoSeparacionEmpresa"),
+      incapacidadesCandidato: getString("incapacidadesCandidato"),
+      incapacidadesJefe: getString("incapacidadesJefe"),
+      inasistencias: getString("inasistencias"),
+      antecedentesLegales: getString("antecedentesLegales"),
+    };
+
+    const getRating = (name: string) => {
+      const v = formData.get(name) as string | null;
+      return v && v !== "" ? (v as any) : undefined;
+    };
+
+    const desempeno = {
+      evaluacionGeneral: getRating("evaluacionGeneral"),
+      puntualidad: getRating("puntualidad"),
+      colaboracion: getRating("colaboracion"),
+      responsabilidad: getRating("responsabilidad"),
+      actitudAutoridad: getRating("actitudAutoridad"),
+      actitudSubordinados: getRating("actitudSubordinados"),
+      honradezIntegridad: getRating("honradezIntegridad"),
+      calidadTrabajo: getRating("calidadTrabajo"),
+      liderazgo: getRating("liderazgo"),
+      conflictividad: (getString("conflictividad") as any) || undefined,
+      conflictividadComentario: getString("conflictividadComentario"),
+    };
+
+    const conclusion = {
+      esRecomendable: (getString("esRecomendable") as any) || undefined,
+      loRecontrataria: (getString("loRecontrataria") as any) || undefined,
+      razonRecontratacion: getString("razonRecontratacion"),
+      informanteNombre: getString("informanteNombre"),
+      informanteCargo: getString("informanteCargo"),
+      informanteTelefono: getString("informanteTelefono"),
+      informanteEmail: getString("informanteEmail"),
+      comentariosAdicionales: getString("comentariosAdicionales"),
+    };
+
+    const hasAny = (obj: Record<string, unknown>) =>
+      Object.values(obj).some(v => v !== undefined && v !== null && v !== "");
+    const hasDesempeno =
+      hasAny({
+        evaluacionGeneral: desempeno.evaluacionGeneral,
+        puntualidad: desempeno.puntualidad,
+        colaboracion: desempeno.colaboracion,
+        responsabilidad: desempeno.responsabilidad,
+        actitudAutoridad: desempeno.actitudAutoridad,
+        actitudSubordinados: desempeno.actitudSubordinados,
+        honradezIntegridad: desempeno.honradezIntegridad,
+        calidadTrabajo: desempeno.calidadTrabajo,
+        liderazgo: desempeno.liderazgo,
+        conflictividad: desempeno.conflictividad,
+      }) || !!desempeno.conflictividadComentario;
+    const hasEmpresa = hasAny(empresa);
+    const hasPuesto = hasAny(puesto);
+    const hasPeriodo = hasAny(periodo);
+    const hasIncidencias = hasAny(incidencias);
+    const hasConclusion = hasAny(conclusion);
+
+    saveInvestigationMutation.mutate({
+      id: investigationTarget.id,
+      empresa: hasEmpresa ? empresa : undefined,
+      puesto: hasPuesto ? puesto : undefined,
+      periodo: hasPeriodo ? periodo : undefined,
+      incidencias: hasIncidencias ? incidencias : undefined,
+      desempeno: hasDesempeno ? desempeno : undefined,
+      conclusion: hasConclusion ? conclusion : undefined,
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -350,11 +501,16 @@ export default function CandidatoDetalle() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/candidatos">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href="/candidatos">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Volver al listado de candidatos</TooltipContent>
+        </Tooltip>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">{candidate.nombreCompleto}</h1>
           <p className="text-muted-foreground mt-1">Detalle del candidato</p>
@@ -413,15 +569,22 @@ export default function CandidatoDetalle() {
               })()}
             </div>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button disabled={consent?.isGiven || sendConsentLink.isPending}>
-                  {sendConsentLink.isPending ? 'Generando...' : 'Obtener Enlace'}
-                </Button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button disabled={sendConsentLink.isPending}>
+                      {sendConsentLink.isPending ? "Generando..." : "Obtener Enlace"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Genera o regenera un enlace único para que el candidato lea y firme el aviso de privacidad.
+                </TooltipContent>
+              </Tooltip>
               <DropdownMenuContent>
                 <DropdownMenuItem
                   onSelect={() => {
-                    setConsentAction('email');
+                    setConsentAction("email");
                     if (candidate?.email) {
                       sendConsentLink.mutate({
                         candidateId: candidate.id,
@@ -437,7 +600,7 @@ export default function CandidatoDetalle() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
-                    setConsentAction('whatsapp');
+                    setConsentAction("whatsapp");
                     if (candidate?.email) {
                       sendConsentLink.mutate({
                         candidateId: candidate.id,
@@ -445,7 +608,9 @@ export default function CandidatoDetalle() {
                         candidateName: candidate.nombreCompleto,
                       });
                     } else {
-                      toast.error("El candidato no tiene un email para registrar el envío.");
+                      toast.error(
+                        "El candidato no tiene un email para registrar el envío."
+                      );
                     }
                   }}
                 >
@@ -453,7 +618,7 @@ export default function CandidatoDetalle() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
-                    setConsentAction('copy');
+                    setConsentAction("copy");
                     if (candidate?.email) {
                       sendConsentLink.mutate({
                         candidateId: candidate.id,
@@ -461,7 +626,9 @@ export default function CandidatoDetalle() {
                         candidateName: candidate.nombreCompleto,
                       });
                     } else {
-                      toast.error("El candidato no tiene un email para registrar el envío.");
+                      toast.error(
+                        "El candidato no tiene un email para registrar el envío."
+                      );
                     }
                   }}
                 >
@@ -480,16 +647,23 @@ export default function CandidatoDetalle() {
             <Briefcase className="h-5 w-5" />
             Historial Laboral
           </CardTitle>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingWorkHistory(null);
-              setWorkHistoryDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingWorkHistory(null);
+                  setWorkHistoryDialogOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Registra un nuevo empleo para este candidato.
+            </TooltipContent>
+          </Tooltip>
         </CardHeader>
         <CardContent>
           {workHistory.length === 0 ? (
@@ -509,20 +683,45 @@ export default function CandidatoDetalle() {
                         {item.fechaFin ? new Date(item.fechaFin).toLocaleDateString() : "Actual"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Tiempo trabajado: {item.tiempoTrabajado || calcularTiempoTrabajado(item.fechaInicio, item.fechaFin) || "-"}
+                        Tiempo trabajado:{" "}
+                        {item.tiempoTrabajadoEmpresa ||
+                          item.tiempoTrabajado ||
+                          calcularTiempoTrabajado(item.fechaInicio, item.fechaFin) ||
+                          "-"}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <span
-                          className={`text-xs font-semibold px-2 py-1 rounded ${getInvestigacionClass(item.estatusInvestigacion as string)}`}
-                        >
-                          {getInvestigacionLabel(item.estatusInvestigacion as string)}
-                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className={`text-xs font-semibold px-2 py-1 rounded ${getInvestigacionClass(item.estatusInvestigacion as string)}`}
+                            >
+                              {getInvestigacionLabel(item.estatusInvestigacion as string)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Estatus de la verificación laboral de este empleo.
+                          </TooltipContent>
+                        </Tooltip>
                         {item.resultadoVerificacion && (
                           <span className="text-xs text-muted-foreground">
                             Dictamen: {item.resultadoVerificacion.replace(/_/g, " ")}
                           </span>
                         )}
                       </div>
+                      {item.causalSalidaRH && (
+                        <p className="text-xs mt-2">
+                          <span className="text-muted-foreground">Motivo de salida (RH):</span>{" "}
+                          {item.causalSalidaRH}
+                        </p>
+                      )}
+                      {item.causalSalidaJefeInmediato && (
+                        <p className="text-xs">
+                          <span className="text-muted-foreground">
+                            Motivo de salida (Jefe inmediato):
+                          </span>{" "}
+                          {item.causalSalidaJefeInmediato}
+                        </p>
+                      )}
                       {item.comentarioInvestigacion && (
                         <p className="text-sm mt-2">
                           <span className="text-muted-foreground">Comentario de verificación:</span>{" "}
@@ -536,20 +735,55 @@ export default function CandidatoDetalle() {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditWorkHistory(item)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteWorkHistory(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditWorkHistory(item)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar datos del empleo.</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setInvestigationTarget(item);
+                              const existingPeriodos =
+                                item.investigacionDetalle?.periodo?.periodos || [];
+                              setPeriodRowCount(
+                                existingPeriodos && existingPeriodos.length > 0
+                                  ? existingPeriodos.length
+                                  : 1,
+                              );
+                              setInvestigationStep(1);
+                              setInvestigationDialogOpen(true);
+                            }}
+                          >
+                            <ShieldCheck className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Capturar evaluación de desempeño e investigación laboral.
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteWorkHistory(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Eliminar este registro laboral.</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -614,7 +848,9 @@ export default function CandidatoDetalle() {
       {/* Psicométricas */}
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
-          <CardTitle className="flex items-center gap-2">Psicométricas</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Psicométricas
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -644,7 +880,16 @@ export default function CandidatoDetalle() {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={asignarPsico.isPending}>Asignar</Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" disabled={asignarPsico.isPending}>
+                    Asignar
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Envía al candidato las pruebas seleccionadas en Psicométricas.
+                </TooltipContent>
+              </Tooltip>
             </div>
           </form>
 
@@ -662,35 +907,66 @@ export default function CandidatoDetalle() {
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={() => {
-                const asignacionId = candidate.psicometricos?.clavePsicometricas || '';
-                if (!asignacionId) { toast.error('No hay clave de asignación registrada'); return; }
-                const existingPdf = documents.find((doc: any) => doc.tipoDocumento === "PSICOMETRICO");
-                if (existingPdf) {
-                  toast.info("El reporte ya está disponible en Documentos.");
-                  try { window.open(existingPdf.url, "_blank"); } catch {}
-                  return;
-                }
-                guardarReportePsico.mutate({ candidatoId: candidateId, asignacionId, fileName: `psicometrico-${candidateId}.pdf` });
-              }}
-              disabled={!candidate.psicometricos?.clavePsicometricas}
-            >
-              Guardar reporte PDF
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const asignacionId = candidate.psicometricos?.clavePsicometricas || "";
+                    if (!asignacionId) {
+                      toast.error("No hay clave de asignación registrada");
+                      return;
+                    }
+                    const existingPdf = documents.find(
+                      (doc: any) => doc.tipoDocumento === "PSICOMETRICO",
+                    );
+                    if (existingPdf) {
+                      toast.info("El reporte ya está disponible en Documentos.");
+                      try {
+                        window.open(existingPdf.url, "_blank");
+                      } catch {}
+                      return;
+                    }
+                    guardarReportePsico.mutate({
+                      candidatoId: candidateId,
+                      asignacionId,
+                      fileName: `psicometrico-${candidateId}.pdf`,
+                    });
+                  }}
+                  disabled={!candidate.psicometricos?.clavePsicometricas}
+                >
+                  Guardar reporte PDF
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Descarga y guarda el reporte psicométrico como documento del candidato.
+              </TooltipContent>
+            </Tooltip>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                const clave = candidate.psicometricos?.clavePsicometricas || '';
-                if (!clave) { toast.error('No hay clave de asignación registrada'); return; }
-                reenviarInvitacion.mutate({ asignacionId: clave });
-              }}
-              disabled={!candidate.psicometricos?.clavePsicometricas || reenviarInvitacion.isPending}
-            >
-              <RefreshCcw className="h-4 w-4 mr-2"/> Reenviar invitación
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const clave = candidate.psicometricos?.clavePsicometricas || "";
+                    if (!clave) {
+                      toast.error("No hay clave de asignación registrada");
+                      return;
+                    }
+                    reenviarInvitacion.mutate({ asignacionId: clave });
+                  }}
+                  disabled={
+                    !candidate.psicometricos?.clavePsicometricas ||
+                    reenviarInvitacion.isPending
+                  }
+                >
+                  <RefreshCcw className="h-4 w-4 mr-2" /> Reenviar invitación
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Reenvía el acceso a las pruebas psicométricas al candidato.
+              </TooltipContent>
+            </Tooltip>
 
             {/* Botón "Ver resultados" eliminado: el flujo se maneja al guardar el reporte */}
           </div>
@@ -1051,6 +1327,17 @@ export default function CandidatoDetalle() {
                   }
                 />
               </div>
+              <div className="col-span-2">
+                <Label htmlFor="tiempoTrabajadoEmpresa">
+                  Tiempo informado por la empresa
+                </Label>
+                <Input
+                  id="tiempoTrabajadoEmpresa"
+                  name="tiempoTrabajadoEmpresa"
+                  placeholder="Ej. 3 años 2 meses"
+                  defaultValue={editingWorkHistory?.tiempoTrabajadoEmpresa || ""}
+                />
+              </div>
               <div>
                 <Label htmlFor="causalSalidaRH">Causal de Salida por parte de RH</Label>
                 <select
@@ -1131,6 +1418,709 @@ export default function CandidatoDetalle() {
                 }
               >
                 {editingWorkHistory ? "Actualizar" : "Agregar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Investigación Laboral Dialog */}
+      <Dialog
+        open={investigationDialogOpen}
+        onOpenChange={(open) => {
+          setInvestigationDialogOpen(open);
+          if (!open) {
+            setInvestigationTarget(null);
+            setInvestigationStep(1);
+            setPeriodRowCount(1);
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-2xl max-h-[80vh] overflow-y-auto"
+          aria-describedby="investigacion-desc"
+        >
+          <DialogHeader>
+            <DialogTitle>
+              Investigación laboral —{" "}
+              {investigationTarget?.empresa || "Empleo"}
+            </DialogTitle>
+          </DialogHeader>
+          <p id="investigacion-desc" className="sr-only">
+            Formulario para capturar la evaluación de desempeño de este empleo.
+          </p>
+          <form onSubmit={handleInvestigationSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Elige el bloque que quieras capturar. Puedes ir y venir entre tarjetas; todo se guardará junto al final.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {INVESTIGATION_BLOCKS.map((block) => {
+                  const hasData =
+                    (block.id === 1 &&
+                      (!!investigationTarget?.investigacionDetalle?.empresa ||
+                        !!investigationTarget?.investigacionDetalle?.puesto)) ||
+                    (block.id === 2 &&
+                      (!!investigationTarget?.investigacionDetalle?.periodo ||
+                        !!investigationTarget?.investigacionDetalle?.incidencias)) ||
+                    (block.id === 3 &&
+                      (!!investigationTarget?.investigacionDetalle?.desempeno ||
+                        !!investigationTarget?.investigacionDetalle?.conclusion));
+
+                  const isActive = investigationStep === block.id;
+
+                  return (
+                    <button
+                      key={block.id}
+                      type="button"
+                      onClick={() => setInvestigationStep(block.id)}
+                      className={`flex flex-col items-start gap-1 text-left border rounded-md px-3 py-2 text-xs transition-colors ${
+                        isActive
+                          ? "border-primary bg-primary/5"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{block.title}</span>
+                        {hasData && (
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {block.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={investigationStep === 1 ? "space-y-4" : "hidden"}>
+            {/* Datos de la empresa */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Datos de la empresa</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="empresaGiro">Giro</Label>
+                  <Input
+                    id="empresaGiro"
+                    name="empresaGiro"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.empresa?.giro || ""
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="empresaTelefono">Teléfono</Label>
+                  <Input
+                    id="empresaTelefono"
+                    name="empresaTelefono"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.empresa?.telefono || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="empresaDireccion">Dirección</Label>
+                  <Input
+                    id="empresaDireccion"
+                    name="empresaDireccion"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.empresa?.direccion || ""
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Perfil del puesto */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Perfil del puesto</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="puestoInicial">Puesto inicial</Label>
+                  <Input
+                    id="puestoInicial"
+                    name="puestoInicial"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.puesto?.puestoInicial ||
+                      ""
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="puestoFinal">Puesto final</Label>
+                  <Input
+                    id="puestoFinal"
+                    name="puestoFinal"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.puesto?.puestoFinal ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="principalesActividades">Principales actividades</Label>
+                  <Textarea
+                    id="principalesActividades"
+                    name="principalesActividades"
+                    rows={3}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.puesto
+                        ?.principalesActividades || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="jefeInmediato">Jefe inmediato</Label>
+                  <Input
+                    id="jefeInmediato"
+                    name="jefeInmediato"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.puesto?.jefeInmediato ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="recursosAsignados">Vehículo que manejaba</Label>
+                  <Textarea
+                    id="recursosAsignados"
+                    name="recursosAsignados"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.puesto
+                        ?.recursosAsignados || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="horarioTrabajo">Horario de trabajo</Label>
+                  <Input
+                    id="horarioTrabajo"
+                    name="horarioTrabajo"
+                    placeholder="Ej. L-V 9:00 a 18:00"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.puesto?.horarioTrabajo ||
+                      ""
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div className={investigationStep === 2 ? "space-y-4" : "hidden"}>
+            {/* Periodo y sueldos */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Periodos laborados y sueldos</div>
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Puedes capturar tantos periodos como necesites. Usa texto libre, por ejemplo:
+                  &nbsp;<span className="italic">"De 01/2020 a 06/2022 — 2 años 5 meses"</span>.
+                </p>
+                {(() => {
+                  const existingPeriodos =
+                    investigationTarget?.investigacionDetalle?.periodo?.periodos || [];
+                  const totalRows = Math.max(
+                    periodRowCount,
+                    existingPeriodos.length > 0 ? existingPeriodos.length : 1,
+                  );
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        {Array.from({ length: totalRows }).map((_, index) => {
+                          const periodo = existingPeriodos[index] || {};
+                          return (
+                            <div
+                              key={index}
+                              className="col-span-2 grid grid-cols-2 gap-4 border rounded-md p-2 bg-slate-50/60"
+                            >
+                              <div>
+                                <Label htmlFor={`periodoEmpresa_${index}`}>
+                                  Periodo laborado (empresa) {index + 1}
+                                </Label>
+                                <Input
+                                  id={`periodoEmpresa_${index}`}
+                                  name={`periodoEmpresa_${index}`}
+                                  defaultValue={periodo.periodoEmpresa || ""}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`periodoCandidato_${index}`}>
+                                  Periodo laborado (candidato) {index + 1}
+                                </Label>
+                                <Input
+                                  id={`periodoCandidato_${index}`}
+                                  name={`periodoCandidato_${index}`}
+                                  defaultValue={periodo.periodoCandidato || ""}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPeriodRowCount((rows) => rows + 1)}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Agregar periodo
+                        </Button>
+                      </div>
+                    </>
+                  );
+                })()}
+              <div>
+                <Label htmlFor="sueldoInicial">Sueldo inicial</Label>
+                <Input
+                  id="sueldoInicial"
+                    name="sueldoInicial"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.periodo?.sueldoInicial ||
+                      ""
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sueldoFinal">Sueldo final</Label>
+                  <Input
+                    id="sueldoFinal"
+                    name="sueldoFinal"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.periodo?.sueldoFinal ||
+                      ""
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Incidencias */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Separación e incidencias</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="motivoSeparacionCandidato">
+                    Motivo de separación (candidato)
+                  </Label>
+                  <Textarea
+                    id="motivoSeparacionCandidato"
+                    name="motivoSeparacionCandidato"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.motivoSeparacionCandidato || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="motivoSeparacionEmpresa">
+                    Motivo de separación (empresa)
+                  </Label>
+                  <Textarea
+                    id="motivoSeparacionEmpresa"
+                    name="motivoSeparacionEmpresa"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.motivoSeparacionEmpresa || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="incapacidadesCandidato">
+                    Incapacidades reportadas por el candidato (cantidad y causa)
+                  </Label>
+                  <Textarea
+                    id="incapacidadesCandidato"
+                    name="incapacidadesCandidato"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.incapacidadesCandidato ||
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.incapacidades ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="incapacidadesJefe">
+                    Incapacidades reportadas por el jefe (cantidad y causa)
+                  </Label>
+                  <Textarea
+                    id="incapacidadesJefe"
+                    name="incapacidadesJefe"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.incapacidadesJefe || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="inasistencias">Inasistencias/Faltas</Label>
+                  <Textarea
+                    id="inasistencias"
+                    name="inasistencias"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias?.inasistencias ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="antecedentesLegales">
+                    Antecedentes legales (demandas, conflictos)
+                  </Label>
+                  <Textarea
+                    id="antecedentesLegales"
+                    name="antecedentesLegales"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.antecedentesLegales || ""
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div className={investigationStep === 3 ? "space-y-4" : "hidden"}>
+            {/* Matriz de desempeño */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Matriz de desempeño</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                <Label htmlFor="evaluacionGeneral">Evaluación general</Label>
+                <select
+                  id="evaluacionGeneral"
+                  name="evaluacionGeneral"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.evaluacionGeneral || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="puntualidad">Puntualidad</Label>
+                <select
+                  id="puntualidad"
+                  name="puntualidad"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.puntualidad || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="colaboracion">Colaboración</Label>
+                <select
+                  id="colaboracion"
+                  name="colaboracion"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.colaboracion || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="responsabilidad">Responsabilidad</Label>
+                <select
+                  id="responsabilidad"
+                  name="responsabilidad"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.responsabilidad || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="actitudAutoridad">Actitud ante la autoridad</Label>
+                <select
+                  id="actitudAutoridad"
+                  name="actitudAutoridad"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.actitudAutoridad || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="actitudSubordinados">Actitud ante subordinados</Label>
+                <select
+                  id="actitudSubordinados"
+                  name="actitudSubordinados"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.actitudSubordinados || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="honradezIntegridad">Honradez e integridad</Label>
+                <select
+                  id="honradezIntegridad"
+                  name="honradezIntegridad"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.honradezIntegridad || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="calidadTrabajo">Calidad de trabajo</Label>
+                <select
+                  id="calidadTrabajo"
+                  name="calidadTrabajo"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.calidadTrabajo || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="liderazgo">Liderazgo</Label>
+                <select
+                  id="liderazgo"
+                  name="liderazgo"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.liderazgo || ""
+                  }
+                  >
+                  <option value="">Sin especificar</option>
+                  <option value="EXCELENTE">Excelente</option>
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="conflictividad">Conflictividad</Label>
+                <select
+                  id="conflictividad"
+                  name="conflictividad"
+                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.conflictividad || ""
+                  }
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="SI">Conflictivo</option>
+                  <option value="NO">No conflictivo</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="conflictividadComentario">
+                  Comentario sobre conflictividad (si aplica)
+                </Label>
+                <Textarea
+                  id="conflictividadComentario"
+                  name="conflictividadComentario"
+                  defaultValue={
+                    investigationTarget?.investigacionDetalle?.desempeno
+                      ?.conflictividadComentario || ""
+                  }
+                  rows={3}
+                />
+              </div>
+              </div>
+            </div>
+
+            {/* Conclusión */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Conclusión</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="esRecomendable">¿Es recomendable?</Label>
+                  <select
+                    id="esRecomendable"
+                    name="esRecomendable"
+                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion?.esRecomendable ||
+                      ""
+                    }
+                  >
+                    <option value="">Sin especificar</option>
+                    <option value="SI">Sí</option>
+                    <option value="NO">No</option>
+                    <option value="CONDICIONADO">Condicionado</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="loRecontrataria">¿Lo recontrataría?</Label>
+                  <select
+                    id="loRecontrataria"
+                    name="loRecontrataria"
+                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.loRecontrataria || ""
+                    }
+                  >
+                    <option value="">Sin especificar</option>
+                    <option value="SI">Sí</option>
+                    <option value="NO">No</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="razonRecontratacion">
+                    Razón de la recomendación/recontratación
+                  </Label>
+                  <Textarea
+                    id="razonRecontratacion"
+                    name="razonRecontratacion"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.razonRecontratacion || ""
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="informanteNombre">Nombre del informante</Label>
+                  <Input
+                    id="informanteNombre"
+                    name="informanteNombre"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.informanteNombre || ""
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="informanteCargo">Cargo del informante</Label>
+                  <Input
+                    id="informanteCargo"
+                    name="informanteCargo"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.informanteCargo || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="informanteTelefono">Teléfono/Contacto</Label>
+                  <Input
+                    id="informanteTelefono"
+                    name="informanteTelefono"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.informanteTelefono || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="informanteEmail">Correo electrónico del informante</Label>
+                  <Input
+                    id="informanteEmail"
+                    name="informanteEmail"
+                    type="email"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.informanteEmail || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="comentariosAdicionales">Comentarios adicionales</Label>
+                  <Textarea
+                    id="comentariosAdicionales"
+                    name="comentariosAdicionales"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.conclusion
+                        ?.comentariosAdicionales || ""
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div className="flex justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setInvestigationDialogOpen(false);
+                  setInvestigationTarget(null);
+                  setInvestigationStep(1);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={saveInvestigationMutation.isPending}
+              >
+                Guardar investigación
               </Button>
             </div>
           </form>

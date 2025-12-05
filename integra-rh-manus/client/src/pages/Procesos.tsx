@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -9,8 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, FileText, Eye, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, FileText, Eye, Trash2, ArrowUpDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -41,7 +42,7 @@ export default function Procesos() {
 
   const { data: allProcesses = [], isLoading } = trpc.processes.list.useQuery();
   // Filtrar procesos según rol
-  const processes = isClient
+  const processesBase = isClient
     ? allProcesses.filter(p => p.clienteId === user?.clientId)
     : allProcesses;
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
@@ -141,10 +142,129 @@ export default function Procesos() {
     return classes[status] || "badge-neutral";
   };
 
+  const getStatusRowClass = (status: string): string => {
+    const classes: Record<string, string> = {
+      en_recepcion: "bg-sky-50",
+      asignado: "bg-sky-50",
+      en_verificacion: "bg-amber-50",
+      visita_programada: "bg-amber-50",
+      visita_realizada: "bg-amber-50",
+      en_dictamen: "bg-amber-50",
+      finalizado: "bg-emerald-50",
+      entregado: "bg-emerald-50",
+    };
+    return classes[status] || "";
+  };
+
   // Filtrar puestos por cliente seleccionado
   const availablePosts = selectedClient
     ? allPosts.filter((p) => p.clienteId === parseInt(selectedClient))
     : allPosts;
+
+  const [processSortKey, setProcessSortKey] = useState<"clave" | "tipo" | "estatus">("clave");
+  const [processSortDir, setProcessSortDir] = useState<"asc" | "desc">("asc");
+
+  const processes = useMemo(() => {
+    const list = [...processesBase];
+    list.sort((a, b) => {
+      let av: string = "";
+      let bv: string = "";
+      if (processSortKey === "tipo") {
+        av = (a.tipoProducto || "").toLowerCase();
+        bv = (b.tipoProducto || "").toLowerCase();
+      } else if (processSortKey === "estatus") {
+        av = getStatusLabel(a.estatusProceso).toLowerCase();
+        bv = getStatusLabel(b.estatusProceso).toLowerCase();
+      } else {
+        av = (a.clave || "").toLowerCase();
+        bv = (b.clave || "").toLowerCase();
+      }
+      if (av < bv) return processSortDir === "asc" ? -1 : 1;
+      if (av > bv) return processSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [processesBase, processSortKey, processSortDir]);
+
+  const toggleProcessSort = (key: "clave" | "tipo" | "estatus") => {
+    setProcessSortKey((prev) => {
+      if (prev === key) {
+        setProcessSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setProcessSortDir("asc");
+      return key;
+    });
+  };
+
+  const {
+    procesosHoy,
+    procesosUltimos7,
+    pendientesInicio,
+    enVerificacion,
+    enDictamen,
+    finalizados,
+    entregados,
+  } = useMemo(() => {
+    const now = new Date();
+    const MS_DAY = 24 * 60 * 60 * 1000;
+
+    let hoy = 0;
+    let ultimos7 = 0;
+    let pend = 0;
+    let veri = 0;
+    let dicta = 0;
+    let fini = 0;
+    let entre = 0;
+
+    processes.forEach((p) => {
+      const d = new Date(p.fechaRecepcion);
+      const diff = now.getTime() - d.getTime();
+      if (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      ) {
+        hoy += 1;
+      }
+      if (diff >= 0 && diff <= 7 * MS_DAY) {
+        ultimos7 += 1;
+      }
+
+      switch (p.estatusProceso) {
+        case "en_recepcion":
+        case "asignado":
+          pend += 1;
+          break;
+        case "en_verificacion":
+        case "visita_programada":
+        case "visita_realizada":
+          veri += 1;
+          break;
+        case "en_dictamen":
+          dicta += 1;
+          break;
+        case "finalizado":
+          fini += 1;
+          break;
+        case "entregado":
+          entre += 1;
+          break;
+        default:
+          break;
+      }
+    });
+
+    return {
+      procesosHoy: hoy,
+      procesosUltimos7: ultimos7,
+      pendientesInicio: pend,
+      enVerificacion: veri,
+      enDictamen: dicta,
+      finalizados: fini,
+      entregados: entre,
+    };
+  }, [processes]);
 
   if (isLoading) {
     return (
@@ -170,6 +290,50 @@ export default function Procesos() {
         </Button>
       </div>
 
+      {/* Resumen rápido compacto */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+        <span>
+          Recibidos hoy:{" "}
+          <span className="font-semibold text-foreground">{procesosHoy}</span>
+        </span>
+        <span>
+          Últimos 7 días:{" "}
+          <span className="font-semibold text-foreground">
+            {procesosUltimos7}
+          </span>
+        </span>
+        <span>
+          Pendientes de iniciar:{" "}
+          <span className="font-semibold text-sky-700">
+            {pendientesInicio}
+          </span>
+        </span>
+        <span>
+          En verificación:{" "}
+          <span className="font-semibold text-amber-700">
+            {enVerificacion}
+          </span>
+        </span>
+        <span>
+          En dictamen:{" "}
+          <span className="font-semibold text-orange-700">
+            {enDictamen}
+          </span>
+        </span>
+        <span>
+          Finalizados:{" "}
+          <span className="font-semibold text-emerald-700">
+            {finalizados}
+          </span>
+        </span>
+        <span>
+          Entregados:{" "}
+          <span className="font-semibold text-emerald-900">
+            {entregados}
+          </span>
+        </span>
+      </div>
+
       {/* Table */}
       <Card>
         <CardHeader>
@@ -183,71 +347,232 @@ export default function Procesos() {
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay procesos registrados</p>
-              <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Crear primer proceso
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crear primer proceso
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Crea un proceso de investigación para un candidato y cliente.
+                </TooltipContent>
+              </Tooltip>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Clave</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Candidato</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Puesto</TableHead>
-                  <TableHead>Fecha Recepción</TableHead>
-                  <TableHead>Estatus</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Vista de tabla para escritorio */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleProcessSort("clave")}
+                        >
+                          Clave
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleProcessSort("tipo")}
+                        >
+                          Tipo
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
+                      <TableHead>Candidato</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Puesto</TableHead>
+                      <TableHead>Fecha Recepción</TableHead>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleProcessSort("estatus")}
+                        >
+                          Estatus
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {processes.map((process) => (
+                      <TableRow
+                        key={process.id}
+                        className={getStatusRowClass(process.estatusProceso)}
+                      >
+                        <TableCell className="font-medium font-mono">
+                          {process.clave}
+                        </TableCell>
+                        <TableCell>
+                          <span className="badge badge-info">
+                            {process.tipoProducto}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {getCandidateName(process.candidatoId)}
+                        </TableCell>
+                        <TableCell>
+                          {getClientName(process.clienteId)}
+                        </TableCell>
+                        <TableCell>{getPostName(process.puestoId)}</TableCell>
+                        <TableCell>
+                          {new Date(
+                            process.fechaRecepcion,
+                          ).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`badge ${getStatusBadgeClass(
+                              process.estatusProceso,
+                            )}`}
+                          >
+                            {getStatusLabel(process.estatusProceso)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link href={`/procesos/${process.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Ver detalle"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Ver detalle completo del proceso.
+                              </TooltipContent>
+                            </Tooltip>
+                            {!isClient && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Eliminar proceso"
+                                    onClick={() => {
+                                      const ok = confirm(
+                                        `¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`,
+                                      );
+                                      if (ok)
+                                        deleteMutation.mutate({ id: process.id });
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Eliminar este proceso de investigación.
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Vista en tarjetas para móvil */}
+              <div className="space-y-3 md:hidden">
                 {processes.map((process) => (
-                  <TableRow key={process.id}>
-                    <TableCell className="font-medium font-mono">
-                      {process.clave}
-                    </TableCell>
-                    <TableCell>
-                      <span className="badge badge-info">{process.tipoProducto}</span>
-                    </TableCell>
-                    <TableCell>{getCandidateName(process.candidatoId)}</TableCell>
-                    <TableCell>{getClientName(process.clienteId)}</TableCell>
-                    <TableCell>{getPostName(process.puestoId)}</TableCell>
-                    <TableCell>
-                      {new Date(process.fechaRecepcion).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`badge ${getStatusBadgeClass(process.estatusProceso)}`}>
+                  <div
+                    key={process.id}
+                    className={`rounded-lg border p-3 text-xs shadow-sm ${getStatusRowClass(
+                      process.estatusProceso,
+                    )}`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono font-semibold">
+                        {process.clave}
+                      </span>
+                      <span
+                        className={`badge ${getStatusBadgeClass(
+                          process.estatusProceso,
+                        )}`}
+                      >
                         {getStatusLabel(process.estatusProceso)}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/procesos/${process.id}`}>
-                          <Button variant="ghost" size="sm" aria-label="Ver detalle">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        {!isClient && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label="Eliminar proceso"
-                            onClick={() => {
-                              const ok = confirm(`¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`);
-                              if (ok) deleteMutation.mutate({ id: process.id });
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
+                    </div>
+                    <div className="space-y-0.5 text-[11px]">
+                      <div>
+                        <span className="font-semibold">Tipo: </span>
+                        {process.tipoProducto}
                       </div>
-                    </TableCell>
-                  </TableRow>
+                      <div>
+                        <span className="font-semibold">Candidato: </span>
+                        {getCandidateName(process.candidatoId)}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Cliente: </span>
+                        {getClientName(process.clienteId)}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Puesto: </span>
+                        {getPostName(process.puestoId)}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Recepción: </span>
+                        {new Date(
+                          process.fechaRecepcion,
+                        ).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-end gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={`/procesos/${process.id}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>Ver detalle.</TooltipContent>
+                      </Tooltip>
+                      {!isClient && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => {
+                                const ok = confirm(
+                                  `¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`,
+                                );
+                                if (ok)
+                                  deleteMutation.mutate({ id: process.id });
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Eliminar.</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

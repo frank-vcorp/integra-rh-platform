@@ -79,7 +79,6 @@ export default function Puestos() {
     const data = {
       nombreDelPuesto: formData.get("nombreDelPuesto") as string,
       clienteId: parseInt(selectedClient),
-      descripcion: formData.get("descripcion") as string || undefined,
       estatus: selectedStatus as "activo" | "cerrado" | "pausado",
     };
 
@@ -158,27 +157,80 @@ export default function Puestos() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Puesto</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Estatus</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Escritorio: tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Puesto</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Estatus</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {posts.map((post) => (
+                      <TableRow key={post.id}>
+                        <TableCell className="font-medium">
+                          {post.nombreDelPuesto}
+                        </TableCell>
+                        <TableCell>{getClientName(post.clienteId)}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`badge ${
+                              post.estatus === "activo"
+                                ? "badge-success"
+                                : post.estatus === "pausado"
+                                ? "badge-warning"
+                                : "badge-neutral"
+                            }`}
+                          >
+                            {post.estatus}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(post)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(post.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Móvil: tarjetas */}
+              <div className="space-y-3 md:hidden">
                 {posts.map((post) => (
-                  <TableRow key={post.id}>
-                    <TableCell className="font-medium">{post.nombreDelPuesto}</TableCell>
-                    <TableCell>{getClientName(post.clienteId)}</TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {post.descripcion || "-"}
-                    </TableCell>
-                    <TableCell>
+                  <div
+                    key={post.id}
+                    className="rounded-lg border p-3 bg-white shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-sm">
+                          {post.nombreDelPuesto}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {getClientName(post.clienteId)}
+                        </p>
+                      </div>
                       <span
-                        className={`badge ${
+                        className={`badge text-[10px] ${
                           post.estatus === "activo"
                             ? "badge-success"
                             : post.estatus === "pausado"
@@ -188,29 +240,29 @@ export default function Puestos() {
                       >
                         {post.estatus}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(post)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(post.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="mt-2 flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleEdit(post)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleDelete(post.id)}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -265,15 +317,6 @@ export default function Puestos() {
                     <SelectItem value="cerrado">Cerrado</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="descripcion">Descripción</Label>
-                <Textarea
-                  id="descripcion"
-                  name="descripcion"
-                  defaultValue={editingPost?.descripcion}
-                  rows={4}
-                />
               </div>
             </div>
             <div className="flex justify-end gap-2">

@@ -9,8 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Building2, Pencil, Trash2, Share2, Copy, Mail, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { Plus, Building2, Pencil, Trash2, Share2, Copy, Mail, MessageCircle, Eye } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -36,6 +36,11 @@ export default function Clientes() {
   const [generatedLink, setGeneratedLink] = useState("");
 
   const { data: clients = [], isLoading } = trpc.clients.list.useQuery();
+  const { data: allProcesses = [] } = trpc.processes.list.useQuery();
+  const { data: candidates = [] } = trpc.candidates.list.useQuery();
+  const { data: posts = [] } = trpc.posts.list.useQuery();
+  const [selectedClientForProcesses, setSelectedClientForProcesses] = useState<any | null>(null);
+  const [processDialogOpen, setProcessDialogOpen] = useState(false);
   const utils = trpc.useUtils();
 
   const createMutation = trpc.clients.create.useMutation({
@@ -197,6 +202,65 @@ export default function Clientes() {
       client.email?.toLowerCase().includes(filter.toLowerCase())
   );
 
+  const processesBySelectedClient = useMemo(() => {
+    if (!selectedClientForProcesses) return [];
+    return allProcesses.filter(
+      (p: any) => p.clienteId === selectedClientForProcesses.id
+    );
+  }, [allProcesses, selectedClientForProcesses]);
+
+  const getCandidateName = (candidatoId: number) => {
+    const candidate = candidates.find((c: any) => c.id === candidatoId);
+    return candidate?.nombreCompleto || "-";
+  };
+
+  const getPostName = (puestoId: number) => {
+    const post = posts.find((p: any) => p.id === puestoId);
+    return post?.nombreDelPuesto || "-";
+  };
+
+  const getStatusLabel = (status: string): string => {
+    const labels: Record<string, string> = {
+      en_recepcion: "En recepción",
+      asignado: "Asignado",
+      en_verificacion: "En verificación",
+      visita_programada: "Visita programada",
+      visita_realizada: "Visita realizada",
+      en_dictamen: "En dictamen",
+      finalizado: "Finalizado",
+      entregado: "Entregado",
+    };
+    return labels[status] || status;
+  };
+
+  const getStatusBadgeClass = (status: string): string => {
+    const classes: Record<string, string> = {
+      en_recepcion: "badge-info",
+      asignado: "badge-info",
+      en_verificacion: "badge-warning",
+      visita_programada: "badge-warning",
+      visita_realizada: "badge-warning",
+      en_dictamen: "badge-warning",
+      finalizado: "badge-success",
+      entregado: "badge-success",
+    };
+    return classes[status] || "badge-neutral";
+  };
+
+  const getStatusRowClass = (status: string): string => {
+    const classes: Record<string, string> = {
+      en_recepcion: "bg-sky-50",
+      asignado: "bg-sky-50",
+      en_verificacion: "bg-amber-50",
+      visita_programada: "bg-amber-50",
+      visita_realizada: "bg-amber-50",
+      en_dictamen: "bg-amber-50",
+      finalizado: "bg-emerald-50",
+      entregado: "bg-emerald-50",
+    };
+    return classes[status] || "";
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -249,59 +313,292 @@ export default function Clientes() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Ubicación</TableHead>
-                  <TableHead>Reclutador</TableHead>
-                  <TableHead>Contacto</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Vista de tabla para escritorio */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Empresa</TableHead>
+                      <TableHead>Ubicación</TableHead>
+                      <TableHead>Reclutador</TableHead>
+                      <TableHead>Contacto</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredClients.map((client) => (
+                      <TableRow
+                        key={client.id}
+                        className={
+                          selectedClientForProcesses?.id === client.id
+                            ? "bg-slate-50 cursor-pointer"
+                            : "cursor-pointer"
+                        }
+                        onClick={() => {
+                          setSelectedClientForProcesses(client);
+                          setProcessDialogOpen(true);
+                        }}
+                      >
+                        <TableCell className="font-medium">
+                          <button
+                            type="button"
+                            className="text-left hover:underline"
+                          >
+                            {client.nombreEmpresa}
+                          </button>
+                        </TableCell>
+                        <TableCell>{client.ubicacionPlaza || "-"}</TableCell>
+                        <TableCell>{client.reclutador || "-"}</TableCell>
+                        <TableCell>{client.contacto || "-"}</TableCell>
+                        <TableCell>{client.telefono || "-"}</TableCell>
+                        <TableCell>{client.email || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(client);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(client.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openLinkDialog(client);
+                              }}
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedClientForProcesses(client);
+                                setProcessDialogOpen(true);
+                              }}
+                              title="Ver procesos de este cliente"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Vista en tarjetas para móvil */}
+              <div className="space-y-3 md:hidden">
                 {filteredClients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.nombreEmpresa}</TableCell>
-                    <TableCell>{client.ubicacionPlaza || "-"}</TableCell>
-                    <TableCell>{client.reclutador || "-"}</TableCell>
-                    <TableCell>{client.contacto || "-"}</TableCell>
-                    <TableCell>{client.telefono || "-"}</TableCell>
-                    <TableCell>{client.email || "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                  <div
+                    key={client.id}
+                    className="rounded-lg border p-3 bg-white shadow-sm"
+                    onClick={() => {
+                      setSelectedClientForProcesses(client);
+                      setProcessDialogOpen(true);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-sm">
+                          {client.nombreEmpresa}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {client.ubicacionPlaza || "Sin ubicación"}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(client)}
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(client);
+                          }}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(client.id)}
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(client.id);
+                          }}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-3 w-3 text-destructive" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => openLinkDialog(client)}
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openLinkDialog(client);
+                          }}
                         >
-                          <Share2 className="h-4 w-4" />
+                          <Share2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedClientForProcesses(client);
+                            setProcessDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">
+                      <div>
+                        <span className="font-semibold">Contacto: </span>
+                        {client.contacto || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Tel: </span>
+                        {client.telefono || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Email: </span>
+                        {client.email || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Reclutador: </span>
+                        {client.reclutador || "-"}
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
-        </CardContent>
-      </Card>
+       </CardContent>
+     </Card>
+
+      {/* Dialog: procesos del cliente */}
+      <Dialog
+        open={processDialogOpen && !!selectedClientForProcesses}
+        onOpenChange={setProcessDialogOpen}
+      >
+        <DialogContent className="max-w-5xl w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>
+              Procesos de {selectedClientForProcesses?.nombreEmpresa || ""}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedClientForProcesses && (
+            <div className="space-y-3">
+              {processesBySelectedClient.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Este cliente aún no tiene procesos registrados.
+                </p>
+              ) : (
+                <>
+                  {/* Vista de tabla para escritorio */}
+                  <div className="overflow-x-auto hidden sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Clave</TableHead>
+                          <TableHead>Candidato</TableHead>
+                          <TableHead>Puesto</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Estatus</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {processesBySelectedClient.map((p: any) => (
+                          <TableRow
+                            key={p.id}
+                            className={getStatusRowClass(p.estatusProceso)}
+                          >
+                            <TableCell className="font-mono text-xs">
+                              <Link href={`/procesos/${p.id}`}>{p.clave}</Link>
+                            </TableCell>
+                            <TableCell>{getCandidateName(p.candidatoId)}</TableCell>
+                            <TableCell>{getPostName(p.puestoId)}</TableCell>
+                            <TableCell className="text-xs">
+                              {p.tipoProducto}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <span className={`badge ${getStatusBadgeClass(p.estatusProceso)}`}>
+                                {getStatusLabel(p.estatusProceso)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Vista en tarjetas para celular */}
+                  <div className="space-y-2 sm:hidden">
+                    {processesBySelectedClient.map((p: any) => (
+                      <div
+                        key={p.id}
+                        className={`rounded-md border px-3 py-2 text-xs ${getStatusRowClass(
+                          p.estatusProceso
+                        )}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono font-semibold">
+                            {p.clave}
+                          </span>
+                          <span
+                            className={`badge ${getStatusBadgeClass(p.estatusProceso)}`}
+                          >
+                            {getStatusLabel(p.estatusProceso)}
+                          </span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <div>
+                            <span className="font-semibold">Candidato: </span>
+                            {getCandidateName(p.candidatoId)}
+                          </div>
+                          <div>
+                            <span className="font-semibold">Puesto: </span>
+                            {getPostName(p.puestoId)}
+                          </div>
+                          <div>
+                            <span className="font-semibold">Tipo: </span>
+                            {p.tipoProducto}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
