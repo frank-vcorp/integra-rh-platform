@@ -1,9 +1,10 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 
 export const processCommentsRouter = router({
   getByProcess: protectedProcedure
+    .use(requirePermission("procesos", "view"))
     .input(z.object({ procesoId: z.number() }))
     .query(async ({ input, ctx }) => {
       // Si es cliente, validar que el proceso pertenece a su cliente
@@ -15,6 +16,7 @@ export const processCommentsRouter = router({
     }),
 
   create: adminProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(z.object({ procesoId: z.number(), text: z.string().min(1), statusAtTime: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
       const author = ctx.user.name || ctx.user.email || 'Admin';
@@ -27,4 +29,3 @@ export const processCommentsRouter = router({
       return { id } as const;
     }),
 });
-

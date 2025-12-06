@@ -3,12 +3,16 @@ import type { User } from "../../drizzle/schema";
 import { auth as adminAuth } from "../firebase";
 import * as db from "../db";
 import { logger } from "./logger";
+import { ENV } from "./env";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
   requestId: string;
+  // Permisos efectivos (rol + roles asignados)
+  permissions: { module: string; action: string }[];
+  isSuperadmin: boolean;
 };
 
 export async function createContext(
@@ -160,10 +164,39 @@ export async function createContext(
     }
   }
 
+  let permissions: { module: string; action: string }[] = [];
+  let isSuperadmin = false;
+
+  if (user) {
+    if (user.role !== "client") {
+      isSuperadmin =
+        ENV.ownerOpenId !== "" && user.openId === ENV.ownerOpenId;
+      try {
+        const rows = await db.getUserEffectivePermissions(user.id);
+        permissions = rows.map((r: any) => ({
+          module: r.module,
+          action: r.action,
+        }));
+      } catch (e) {
+        try {
+          logger.warn("[Auth] getUserEffectivePermissions failed", {
+            requestId,
+            error: (e as any)?.message || String(e),
+          });
+        } catch {}
+      }
+    } else {
+      // Clientes externos no usan el sistema de permisos internos
+      permissions = [];
+    }
+  }
+
   return {
     req: opts.req,
     res: opts.res,
     user,
     requestId,
+    permissions,
+    isSuperadmin,
   };
 }

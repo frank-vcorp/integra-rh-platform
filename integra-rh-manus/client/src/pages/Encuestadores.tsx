@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, UserCheck, Pencil, Trash2, Phone } from "lucide-react";
+import { Plus, UserCheck, Pencil, Trash2, Phone, Eye } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function Encuestadores() {
   const { user } = useAuth();
@@ -142,6 +143,10 @@ export default function Encuestadores() {
     setDialogOpen(true);
   };
 
+  const canCreateSurveyor = useHasPermission("encuestadores", "create");
+  const canEditSurveyor = useHasPermission("encuestadores", "edit");
+  const canDeleteSurveyor = useHasPermission("encuestadores", "delete");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -160,7 +165,7 @@ export default function Encuestadores() {
             Gestiona los encuestadores del sistema
           </p>
         </div>
-        {!isClient && (
+        {!isClient && canCreateSurveyor && (
           <Button onClick={handleOpenDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Encuestador
@@ -186,10 +191,12 @@ export default function Encuestadores() {
             <div className="text-center py-12">
               <UserCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay encuestadores registrados</p>
-              <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Crear primer encuestador
-              </Button>
+              {canCreateSurveyor && (
+                <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear primer encuestador
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -310,29 +317,35 @@ export default function Encuestadores() {
                                 Ver
                               </Button>
                             </Link>
-                            {!isClient && (
+                            {!isClient && (canEditSurveyor || canDeleteSurveyor) && (
                               <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleToggleActive(surveyor)}
-                                >
-                                  {surveyor.activo ? "Inactivar" : "Activar"}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(surveyor)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(surveyor.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                                {canEditSurveyor && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleToggleActive(surveyor)}
+                                    >
+                                      {surveyor.activo ? "Inactivar" : "Activar"}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEdit(surveyor)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                {canDeleteSurveyor && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDelete(surveyor.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>
@@ -421,32 +434,38 @@ export default function Encuestadores() {
                           <Eye className="h-3 w-3" />
                         </Button>
                       </Link>
-                      {!isClient && (
+                      {!isClient && (canEditSurveyor || canDeleteSurveyor) && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleToggleActive(surveyor)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleEdit(surveyor)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleDelete(surveyor.id)}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                          {canEditSurveyor && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleToggleActive(surveyor)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEdit(surveyor)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                          {canDeleteSurveyor && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleDelete(surveyor.id)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -459,7 +478,7 @@ export default function Encuestadores() {
       </Card>
 
       {/* Dialog */}
-      {!isClient && (
+      {!isClient && canEditSurveyor && (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

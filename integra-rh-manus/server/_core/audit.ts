@@ -7,7 +7,10 @@ type AuditAction =
   | "delete"
   | "send_invitation"
   | "assign_psychometrics"
-  | "client_link_created";
+  | "client_link_created"
+  | "client_link_access"
+  | "login"
+  | "logout";
 
 type AuditActorType = "admin" | "client" | "system";
 
@@ -42,4 +45,3 @@ export async function logAuditEvent(
     console.warn("[Audit] Failed to create audit log:", (error as any)?.message || error);
   }
 }
-

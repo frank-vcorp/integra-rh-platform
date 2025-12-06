@@ -1,4 +1,4 @@
-import { router, adminProcedure } from "../_core/trpc";
+import { router, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
 import { auditLogs, users } from "../../drizzle/schema";
@@ -6,6 +6,7 @@ import { desc, eq } from "drizzle-orm";
 
 export const auditRouter = router({
   list: adminProcedure
+    .use(requirePermission("registros", "view"))
     .input(
       z
         .object({
@@ -52,4 +53,3 @@ export const auditRouter = router({
       });
     }),
 });
-

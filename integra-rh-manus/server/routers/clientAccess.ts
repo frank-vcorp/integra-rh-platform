@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, publicProcedure, adminProcedure } from '../_core/trpc';
+import { router, publicProcedure, adminProcedure, requirePermission } from '../_core/trpc';
 import { validateClientToken, createClientAccessToken, getClientAccessUrl, revokeClientToken } from '../auth/clientTokens';
 import * as sendgrid from '../integrations/sendgrid';
 import { getDb } from '../db';
@@ -41,6 +41,7 @@ export const clientAccessRouter = router({
     }),
 
   create: adminProcedure
+    .use(requirePermission("clientes", "edit"))
     .input(z.object({
       clientId: z.number(),
       procesoId: z.number().optional(),
@@ -79,6 +80,7 @@ export const clientAccessRouter = router({
     }),
 
   revoke: adminProcedure
+    .use(requirePermission("clientes", "edit"))
     .input(z.object({ token: z.string().min(1) }))
     .mutation(async ({ input }) => {
       await revokeClientToken(input.token);
@@ -89,6 +91,7 @@ export const clientAccessRouter = router({
    * Lista tokens activos (no expirados y no revocados) de un cliente
    */
   listActiveTokens: adminProcedure
+    .use(requirePermission("clientes", "view"))
     .input(z.object({ clientId: z.number() }))
     .query(async ({ input }) => {
       const db = await getDb();

@@ -1,4 +1,4 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 
@@ -8,15 +8,20 @@ export const surveyorsRouter = router({
     .query(async ({ input }) => {
       return db.getSurveyorById(input.id);
     }),
-  list: adminProcedure.query(async () => {
+  list: adminProcedure
+    .use(requirePermission("encuestadores", "view"))
+    .query(async () => {
     return db.getAllSurveyors();
   }),
 
-  listActive: protectedProcedure.query(async () => {
+  listActive: protectedProcedure
+    .use(requirePermission("encuestadores", "view"))
+    .query(async () => {
     return db.getActiveSurveyors();
   }),
 
   create: adminProcedure
+    .use(requirePermission("encuestadores", "create"))
     .input(z.object({
       nombre: z.string().min(1),
       telefono: z.string().optional(),
@@ -42,6 +47,7 @@ export const surveyorsRouter = router({
     }),
 
   update: adminProcedure
+    .use(requirePermission("encuestadores", "edit"))
     .input(z.object({
       id: z.number(),
       data: z.object({
@@ -65,6 +71,7 @@ export const surveyorsRouter = router({
     }),
 
   delete: adminProcedure
+    .use(requirePermission("encuestadores", "delete"))
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
       await db.deleteSurveyor(input.id);

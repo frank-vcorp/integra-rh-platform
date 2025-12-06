@@ -1,4 +1,4 @@
-import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure, hasPermission, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import { TRPCError } from "@trpc/server";
@@ -10,6 +10,9 @@ export const candidatesRouter = router({
 
     // 1) Si hay usuario en contexto (admin o client) usarlo
     if (ctx.user?.role === "admin") {
+      if (!hasPermission(ctx, "candidatos", "view")) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "No puedes ver candidatos" });
+      }
       return db.getCandidatesWithInvestigationProgress();
     }
     if (ctx.user?.role === "client" && ctx.user.clientId) {
@@ -35,6 +38,7 @@ export const candidatesRouter = router({
   }),
 
   getById: protectedProcedure
+    .use(requirePermission("candidatos", "view"))
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const candidate = await db.getCandidateById(input.id);
@@ -49,6 +53,7 @@ export const candidatesRouter = router({
     }),
 
   create: adminProcedure
+    .use(requirePermission("candidatos", "create"))
     .input(
       z.object({
         nombreCompleto: z.string().min(1),
@@ -77,6 +82,7 @@ export const candidatesRouter = router({
     }),
 
   update: adminProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(
       z.object({
         id: z.number(),
@@ -105,6 +111,7 @@ export const candidatesRouter = router({
     }),
 
   delete: adminProcedure
+    .use(requirePermission("candidatos", "delete"))
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       await db.deleteCandidate(input.id);

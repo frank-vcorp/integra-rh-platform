@@ -1,19 +1,23 @@
-import { router, adminProcedure } from "../_core/trpc";
+import { router, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 
 export const paymentsRouter = router({
-  list: adminProcedure.query(async () => {
+  list: adminProcedure
+    .use(requirePermission("pagos", "view"))
+    .query(async () => {
     return db.getAllPayments();
   }),
 
   listBySurveyor: adminProcedure
+    .use(requirePermission("pagos", "view"))
     .input(z.object({ encuestadorId: z.number().int() }))
     .query(async ({ input }) => {
       return db.getPaymentsBySurveyor(input.encuestadorId);
     }),
 
   create: adminProcedure
+    .use(requirePermission("pagos", "create"))
     .input(z.object({
       procesoId: z.number().int(),
       encuestadorId: z.number().int(),
@@ -34,6 +38,7 @@ export const paymentsRouter = router({
     }),
 
   update: adminProcedure
+    .use(requirePermission("pagos", "edit"))
     .input(z.object({
       id: z.number().int(),
       data: z.object({

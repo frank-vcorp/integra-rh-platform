@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function Clientes() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -261,6 +262,10 @@ export default function Clientes() {
     return classes[status] || "";
   };
 
+  const canCreateClient = useHasPermission("clientes", "create");
+  const canEditClient = useHasPermission("clientes", "edit");
+  const canDeleteClient = useHasPermission("clientes", "delete");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -279,10 +284,12 @@ export default function Clientes() {
             Gestiona los clientes empresariales
           </p>
         </div>
-        <Button onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Cliente
-        </Button>
+        {canCreateClient && (
+          <Button onClick={handleOpenDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Cliente
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -312,10 +319,12 @@ export default function Clientes() {
             <div className="text-center py-12">
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay clientes registrados</p>
-              <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Crear primer cliente
-              </Button>
+              {canCreateClient && (
+                <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear primer cliente
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -362,26 +371,30 @@ export default function Clientes() {
                         <TableCell>{client.email || "-"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(client);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(client.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {canEditClient && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(client);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDeleteClient && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(client.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -433,28 +446,32 @@ export default function Clientes() {
                         </p>
                       </div>
                       <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(client);
-                          }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(client.id);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
+                        {canEditClient && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(client);
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {canDeleteClient && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(client.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

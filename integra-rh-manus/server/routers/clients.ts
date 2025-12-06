@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc.ts';
+import { router, protectedProcedure, requirePermission } from '../_core/trpc';
 import { TRPCError } from '@trpc/server';
 import { createClient, getAllClients, getClientById } from "../db";
 import { logAuditEvent } from "../_core/audit";
@@ -9,7 +9,9 @@ export const clientsRouter = router({
    * Devuelve una lista de todos los clientes.
    * Protegido, solo para usuarios autenticados.
    */
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure
+    .use(requirePermission("clientes", "view"))
+    .query(async () => {
     return await getAllClients();
   }),
 
@@ -18,6 +20,7 @@ export const clientsRouter = router({
    * Protegido, solo para usuarios autenticados.
    */
   get: protectedProcedure
+    .use(requirePermission("clientes", "view"))
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
       const client = await getClientById(input.id);
@@ -29,6 +32,7 @@ export const clientsRouter = router({
 
   /** Crear cliente (solo administradores) */
   create: protectedProcedure
+    .use(requirePermission("clientes", "create"))
     .input(z.object({
       nombreEmpresa: z.string().min(1),
       ubicacionPlaza: z.string().optional(),
@@ -62,6 +66,7 @@ export const clientsRouter = router({
 
   /** Actualizar cliente (solo administradores) */
   update: protectedProcedure
+    .use(requirePermission("clientes", "edit"))
     .input(z.object({
       id: z.number().int(),
       data: z.object({
@@ -101,6 +106,7 @@ export const clientsRouter = router({
 
   /** Eliminar cliente (solo administradores) */
   delete: protectedProcedure
+    .use(requirePermission("clientes", "delete"))
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input, ctx }) => {
       if (ctx.user?.role !== 'admin') {

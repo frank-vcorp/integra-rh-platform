@@ -1,10 +1,11 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "../db";
 
 export const candidateCommentsRouter = router({
   getByCandidate: protectedProcedure
+    .use(requirePermission("candidatos", "view"))
     .input(z.object({ candidatoId: z.number() }))
     .query(async ({ input, ctx }) => {
       if (ctx.user.role === "client") {
@@ -20,6 +21,7 @@ export const candidateCommentsRouter = router({
     }),
 
   create: adminProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(
       z.object({
         candidatoId: z.number(),

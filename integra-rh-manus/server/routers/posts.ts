@@ -1,13 +1,14 @@
 import { z } from 'zod';
-import { router, protectedProcedure } from '../trpc';
-import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure, requirePermission } from '../_core/trpc';
 import { getAllPosts, getPostsByClient, createPost, updatePost, deletePost } from '../db';
 
 export const postsRouter = router({
   /**
    * Lista global de puestos (ordenados por creación desc)
    */
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure
+    .use(requirePermission("puestos", "view"))
+    .query(async () => {
     return await getAllPosts();
   }),
 
@@ -16,6 +17,7 @@ export const postsRouter = router({
    * Protegido, solo para usuarios autenticados.
    */
   listByClient: protectedProcedure
+    .use(requirePermission("puestos", "view"))
     .input(
       z.object({
         clientId: z.number(),
@@ -30,6 +32,7 @@ export const postsRouter = router({
    * requiere autenticación. Se puede reforzar con guardas de rol.
    */
   create: protectedProcedure
+    .use(requirePermission("puestos", "create"))
     .input(
       z.object({
         nombreDelPuesto: z.string().min(1),
@@ -49,6 +52,7 @@ export const postsRouter = router({
     }),
 
   update: protectedProcedure
+    .use(requirePermission("puestos", "edit"))
     .input(
       z.object({
         id: z.number().int(),
@@ -66,6 +70,7 @@ export const postsRouter = router({
     }),
 
   delete: protectedProcedure
+    .use(requirePermission("puestos", "delete"))
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
       await deletePost(input.id);

@@ -1,4 +1,4 @@
-import { router, publicProcedure } from '../trpc.ts';
+import { router, publicProcedure } from '../_core/trpc';
 import { authRouter } from './auth';
 import { clientsRouter } from './clients';
 import { postsRouter } from './posts';
@@ -18,6 +18,7 @@ import { surveyorMessagesRouter } from './surveyorMessages';
 import { clientPortalRouter } from './clientPortal';
 import { auditRouter } from './audit';
 import { candidateConsentRouter } from './candidateConsent';
+import { rolesRouter } from './roles';
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -64,6 +65,7 @@ export const appRouter = router({
   payments: paymentsRouter,
   surveyorMessages: surveyorMessagesRouter,
   audit: auditRouter,
+  roles: rolesRouter,
 });
 
 // Exportamos el tipo del router. El cliente lo usará para tener autocompletado y tipado.

@@ -1,4 +1,4 @@
-import { router, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import * as psicometricas from "../integrations/psicometricas";
@@ -23,11 +23,13 @@ const simplifyDoc = (doc?: any) =>
   doc ? { id: doc.id, url: doc.url } : undefined;
 
 export const psicometricasRouter = router({
-  getBaterias: adminProcedure
+  getBaterias: protectedProcedure
+    .use(requirePermission("candidatos", "view"))
     .query(async () => {
       return psicometricas.listarBaterias();
     }),
-  asignarBateria: adminProcedure
+  asignarBateria: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(z.object({ candidatoId: z.number(), bateria: z.string().optional(), tests: z.array(z.number()).min(1), vacante: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
       const candidate = await db.getCandidateById(input.candidatoId);
@@ -81,13 +83,15 @@ export const psicometricasRouter = router({
       return result;
     }),
 
-  reenviarInvitacion: adminProcedure
+  reenviarInvitacion: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(z.object({ asignacionId: z.string() }))
     .mutation(async ({ input }) => {
       return psicometricas.reenviarInvitacion(input.asignacionId);
     }),
 
-  consultarResultados: adminProcedure
+  consultarResultados: protectedProcedure
+    .use(requirePermission("candidatos", "view"))
     .input(z.object({ asignacionId: z.string() }))
     .query(async ({ input }) => {
       // Minimizar llamadas a la API: usar caché en candidato.psicometricos + cooldown
@@ -130,7 +134,8 @@ export const psicometricasRouter = router({
       return result;
     }),
 
-  guardarReporte: adminProcedure
+  guardarReporte: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(z.object({
       candidatoId: z.number(),
       asignacionId: z.string(),

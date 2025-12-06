@@ -1,9 +1,49 @@
-import { router, publicProcedure, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure, hasPermission, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import { storage as firebaseStorage } from "../firebase";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent } from "../_core/audit";
+
+function assertCanEditProcess(ctx: any, proc: any) {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  // Clientes externos nunca deben modificar procesos
+  if (ctx.user.role === "client") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Solo usuarios internos pueden modificar procesos.",
+    });
+  }
+
+  // Superadmin siempre puede editar
+  if (ctx.isSuperadmin) {
+    return;
+  }
+
+  // Usuarios con capacidad de crear o eliminar procesos se consideran
+  // administradores operativos y pueden editar cualquier proceso
+  const canManageAll =
+    hasPermission(ctx, "procesos", "create") ||
+    hasPermission(ctx, "procesos", "delete");
+  if (canManageAll) {
+    return;
+  }
+
+  // Para el resto (por ejemplo Analistas), solo se permite editar
+  // cuando son el analista asignado al proceso.
+  const assignedId = (proc as any).especialistaAtraccionId as number | null | undefined;
+  if (assignedId && assignedId === ctx.user.id) {
+    return;
+  }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Solo el analista asignado o un administrador pueden modificar este proceso.",
+  });
+}
 
 export const processesRouter = router({
   list: publicProcedure.query(async ({ ctx }) => {
@@ -11,6 +51,9 @@ export const processesRouter = router({
 
     // 1) Si hay usuario en contexto (admin o client) usarlo
     if (ctx.user?.role === "admin") {
+      if (!hasPermission(ctx, "procesos", "view")) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "No puedes ver procesos" });
+      }
       return db.getAllProcesses();
     }
     if (ctx.user?.role === "client" && ctx.user.clientId) {
@@ -36,6 +79,7 @@ export const processesRouter = router({
   }),
 
   getById: protectedProcedure
+    .use(requirePermission("procesos", "view"))
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const process = await db.getProcessById(input.id);
@@ -46,6 +90,7 @@ export const processesRouter = router({
     }),
 
   getByCandidate: protectedProcedure
+    .use(requirePermission("procesos", "view"))
     .input(z.object({ candidatoId: z.number() }))
     .query(async ({ input, ctx }) => {
       if (ctx.user.role === "client") {
@@ -58,6 +103,7 @@ export const processesRouter = router({
     }),
 
   create: adminProcedure
+    .use(requirePermission("procesos", "create"))
     .input(
       z.object({
         candidatoId: z.number(),
@@ -117,11 +163,18 @@ export const processesRouter = router({
       });
 
       return { id, clave } as const;
-    }),
+  }),
 
-  updateStatus: adminProcedure
+  updateStatus: protectedProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(z.object({ id: z.number(), estatusProceso: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
+
       await db.updateProcess(input.id, { estatusProceso: input.estatusProceso } as any);
 
       await logAuditEvent(ctx, {
@@ -134,9 +187,16 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 
-  updateCalificacion: adminProcedure
+  updateCalificacion: protectedProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(z.object({ id: z.number(), calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable"]) }))
     .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
+
       await db.updateProcess(input.id, { calificacionFinal: input.calificacionFinal } as any);
 
       await logAuditEvent(ctx, {
@@ -149,7 +209,8 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 
-  updatePanelDetail: adminProcedure
+  updatePanelDetail: protectedProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(z.object({
       id: z.number(),
       especialistaAtraccionId: z.number().nullable().optional(),
@@ -178,7 +239,13 @@ export const processesRouter = router({
         enlaceReporteUrl: z.string().trim().optional(),
       }).partial().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
+
       const payload: any = {
         especialistaAtraccionId: input.especialistaAtraccionId ?? null,
         especialistaAtraccionNombre: input.especialistaAtraccionNombre ?? null,
@@ -193,11 +260,15 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 
-  generarDictamen: adminProcedure
+  generarDictamen: protectedProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
-      if (!proc) throw new Error("Proceso no encontrado");
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
       if (!proc.calificacionFinal || proc.calificacionFinal === 'pendiente') {
         throw new Error("Define la calificación final antes de generar el dictamen");
       }
@@ -231,6 +302,7 @@ export const processesRouter = router({
   // VISITAS DOMICILIARIAS
   // ==========================
   listVisits: protectedProcedure
+    .use(requirePermission("visitas", "view"))
     .query(async ({ ctx }) => {
       const all = await db.getAllProcesses();
       const filtered = ctx.user.role === 'client'
@@ -248,51 +320,71 @@ export const processesRouter = router({
         }));
     }),
 
-  visitAssign: adminProcedure
+  visitAssign: protectedProcedure
+    .use(requirePermission("visitas", "edit"))
     .input(z.object({ id: z.number(), encuestadorId: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
-      if (!proc) throw new Error('Proceso no encontrado');
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
       const prev = (proc as any).visitStatus || {};
       await db.updateProcess(input.id, { visitStatus: { ...prev, status: prev.scheduledDateTime ? 'programada' : 'asignada', encuestadorId: input.encuestadorId } } as any);
       return { ok: true } as const;
     }),
 
-  visitSchedule: adminProcedure
+  visitSchedule: protectedProcedure
+    .use(requirePermission("visitas", "edit"))
     .input(z.object({ id: z.number(), fechaHora: z.string(), direccion: z.string().optional(), observaciones: z.string().optional(), encuestadorId: z.number().optional() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
-      if (!proc) throw new Error('Proceso no encontrado');
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
       const prev = (proc as any).visitStatus || {};
       await db.updateProcess(input.id, { visitStatus: { ...prev, status: 'programada', scheduledDateTime: input.fechaHora, direccion: input.direccion, observaciones: input.observaciones, encuestadorId: input.encuestadorId ?? prev.encuestadorId } } as any);
       return { ok: true } as const;
     }),
 
-  visitUpdate: adminProcedure
+  visitUpdate: protectedProcedure
+    .use(requirePermission("visitas", "edit"))
     .input(z.object({ id: z.number(), fechaHora: z.string().optional(), direccion: z.string().optional(), observaciones: z.string().optional() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
-      if (!proc) throw new Error('Proceso no encontrado');
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
       const prev = (proc as any).visitStatus || {};
       await db.updateProcess(input.id, { visitStatus: { ...prev, scheduledDateTime: input.fechaHora ?? prev.scheduledDateTime, direccion: input.direccion ?? prev.direccion, observaciones: input.observaciones ?? prev.observaciones } } as any);
       return { ok: true } as const;
     }),
 
-  visitMarkDone: adminProcedure
+  visitMarkDone: protectedProcedure
+    .use(requirePermission("visitas", "edit"))
     .input(z.object({ id: z.number(), observaciones: z.string().optional() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
-      if (!proc) throw new Error('Proceso no encontrado');
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
       const prev = (proc as any).visitStatus || {};
       await db.updateProcess(input.id, { visitStatus: { ...prev, status: 'realizada', observaciones: input.observaciones ?? prev.observaciones } } as any);
       return { ok: true } as const;
     }),
 
-  visitCancel: adminProcedure
+  visitCancel: protectedProcedure
+    .use(requirePermission("visitas", "edit"))
     .input(z.object({ id: z.number(), motivo: z.string().optional() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
-      if (!proc) throw new Error('Proceso no encontrado');
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+      assertCanEditProcess(ctx, proc);
       const prev = (proc as any).visitStatus || {};
       await db.updateProcess(input.id, { visitStatus: { ...prev, status: 'no_asignada', scheduledDateTime: undefined, observaciones: input.motivo ?? prev.observaciones } } as any);
       return { ok: true } as const;
@@ -302,6 +394,7 @@ export const processesRouter = router({
   // ELIMINAR PROCESO
   // ==========================
   delete: adminProcedure
+    .use(requirePermission("procesos", "delete"))
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
       await db.deleteProcess(input.id);

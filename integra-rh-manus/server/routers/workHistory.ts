@@ -1,4 +1,4 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, requirePermission, hasPermission } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "../db";
@@ -38,11 +38,19 @@ export const workHistoryRouter = router({
         if (candidate?.clienteId !== ctx.user.clientId) {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
+        return db.getWorkHistoryByCandidate(input.candidatoId);
       }
+
+      // Usuarios internos: validar permiso de lectura sobre candidatos
+      if (!hasPermission(ctx as any, "candidatos", "view")) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
       return db.getWorkHistoryByCandidate(input.candidatoId);
     }),
 
-  create: adminProcedure
+  create: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(
       z.object({
         candidatoId: z.number(),
@@ -69,7 +77,8 @@ export const workHistoryRouter = router({
       return { id } as const;
     }),
 
-  update: adminProcedure
+  update: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(
       z.object({
         id: z.number(),
@@ -98,7 +107,8 @@ export const workHistoryRouter = router({
       return { success: true } as const;
     }),
 
-  delete: adminProcedure
+  delete: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await db.deleteWorkHistory(input.id);
@@ -106,7 +116,8 @@ export const workHistoryRouter = router({
     }),
 
   // Guarda la investigación laboral (incluye matriz de desempeño) y calcula un puntaje numérico 0–100
-  saveInvestigation: adminProcedure
+  saveInvestigation: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(
       z.object({
         id: z.number(),

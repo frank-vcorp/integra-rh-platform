@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function Candidatos() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -217,6 +218,10 @@ export default function Candidatos() {
     });
   };
 
+  const canCreateCandidate = useHasPermission("candidatos", "create");
+  const canEditCandidate = useHasPermission("candidatos", "edit");
+  const canDeleteCandidate = useHasPermission("candidatos", "delete");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -235,17 +240,19 @@ export default function Candidatos() {
             Gestiona los candidatos del sistema
           </p>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Candidato
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Crea un candidato nuevo para iniciar su expediente.
-          </TooltipContent>
-        </Tooltip>
+        {canCreateCandidate && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={handleOpenDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Candidato
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Crea un candidato nuevo para iniciar su expediente.
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {/* Table */}
@@ -268,10 +275,12 @@ export default function Candidatos() {
             <div className="text-center py-12">
               <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay candidatos registrados</p>
-              <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Crear primer candidato
-              </Button>
+              {canCreateCandidate && (
+                <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear primer candidato
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -331,34 +340,42 @@ export default function Candidatos() {
                               <TooltipContent>
                                 Ver detalle y expediente del candidato.
                               </TooltipContent>
+                           </Tooltip>
+                           <Tooltip>
+                              {canEditCandidate && (
+                                <>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEdit(candidate)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Editar datos básicos del candidato.
+                                  </TooltipContent>
+                                </>
+                              )}
                             </Tooltip>
                             <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(candidate)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Editar datos básicos del candidato.
-                              </TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(candidate.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Eliminar candidato del sistema.
-                              </TooltipContent>
+                              {canDeleteCandidate && (
+                                <>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDelete(candidate.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Eliminar candidato del sistema.
+                                  </TooltipContent>
+                                </>
+                              )}
                             </Tooltip>
                           </div>
                         </TableCell>
@@ -401,32 +418,36 @@ export default function Candidatos() {
                             Ver detalle y expediente.
                           </TooltipContent>
                         </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleEdit(candidate)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar datos básicos.</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleDelete(candidate.id)}
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Eliminar candidato.</TooltipContent>
-                        </Tooltip>
+                        {canEditCandidate && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEdit(candidate)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar datos básicos.</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {canDeleteCandidate && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleDelete(candidate.id)}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Eliminar candidato.</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
                     <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">

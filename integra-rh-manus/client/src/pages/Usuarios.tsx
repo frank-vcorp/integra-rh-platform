@@ -9,13 +9,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, UserCog, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, UserCog, Pencil, Trash2, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,24 +27,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { Link } from "wouter";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function Usuarios() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<"admin" | "client">("client");
+  const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
 
   const { data: users = [], isLoading } = trpc.users.list.useQuery();
+  const { data: roles = [] } = trpc.roles.list.useQuery(undefined as any, {
+    initialData: [] as any,
+  } as any);
+  const { data: userRolesForEditing = [] } = trpc.roles.getUserRoles.useQuery(
+    { userId: editingUser?.id ?? 0 } as any,
+    { enabled: !!editingUser?.id }
+  );
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const utils = trpc.useUtils();
 
-  const createMutation = trpc.users.create.useMutation({
+  const setUserRolesMutation = trpc.roles.setUserRoles.useMutation({
     onSuccess: () => {
+      utils.roles.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error("Error al asignar roles: " + error.message);
+    },
+  });
+
+  const createMutation = trpc.users.create.useMutation({
+    onSuccess: async (res: any) => {
+      if (res?.id && selectedRoleIds.length > 0) {
+        await setUserRolesMutation.mutateAsync({
+          userId: res.id,
+          roleIds: selectedRoleIds,
+        });
+      }
       utils.users.list.invalidate();
       setDialogOpen(false);
       setSelectedClient("");
       setSelectedRole("client");
+      setSelectedRoleIds([]);
       toast.success("Usuario creado exitosamente");
     },
     onError: (error) => {
@@ -52,16 +80,31 @@ export default function Usuarios() {
   });
 
   const updateMutation = trpc.users.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      if (editingUser) {
+        await setUserRolesMutation.mutateAsync({
+          userId: editingUser.id,
+          roleIds: selectedRoleIds,
+        });
+      }
       utils.users.list.invalidate();
       setDialogOpen(false);
       setEditingUser(null);
+      setSelectedRoleIds([]);
       toast.success("Usuario actualizado exitosamente");
     },
     onError: (error) => {
       toast.error("Error al actualizar usuario: " + error.message);
     },
   });
+
+  useEffect(() => {
+    if (editingUser && Array.isArray(userRolesForEditing)) {
+      setSelectedRoleIds(
+        (userRolesForEditing as any[]).map((ur) => ur.roleId as number)
+      );
+    }
+  }, [editingUser, userRolesForEditing]);
 
   
 
@@ -123,6 +166,7 @@ export default function Usuarios() {
     setEditingUser(user);
     setSelectedRole(user.role);
     setSelectedClient(user.clientId?.toString() || "");
+    setSelectedRoleIds([]);
     setDialogOpen(true);
   };
 
@@ -136,6 +180,7 @@ export default function Usuarios() {
     setEditingUser(null);
     setSelectedClient("");
     setSelectedRole("client");
+    setSelectedRoleIds([]);
     setDialogOpen(true);
   };
 
@@ -144,6 +189,10 @@ export default function Usuarios() {
     const client = clients.find((c) => c.id === clientId);
     return client?.nombreEmpresa || "-";
   };
+
+  const canCreateUser = useHasPermission("usuarios", "create");
+  const canEditUser = useHasPermission("usuarios", "edit");
+  const canDeleteUser = useHasPermission("usuarios", "delete");
 
   if (isLoading) {
     return (
@@ -163,10 +212,19 @@ export default function Usuarios() {
             Gestiona los usuarios del sistema
           </p>
         </div>
-        <Button onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Usuario
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/roles">
+            <Button variant="outline" type="button">
+              Roles y permisos
+            </Button>
+          </Link>
+          {canCreateUser && (
+            <Button onClick={handleOpenDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Usuario
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -187,10 +245,12 @@ export default function Usuarios() {
             <div className="text-center py-12">
               <UserCog className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay usuarios registrados</p>
-              <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Crear primer usuario
-              </Button>
+              {canCreateUser && (
+                <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear primer usuario
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -229,45 +289,59 @@ export default function Usuarios() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-2">
-                            {user.email && (
+                            {user.email && canEditUser && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => inviteMutation.mutate({
-                                  name: user.name || user.email,
-                                  email: user.email,
-                                  role: user.role,
-                                  clientId: (user.clientId ?? undefined),
-                                }, {
-                                  onSuccess: (res:any) => {
-                                    if (res?.resetLink && user.whatsapp) {
-                                      const digits = String(user.whatsapp).replace(/[^0-9+]/g, '');
-                                      if (digits) {
-                                        const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
-                                        const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
-                                        try { window.open(url, '_blank'); } catch {}
-                                      }
+                                onClick={() => {
+                                  const email = user.email!;
+                                  inviteMutation.mutate(
+                                    {
+                                      name: user.name || email,
+                                      email,
+                                      role: user.role,
+                                      clientId: user.clientId ?? undefined,
+                                    },
+                                    {
+                                      onSuccess: (res: any) => {
+                                        if (res?.resetLink && user.whatsapp) {
+                                          const digits = String(user.whatsapp).replace(/[^0-9+]/g, "");
+                                          if (digits) {
+                                            const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
+                                            const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(
+                                              digits
+                                            )}&text=${encodeURIComponent(msg)}`;
+                                            try {
+                                              window.open(url, "_blank");
+                                            } catch {}
+                                          }
+                                        }
+                                      },
                                     }
-                                  }
-                                })}
+                                  );
+                                }}
                               >
                                 Invitar
                               </Button>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(user)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(user.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {canEditUser && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(user)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDeleteUser && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(user.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -313,39 +387,44 @@ export default function Usuarios() {
                       </div>
                     </div>
                     <div className="mt-2 flex justify-end gap-1">
-                      {user.email && (
+                      {user.email && canEditUser && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() =>
+                          onClick={() => {
+                            const email = user.email!;
                             inviteMutation.mutate({
-                              name: user.name || user.email,
-                              email: user.email,
+                              name: user.name || email,
+                              email,
                               role: user.role,
                               clientId: user.clientId ?? undefined,
-                            })
-                          }
+                            });
+                          }}
                         >
                           <Mail className="h-3 w-3" />
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleEdit(user)}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleDelete(user.id)}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      {canEditUser && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleEdit(user)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {canDeleteUser && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleDelete(user.id)}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -362,6 +441,9 @@ export default function Usuarios() {
             <DialogTitle>
               {editingUser ? "Editar Usuario" : "Nuevo Usuario"}
             </DialogTitle>
+            <DialogDescription>
+              Completa la información básica del usuario y, si es cliente, asigna el cliente correspondiente.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -415,6 +497,34 @@ export default function Usuarios() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+              {roles.length > 0 && (
+                <div className="col-span-2">
+                  <Label>Roles de permisos</Label>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {roles.map((role: any) => (
+                      <label
+                        key={role.id}
+                        className="inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedRoleIds.includes(role.id)}
+                          onCheckedChange={() =>
+                            setSelectedRoleIds((prev) =>
+                              prev.includes(role.id)
+                                ? prev.filter((id) => id !== role.id)
+                                : [...prev, role.id]
+                            )
+                          }
+                        />
+                        <span>{role.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Estos roles controlan los módulos y acciones disponibles para el usuario.
+                  </p>
                 </div>
               )}
             </div>

@@ -29,6 +29,49 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // ============================================================================
+// ROLES Y PERMISOS (RBAC básico por módulo/acción)
+// ============================================================================
+
+export const roles = mysqlTable("roles", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = typeof roles.$inferInsert;
+
+export const rolePermissions = mysqlTable("role_permissions", {
+  id: int("id").autoincrement().primaryKey(),
+  roleId: int("roleId")
+    .notNull()
+    .references(() => roles.id, { onDelete: "cascade" }),
+  module: varchar("module", { length: 100 }).notNull(),
+  action: mysqlEnum("action", ["view", "create", "edit", "delete"]).notNull(),
+  allowed: boolean("allowed").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = typeof rolePermissions.$inferInsert;
+
+export const userRoles = mysqlTable("user_roles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  roleId: int("roleId")
+    .notNull()
+    .references(() => roles.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type UserRole = typeof userRoles.$inferSelect;
+export type InsertUserRole = typeof userRoles.$inferInsert;
+
+// ============================================================================
 // CLIENTES EMPRESARIALES
 // ============================================================================
 

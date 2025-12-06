@@ -30,6 +30,12 @@ import {
   InsertAuditLog,
   candidateConsents,
   InsertCandidateConsent,
+  roles,
+  InsertRole,
+  rolePermissions,
+  InsertRolePermission,
+  userRoles,
+  InsertUserRole,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -165,6 +171,152 @@ export async function deleteUser(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(users).where(eq(users.id, id));
+}
+
+// ============================================================================
+// ROLES Y PERMISOS
+// ============================================================================
+
+export async function getAllRolesWithPermissions() {
+  const db = await getDb();
+  if (!db) return [];
+  const rolesList = await db.select().from(roles).orderBy(asc(roles.name));
+  const perms = await db.select().from(rolePermissions);
+  const byRole: Record<number, InsertRolePermission[]> = {};
+  for (const p of perms) {
+    const rid = p.roleId as number;
+    if (!byRole[rid]) byRole[rid] = [];
+    byRole[rid].push(p as any);
+  }
+  return rolesList.map((r) => ({
+    ...r,
+    permissions: byRole[r.id] ?? [],
+  }));
+}
+
+type SimplePermissionInput = {
+  module: string;
+  action: "view" | "create" | "edit" | "delete";
+  allowed?: boolean;
+};
+
+export async function createRoleWithPermissions(input: {
+  name: string;
+  description?: string | null;
+  permissions?: SimplePermissionInput[];
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [result] = await db
+    .insert(roles)
+    .values({
+      name: input.name,
+      description: input.description ?? null,
+    } as InsertRole)
+    .execute();
+  const roleId = (result as any).insertId as number;
+
+  if (input.permissions && input.permissions.length > 0) {
+    await db
+      .insert(rolePermissions)
+      .values(
+        input.permissions.map((p) => ({
+          roleId,
+          module: p.module,
+          action: p.action,
+          allowed: p.allowed ?? true,
+        })) as InsertRolePermission[]
+      )
+      .execute();
+  }
+
+  return roleId;
+}
+
+export async function updateRoleWithPermissions(
+  id: number,
+  input: {
+    name?: string;
+    description?: string | null;
+    permissions?: SimplePermissionInput[];
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const patch: Partial<InsertRole> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.description !== undefined) patch.description = input.description;
+  if (Object.keys(patch).length > 0) {
+    await db.update(roles).set(patch).where(eq(roles.id, id));
+  }
+
+  if (input.permissions) {
+    await db.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
+    if (input.permissions.length > 0) {
+      await db
+        .insert(rolePermissions)
+        .values(
+          input.permissions.map((p) => ({
+            roleId: id,
+            module: p.module,
+            action: p.action,
+            allowed: p.allowed ?? true,
+          })) as InsertRolePermission[]
+        )
+        .execute();
+    }
+  }
+}
+
+export async function deleteRole(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(roles).where(eq(roles.id, id));
+}
+
+export async function getUserRoles(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(userRoles)
+    .where(eq(userRoles.userId, userId));
+  return rows;
+}
+
+export async function setUserRoles(userId: number, roleIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(userRoles).where(eq(userRoles.userId, userId));
+  if (roleIds.length === 0) return;
+  await db
+    .insert(userRoles)
+    .values(
+      roleIds.map((rid) => ({
+        userId,
+        roleId: rid,
+      })) as InsertUserRole[]
+    )
+    .execute();
+}
+
+export async function getUserEffectivePermissions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({
+      module: rolePermissions.module,
+      action: rolePermissions.action,
+    })
+    .from(userRoles)
+    .innerJoin(roles, eq(userRoles.roleId, roles.id))
+    .innerJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
+    .where(and(eq(userRoles.userId, userId), eq(rolePermissions.allowed, true)));
+
+  return rows;
 }
 
 // ============================================================================

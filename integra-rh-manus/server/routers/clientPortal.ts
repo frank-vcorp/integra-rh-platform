@@ -1,4 +1,4 @@
-import { router, publicProcedure } from "../trpc.ts";
+import { router, publicProcedure } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import { TRPCError } from "@trpc/server";

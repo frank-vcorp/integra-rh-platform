@@ -20,6 +20,7 @@ import CandidatoFormularioIntegrado from "./pages/CandidatoFormularioIntegrado";
 import PuestoProcesoFlow from "./pages/PuestoProcesoFlow";
 import Usuarios from "./pages/Usuarios";
 import UsuariosRegistros from "./pages/UsuariosRegistros";
+import Roles from "./pages/Roles";
 import ClienteAcceso from "./pages/ClienteAcceso";
 import ClienteDashboard from "./pages/ClienteDashboard";
 import ClienteProcesoDetalle from "./pages/ClienteProcesoDetalle";
@@ -128,6 +129,11 @@ function Router() {
       <Route path="/usuarios">
         <ProtectedLayout>
           <Usuarios />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/roles">
+        <ProtectedLayout>
+          <Roles />
         </ProtectedLayout>
       </Route>
       <Route path="/usuarios/registros">

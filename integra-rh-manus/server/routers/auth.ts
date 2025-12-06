@@ -1,4 +1,4 @@
-import { router, protectedProcedure, publicProcedure } from '../trpc.ts';
+import { router, protectedProcedure, publicProcedure } from '../_core/trpc';
 import { z } from 'zod';
 import { logAuditEvent } from "../_core/audit";
 
@@ -20,7 +20,13 @@ export const authRouter = router({
       },
     });
 
-    return ctx.user;
+    // Devolvemos al cliente tanto el usuario como sus permisos efectivos
+    // para poder ocultar/mostrar acciones en la interfaz.
+    return {
+      ...(ctx.user as any),
+      _permissions: ctx.permissions,
+      _isSuperadmin: ctx.isSuperadmin,
+    };
   }),
 
   // No-op en el backend: usamos Firebase en el cliente.

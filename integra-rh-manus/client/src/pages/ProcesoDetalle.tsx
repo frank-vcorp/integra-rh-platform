@@ -10,7 +10,8 @@ import { trpc } from "@/lib/trpc";
 import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function ProcesoDetalle() {
   const params = useParams();
@@ -164,6 +165,12 @@ export default function ProcesoDetalle() {
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: posts = [] } = trpc.posts.list.useQuery();
+  const { data: users = [] } = trpc.users.list.useQuery(undefined as any, {
+    enabled: !isClientAuth,
+  } as any);
+  const { data: allProcesses = [] } = trpc.processes.list.useQuery(undefined as any, {
+    enabled: !isClientAuth,
+  } as any);
   const { data: documents = [] } = trpc.documents.getByProcess.useQuery({ procesoId: processId });
   const createClientLink = trpc.clientAccess.create.useMutation({
     onSuccess: (res:any) => {
@@ -212,6 +219,7 @@ export default function ProcesoDetalle() {
   });
   const [commentOpen, setCommentOpen] = useState(false);
   const [panelForm, setPanelForm] = useState({
+    especialistaAtraccionId: "",
     especialistaAtraccionNombre: "",
     estatusVisual: "en_proceso",
     fechaCierre: "",
@@ -224,6 +232,9 @@ export default function ProcesoDetalle() {
   useEffect(() => {
     if (!process) return;
     setPanelForm({
+      especialistaAtraccionId: (process as any).especialistaAtraccionId
+        ? String((process as any).especialistaAtraccionId)
+        : "",
       especialistaAtraccionNombre: (process as any).especialistaAtraccionNombre || "",
       estatusVisual: (process as any).estatusVisual || "en_proceso",
       fechaCierre: process.fechaCierre ? new Date(process.fechaCierre).toISOString().split("T")[0] : "",
@@ -253,10 +264,26 @@ export default function ProcesoDetalle() {
     });
   }, [process]);
 
+  const assignedCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    (allProcesses as any[]).forEach((p: any) => {
+      const uid = p.especialistaAtraccionId as number | null | undefined;
+      if (uid) {
+        counts[uid] = (counts[uid] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [allProcesses]);
+
+  const canEditProcess = useHasPermission("procesos", "edit");
+
   const handleSavePanel = () => {
     if (!process) return;
     updatePanelDetail.mutate({
       id: processId,
+      especialistaAtraccionId: panelForm.especialistaAtraccionId
+        ? Number(panelForm.especialistaAtraccionId)
+        : null,
       especialistaAtraccionNombre: panelForm.especialistaAtraccionNombre || null,
       estatusVisual: panelForm.estatusVisual as any,
       fechaCierre: panelForm.fechaCierre || null,
@@ -331,6 +358,63 @@ export default function ProcesoDetalle() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <p className="text-sm text-muted-foreground">Analista asignado</p>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-blue-600" />
+                  <select
+                    className="border rounded-md h-9 px-2 flex-1"
+                    value={panelForm.especialistaAtraccionId}
+                    onChange={e =>
+                      setPanelForm(f => {
+                        const val = e.target.value;
+                        const uid = val ? Number(val) : null;
+                        const u = (users as any[]).find(us => us.id === uid);
+                        return {
+                          ...f,
+                          especialistaAtraccionId: val,
+                          especialistaAtraccionNombre:
+                            u?.name || u?.email || f.especialistaAtraccionNombre,
+                        };
+                      })
+                    }
+                    disabled={isClientAuth || !canEditProcess}
+                  >
+                    <option value="">Sin asignar</option>
+                    {(users as any[])
+                      .filter(u => u.role === "admin")
+                      .map(u => {
+                        const count = assignedCounts[u.id] || 0;
+                        const labelBase = u.name || u.email || "Sin nombre";
+                        const labelCount =
+                          count > 0
+                            ? ` — ${count} proceso${count === 1 ? "" : "s"}`
+                            : " — 0 procesos";
+                        return (
+                          <option key={u.id} value={u.id}>
+                            {labelBase}
+                            {labelCount}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {panelForm.especialistaAtraccionId
+                    ? (() => {
+                        const uid = Number(panelForm.especialistaAtraccionId);
+                        const count = assignedCounts[uid] || 0;
+                        return `Actualmente tiene ${count} proceso${
+                          count === 1 ? "" : "s"
+                        } asignado${
+                          count === 1 ? "" : "s"
+                        }. Recuerda guardar los bloques para aplicar el cambio.`;
+                      })()
+                    : "Selecciona quién dará seguimiento a este proceso."}
+                </p>
+              </div>
+            </div>
+            <div>
               <p className="text-sm text-muted-foreground">Proceso a realizar</p>
               <p className="font-medium">{process.tipoProducto}</p>
             </div>
@@ -341,10 +425,10 @@ export default function ProcesoDetalle() {
             <div>
               <p className="text-sm text-muted-foreground">Calificación final</p>
               <div className="flex items-center gap-2">
-                <select id="calificacionFinal" defaultValue={process.calificacionFinal || 'pendiente'} className="border rounded-md h-9 px-2">
+                <select id="calificacionFinal" defaultValue={process.calificacionFinal || 'pendiente'} className="border rounded-md h-9 px-2" disabled={!canEditProcess}>
                   {CALIF.map(c => (<option key={c.value} value={c.value}>{c.label}</option>))}
                 </select>
-                <Button size="sm" disabled={updateCalif.isPending} onClick={()=>{
+                <Button size="sm" disabled={updateCalif.isPending || !canEditProcess} onClick={()=>{
                   const el = document.getElementById('calificacionFinal') as HTMLSelectElement | null;
                   const v = (el?.value || 'pendiente') as any;
                   updateCalif.mutate({ id: processId, calificacionFinal: v });
@@ -360,6 +444,7 @@ export default function ProcesoDetalle() {
                   defaultValue={process.estatusProceso}
                   id="estatusProceso"
                   className="border rounded-md h-9 px-2"
+                  disabled={!canEditProcess}
                 >
                   {ESTATUS.map(e => (
                     <option key={e.value} value={e.value}>{e.label}</option>
@@ -367,7 +452,7 @@ export default function ProcesoDetalle() {
                 </select>
                 <Button
                   size="sm"
-                  disabled={updateStatus.isPending}
+                  disabled={updateStatus.isPending || !canEditProcess}
                   onClick={() => {
                     const el = document.getElementById('estatusProceso') as HTMLSelectElement | null;
                     const value = el?.value || process.estatusProceso;
@@ -404,33 +489,21 @@ export default function ProcesoDetalle() {
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" /> Bloques de detalle (panel cliente)
           </CardTitle>
-          {!isClientAuth && (
+          {!isClientAuth && canEditProcess && (
             <Button size="sm" onClick={handleSavePanel} disabled={updatePanelDetail.isPending}>
               <Save className="h-4 w-4 mr-2" /> Guardar bloques
             </Button>
           )}
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Especialista de Atracción</p>
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-blue-600" />
-                <Input
-                  value={panelForm.especialistaAtraccionNombre}
-                  onChange={e => setPanelForm(f => ({ ...f, especialistaAtraccionNombre: e.target.value }))}
-                  placeholder="Nombre del especialista"
-                  disabled={isClientAuth}
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Estatus visual</p>
-              <select
-                className="border rounded-md h-10 px-3 w-full"
+	        <CardContent className="space-y-4">
+	          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+	            <div>
+	              <p className="text-sm text-muted-foreground">Estatus visual</p>
+	              <select
+	                className="border rounded-md h-10 px-3 w-full"
                 value={panelForm.estatusVisual}
                 onChange={e => setPanelForm(f => ({ ...f, estatusVisual: e.target.value }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               >
                 {ESTATUS_VISUAL.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
@@ -441,9 +514,9 @@ export default function ProcesoDetalle() {
                 type="date"
                 value={panelForm.fechaCierre}
                 onChange={e => setPanelForm(f => ({ ...f, fechaCierre: e.target.value }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
-            </div>
+	            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -456,14 +529,14 @@ export default function ProcesoDetalle() {
               <Input
                 value={panelForm.investigacionLaboral.resultado}
                 onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, resultado: e.target.value } }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
               <Label className="text-xs mt-2">Detalles</Label>
               <Textarea
                 value={panelForm.investigacionLaboral.detalles}
                 onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, detalles: e.target.value } }))}
                 rows={2}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
               <div className="mt-2 flex items-center gap-2 text-sm">
                 <input
@@ -471,7 +544,7 @@ export default function ProcesoDetalle() {
                   type="checkbox"
                   checked={panelForm.investigacionLaboral.completado}
                   onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, completado: e.target.checked } }))}
-                  disabled={isClientAuth}
+                  disabled={isClientAuth || !canEditProcess}
                 />
                 <Label htmlFor="invLabDone">Marcado como completo</Label>
               </div>
@@ -486,13 +559,13 @@ export default function ProcesoDetalle() {
               <Input
                 value={panelForm.investigacionLegal.antecedentes}
                 onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, antecedentes: e.target.value } }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
               <Label className="text-xs mt-2">URL adjunto (opcional)</Label>
               <Input
                 value={panelForm.investigacionLegal.archivoAdjuntoUrl}
                 onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, archivoAdjuntoUrl: e.target.value } }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
               <div className="mt-2 flex items-center gap-2 text-sm">
                 <input
@@ -500,7 +573,7 @@ export default function ProcesoDetalle() {
                   type="checkbox"
                   checked={panelForm.investigacionLegal.flagRiesgo}
                   onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, flagRiesgo: e.target.checked } }))}
-                  disabled={isClientAuth}
+                  disabled={isClientAuth || !canEditProcess}
                 />
                 <Label htmlFor="invLegalRiesgo">Con riesgo</Label>
               </div>
@@ -515,13 +588,13 @@ export default function ProcesoDetalle() {
               <Input
                 value={panelForm.buroCredito.estatus}
                 onChange={e => setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, estatus: e.target.value } }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
               <Label className="text-xs mt-2">Score</Label>
               <Input
                 value={panelForm.buroCredito.score}
                 onChange={e => setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, score: e.target.value } }))}
-                disabled={isClientAuth}
+                disabled={isClientAuth || !canEditProcess}
               />
               <div className="mt-2 flex items-center gap-2 text-sm">
                 <Label className="text-xs">Resultado</Label>
@@ -532,7 +605,7 @@ export default function ProcesoDetalle() {
                     const val = e.target.value === "" ? null : e.target.value === "1";
                     setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, aprobado: val } }));
                   }}
-                  disabled={isClientAuth}
+                  disabled={isClientAuth || !canEditProcess}
                 >
                   <option value="">Sin definir</option>
                   <option value="1">Aprobado</option>
@@ -706,7 +779,7 @@ export default function ProcesoDetalle() {
       </Card>
 
       {/* Aviso a encuestadores */}
-      {!isClientAuth && (
+      {!isClientAuth && canEditProcess && (
       <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
         <DialogContent className="max-w-2xl" aria-describedby="notify-desc">
           <DialogHeader>
@@ -774,7 +847,7 @@ export default function ProcesoDetalle() {
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
           <CardTitle>Documentos</CardTitle>
-          {process?.clienteId && !isClientAuth && (
+          {process?.clienteId && !isClientAuth && canEditProcess && (
             <>
               <Button size="sm" variant="outline" onClick={()=>{
                 setEmailTo("");
@@ -812,7 +885,7 @@ export default function ProcesoDetalle() {
           )}
         </CardHeader>
         <CardContent>
-          {!isClientAuth && (
+          {!isClientAuth && canEditProcess && (
           <form onSubmit={async (e)=>{
             e.preventDefault();
             const fd = new FormData(e.currentTarget as HTMLFormElement);
@@ -874,7 +947,7 @@ export default function ProcesoDetalle() {
                       </a>
                     </TableCell>
                     <TableCell>{new Date(d.createdAt).toLocaleString()}</TableCell>
-                    {!isClientAuth && (
+                    {!isClientAuth && canEditProcess && (
                       <TableCell className="text-right">
                         <Button size="sm" variant="outline" onClick={()=> deleteDoc.mutate({ id: d.id })}>Eliminar</Button>
                       </TableCell>

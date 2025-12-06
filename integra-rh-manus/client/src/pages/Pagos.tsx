@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function Pagos() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -206,6 +207,9 @@ export default function Pagos() {
     }).format(pesos);
   };
 
+  const canCreatePayment = useHasPermission("pagos", "create");
+  const canEditPayment = useHasPermission("pagos", "edit");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -225,9 +229,11 @@ export default function Pagos() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={()=> setImportOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" /> Importar pagos
-          </Button>
+          {canCreatePayment && (
+            <Button variant="outline" onClick={()=> setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Importar pagos
+            </Button>
+          )}
           <Button variant="outline" onClick={()=>{
             // Hoja 1: Detalle
             const detalle = (payments as any[]).map(p=> ({
@@ -252,9 +258,11 @@ export default function Pagos() {
           }}>
             <FileDown className="h-4 w-4 mr-2" /> Exportar XLSX
           </Button>
-          <Button onClick={handleOpenDialog}>
-            <Plus className="h-4 w-4 mr-2" /> Registrar Pago
-          </Button>
+          {canCreatePayment && (
+            <Button onClick={handleOpenDialog}>
+              <Plus className="h-4 w-4 mr-2" /> Registrar Pago
+            </Button>
+          )}
         </div>
       </div>
 
@@ -303,10 +311,12 @@ export default function Pagos() {
             <div className="text-center py-12">
               <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay pagos registrados</p>
-              <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Registrar primer pago
-              </Button>
+              {canCreatePayment && (
+                <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Registrar primer pago
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -349,7 +359,7 @@ export default function Pagos() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {payment.estatusPago === "pendiente" && (
+                      {payment.estatusPago === "pendiente" && canEditPayment && (
                         <Button
                           variant="ghost"
                           size="sm"

@@ -1,10 +1,11 @@
-import { router, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import * as sendgrid from "../integrations/sendgrid";
 
 export const emailRouter = router({
-  enviarInvitacionPsicometrica: adminProcedure
+  enviarInvitacionPsicometrica: protectedProcedure
+    .use(requirePermission("candidatos", "edit"))
     .input(
       z.object({
         candidatoId: z.number(),
@@ -28,4 +29,3 @@ export const emailRouter = router({
       return { success } as const;
     }),
 });
-

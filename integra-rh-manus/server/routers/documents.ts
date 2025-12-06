@@ -1,10 +1,11 @@
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
 import { storage as firebaseStorage } from "../firebase";
 
 export const documentsRouter = router({
   getByCandidate: protectedProcedure
+    .use(requirePermission("procesos", "view"))
     .input(z.object({ candidatoId: z.number() }))
     .query(async ({ input, ctx }) => {
       if (ctx.user.role === "client") {
@@ -15,6 +16,7 @@ export const documentsRouter = router({
     }),
 
   getByProcess: protectedProcedure
+    .use(requirePermission("procesos", "view"))
     .input(z.object({ procesoId: z.number() }))
     .query(async ({ input, ctx }) => {
       if (ctx.user.role === "client") {
@@ -25,6 +27,7 @@ export const documentsRouter = router({
     }),
 
   create: adminProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(
       z.object({
         candidatoId: z.number().optional(),
@@ -46,6 +49,7 @@ export const documentsRouter = router({
     }),
 
   upload: adminProcedure
+    .use(requirePermission("procesos", "edit"))
     .input(
       z
         .object({
@@ -97,6 +101,7 @@ export const documentsRouter = router({
     }),
 
   delete: adminProcedure
+    .use(requirePermission("procesos", "delete"))
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       await db.deleteDocument(input.id);

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useHasPermission } from "@/_core/hooks/usePermission";
 import { TIPOS_PROCESO, TipoProcesoType } from "@/lib/constants";
 
 export default function Procesos() {
@@ -48,6 +49,7 @@ export default function Procesos() {
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
+  const { data: users = [] } = trpc.users.list.useQuery();
   const utils = trpc.useUtils();
 
   const createMutation = trpc.processes.create.useMutation({
@@ -112,6 +114,12 @@ export default function Procesos() {
   const getPostName = (puestoId: number) => {
     const post = allPosts.find((p) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
+  };
+
+  const getResponsableName = (userId?: number | null) => {
+    if (!userId) return "-";
+    const u = (users as any[]).find((user) => user.id === userId);
+    return u?.name || u?.email || "-";
   };
 
   const getStatusLabel = (status: string): string => {
@@ -266,6 +274,9 @@ export default function Procesos() {
     };
   }, [processes]);
 
+  const canCreateProcess = useHasPermission("procesos", "create");
+  const canDeleteProcess = useHasPermission("procesos", "delete");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -284,10 +295,12 @@ export default function Procesos() {
             Gestiona los procesos de evaluación
           </p>
         </div>
-        <Button onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Proceso
-        </Button>
+        {!isClient && canCreateProcess && (
+          <Button onClick={handleOpenDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Proceso
+          </Button>
+        )}
       </div>
 
       {/* Resumen rápido compacto */}
@@ -352,17 +365,19 @@ export default function Procesos() {
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay procesos registrados</p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Crear primer proceso
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Crea un proceso de investigación para un candidato y cliente.
-                </TooltipContent>
-              </Tooltip>
+              {!isClient && canCreateProcess && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Crear primer proceso
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Crea un proceso de investigación para un candidato y cliente.
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           ) : (
             <>
@@ -392,9 +407,10 @@ export default function Procesos() {
                         </button>
                       </TableHead>
                       <TableHead>Candidato</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Puesto</TableHead>
-                      <TableHead>Fecha Recepción</TableHead>
+	                      <TableHead>Cliente</TableHead>
+	                      <TableHead>Puesto</TableHead>
+	                      <TableHead>Responsable</TableHead>
+	                      <TableHead>Fecha Recepción</TableHead>
                       <TableHead>
                         <button
                           type="button"
@@ -425,10 +441,15 @@ export default function Procesos() {
                         <TableCell>
                           {getCandidateName(process.candidatoId)}
                         </TableCell>
-                        <TableCell>
-                          {getClientName(process.clienteId)}
-                        </TableCell>
-                        <TableCell>{getPostName(process.puestoId)}</TableCell>
+	                        <TableCell>
+	                          {getClientName(process.clienteId)}
+	                        </TableCell>
+	                        <TableCell>{getPostName(process.puestoId)}</TableCell>
+	                        <TableCell>
+	                          {getResponsableName(
+	                            (process as any).especialistaAtraccionId,
+	                          )}
+	                        </TableCell>
                         <TableCell>
                           {new Date(
                             process.fechaRecepcion,
@@ -461,7 +482,7 @@ export default function Procesos() {
                                 Ver detalle completo del proceso.
                               </TooltipContent>
                             </Tooltip>
-                            {!isClient && (
+                            {!isClient && canDeleteProcess && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -522,14 +543,20 @@ export default function Procesos() {
                         <span className="font-semibold">Candidato: </span>
                         {getCandidateName(process.candidatoId)}
                       </div>
-                      <div>
-                        <span className="font-semibold">Cliente: </span>
-                        {getClientName(process.clienteId)}
-                      </div>
-                      <div>
-                        <span className="font-semibold">Puesto: </span>
-                        {getPostName(process.puestoId)}
-                      </div>
+	                      <div>
+	                        <span className="font-semibold">Cliente: </span>
+	                        {getClientName(process.clienteId)}
+	                      </div>
+	                      <div>
+	                        <span className="font-semibold">Puesto: </span>
+	                        {getPostName(process.puestoId)}
+	                      </div>
+	                      <div>
+	                        <span className="font-semibold">Responsable: </span>
+	                        {getResponsableName(
+	                          (process as any).especialistaAtraccionId,
+	                        )}
+	                      </div>
                       <div>
                         <span className="font-semibold">Recepción: </span>
                         {new Date(
@@ -552,7 +579,7 @@ export default function Procesos() {
                         </TooltipTrigger>
                         <TooltipContent>Ver detalle.</TooltipContent>
                       </Tooltip>
-                      {!isClient && (
+                      {!isClient && canDeleteProcess && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button

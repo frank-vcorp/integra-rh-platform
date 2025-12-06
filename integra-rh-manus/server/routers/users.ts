@@ -1,15 +1,18 @@
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { getAllUsers, createUser, updateUser, deleteUser } from "../db";
 import { auth as adminAuth } from "../firebase";
 import * as sendgrid from "../integrations/sendgrid";
 
 export const usersRouter = router({
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure
+    .use(requirePermission("usuarios", "view"))
+    .query(async () => {
     return await getAllUsers();
   }),
 
   create: protectedProcedure
+    .use(requirePermission("usuarios", "create"))
     .input(
       z.object({
         name: z.string().min(1).optional(),
@@ -31,6 +34,7 @@ export const usersRouter = router({
     }),
 
   update: protectedProcedure
+    .use(requirePermission("usuarios", "edit"))
     .input(
       z.object({
         id: z.number().int(),
@@ -51,6 +55,7 @@ export const usersRouter = router({
     }),
 
   delete: protectedProcedure
+    .use(requirePermission("usuarios", "delete"))
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
       await deleteUser(input.id);
