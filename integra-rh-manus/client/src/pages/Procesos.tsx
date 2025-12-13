@@ -38,6 +38,7 @@ export default function Procesos() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<string>("");
   const [selectedClient, setSelectedClient] = useState<string>("");
+  const [selectedSite, setSelectedSite] = useState<string>("");
   const [selectedPost, setSelectedPost] = useState<string>("");
   const [tipoProducto, setTipoProducto] = useState<TipoProcesoType>("ILA");
 
@@ -48,6 +49,10 @@ export default function Procesos() {
     : allProcesses;
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
+  const { data: clientSitesByClient = [] } = trpc.clientSites.listByClient.useQuery(
+    selectedClient ? { clientId: parseInt(selectedClient) } : { clientId: 0 },
+    { enabled: !!selectedClient } as any
+  );
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
   const { data: users = [] } = trpc.users.list.useQuery();
   const utils = trpc.useUtils();
@@ -89,6 +94,7 @@ export default function Procesos() {
       candidatoId: parseInt(selectedCandidate),
       clienteId: parseInt(selectedClient),
       puestoId: parseInt(selectedPost),
+      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
       tipoProducto,
     });
   };
@@ -114,6 +120,12 @@ export default function Procesos() {
   const getPostName = (puestoId: number) => {
     const post = allPosts.find((p) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
+  };
+
+  const getSiteName = (siteId?: number | null) => {
+    if (!siteId || !Array.isArray(clientSitesByClient)) return "-";
+    const site = clientSitesByClient.find((s: any) => s.id === siteId);
+    return site?.nombrePlaza || "-";
   };
 
   const getResponsableName = (userId?: number | null) => {
@@ -382,11 +394,11 @@ export default function Procesos() {
           ) : (
             <>
               {/* Vista de tabla para escritorio */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>
+                      <TableHead className="w-[110px]">
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 text-xs font-semibold"
@@ -396,7 +408,7 @@ export default function Procesos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="w-[90px]">
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 text-xs font-semibold"
@@ -406,11 +418,21 @@ export default function Procesos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
-                      <TableHead>Candidato</TableHead>
-	                      <TableHead>Cliente</TableHead>
-	                      <TableHead>Puesto</TableHead>
-	                      <TableHead>Responsable</TableHead>
-	                      <TableHead>Fecha Recepción</TableHead>
+                      <TableHead className="max-w-[220px]">
+                        Candidato
+                      </TableHead>
+	                      <TableHead className="max-w-[220px]">
+	                        Cliente
+	                      </TableHead>
+	                      <TableHead className="max-w-[220px]">
+	                        Puesto
+	                      </TableHead>
+	                      <TableHead className="max-w-[200px]">
+	                        Responsable
+	                      </TableHead>
+	                      <TableHead className="w-[120px]">
+	                        Fecha Recepción
+	                      </TableHead>
                       <TableHead>
                         <button
                           type="button"
@@ -421,7 +443,10 @@ export default function Procesos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableHead>Plaza</TableHead>
+                      <TableHead className="w-[120px] text-right">
+                        Acciones
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -430,7 +455,7 @@ export default function Procesos() {
                         key={process.id}
                         className={getStatusRowClass(process.estatusProceso)}
                       >
-                        <TableCell className="font-medium font-mono">
+                        <TableCell className="font-medium font-mono text-xs">
                           {process.clave}
                         </TableCell>
                         <TableCell>
@@ -438,19 +463,24 @@ export default function Procesos() {
                             {process.tipoProducto}
                           </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="max-w-[220px] text-xs">
                           {getCandidateName(process.candidatoId)}
                         </TableCell>
-	                        <TableCell>
+	                        <TableCell className="max-w-[220px] text-xs">
 	                          {getClientName(process.clienteId)}
 	                        </TableCell>
-	                        <TableCell>{getPostName(process.puestoId)}</TableCell>
-	                        <TableCell>
+                        <TableCell className="max-w-[200px] text-xs">
+                          {getSiteName((process as any).clientSiteId)}
+                        </TableCell>
+	                        <TableCell className="max-w-[220px] text-xs">
+	                          {getPostName(process.puestoId)}
+	                        </TableCell>
+	                        <TableCell className="max-w-[200px] text-xs">
 	                          {getResponsableName(
 	                            (process as any).especialistaAtraccionId,
 	                          )}
 	                        </TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs">
                           {new Date(
                             process.fechaRecepcion,
                           ).toLocaleDateString()}
@@ -656,6 +686,7 @@ export default function Procesos() {
                   value={selectedClient}
                   onValueChange={(value) => {
                     setSelectedClient(value);
+                    setSelectedSite("");
                     setSelectedPost(""); // Reset puesto cuando cambia cliente
                   }}
                 >
@@ -666,6 +697,26 @@ export default function Procesos() {
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.nombreEmpresa}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="clientSiteId">Plaza / CEDI</Label>
+                <Select
+                  value={selectedSite}
+                  onValueChange={setSelectedSite}
+                  disabled={!selectedClient || !clientSitesByClient.length}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedClient ? "Selecciona una plaza" : "Selecciona primero un cliente"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientSitesByClient.map((site: any) => (
+                      <SelectItem key={site.id} value={site.id.toString()}>
+                        {site.nombrePlaza}
                       </SelectItem>
                     ))}
                   </SelectContent>

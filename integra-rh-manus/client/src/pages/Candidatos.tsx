@@ -36,6 +36,7 @@ export default function Candidatos() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<any>(null);
   const [selectedClient, setSelectedClient] = useState<string>("");
+  const [selectedSite, setSelectedSite] = useState<string>("");
   const [selectedPost, setSelectedPost] = useState<string>("");
   const [showContinueFlow, setShowContinueFlow] = useState(false);
   const [createdCandidateData, setCreatedCandidateData] = useState<any>(null);
@@ -45,6 +46,10 @@ export default function Candidatos() {
 
   const { data: allCandidates = [], isLoading } = trpc.candidates.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
+  const { data: clientSitesByClient = [] } = trpc.clientSites.listByClient.useQuery(
+    selectedClient ? { clientId: parseInt(selectedClient) } : { clientId: 0 },
+    { enabled: !!selectedClient } as any
+  );
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
   const utils = trpc.useUtils();
 
@@ -108,6 +113,7 @@ export default function Candidatos() {
       telefono: formData.get("telefono") as string || undefined,
       medioDeRecepcion: formData.get("medioDeRecepcion") as string || undefined,
       clienteId: selectedClient ? parseInt(selectedClient) : undefined,
+      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
       puestoId: selectedPost ? parseInt(selectedPost) : undefined,
     };
 
@@ -121,6 +127,7 @@ export default function Candidatos() {
   const handleEdit = (candidate: any) => {
     setEditingCandidate(candidate);
     setSelectedClient(candidate.clienteId?.toString() || "");
+    setSelectedSite(candidate.clientSiteId?.toString() || "");
     setSelectedPost(candidate.puestoId?.toString() || "");
     setDialogOpen(true);
   };
@@ -134,6 +141,7 @@ export default function Candidatos() {
   const handleOpenDialog = () => {
     setEditingCandidate(null);
     setSelectedClient("");
+    setSelectedSite("");
     setSelectedPost("");
     setDialogOpen(true);
   };
@@ -148,6 +156,12 @@ export default function Candidatos() {
     if (!puestoId) return "-";
     const post = allPosts.find((p) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
+  };
+
+  const getSiteName = (siteId: number | null | undefined) => {
+    if (!siteId || !Array.isArray(clientSitesByClient)) return "-";
+    const site = clientSitesByClient.find((s: any) => s.id === siteId);
+    return site?.nombrePlaza || "-";
   };
 
   // Filtrar puestos por cliente seleccionado
@@ -285,7 +299,7 @@ export default function Candidatos() {
           ) : (
             <>
               {/* Vista de tabla para escritorio */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -311,6 +325,7 @@ export default function Candidatos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
+                      <TableHead>Plaza</TableHead>
                       <TableHead>Puesto</TableHead>
                       <TableHead>Medio de Recepción</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
@@ -325,6 +340,7 @@ export default function Candidatos() {
                         <TableCell>{candidate.email || "-"}</TableCell>
                         <TableCell>{candidate.telefono || "-"}</TableCell>
                         <TableCell>{getClientName(candidate.clienteId)}</TableCell>
+                        <TableCell>{getSiteName(candidate.clientSiteId)}</TableCell>
                         <TableCell>{getPostName(candidate.puestoId)}</TableCell>
                         <TableCell>{candidate.medioDeRecepcion || "-"}</TableCell>
                         <TableCell className="text-right">
@@ -518,6 +534,7 @@ export default function Candidatos() {
                   value={selectedClient}
                   onValueChange={(value) => {
                     setSelectedClient(value);
+                    setSelectedSite("");
                     setSelectedPost(""); // Reset puesto cuando cambia cliente
                   }}
                 >
@@ -528,6 +545,25 @@ export default function Candidatos() {
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.nombreEmpresa}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="clientSiteId">Plaza / CEDI</Label>
+                <Select
+                  value={selectedSite}
+                  onValueChange={setSelectedSite}
+                  disabled={!selectedClient || !clientSitesByClient.length}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedClient ? "Selecciona una plaza" : "Selecciona primero un cliente"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientSitesByClient.map((site: any) => (
+                      <SelectItem key={site.id} value={site.id.toString()}>
+                        {site.nombrePlaza}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -105,7 +104,6 @@ export default function ClienteFormularioIntegrado() {
     const formData = new FormData(e.currentTarget);
     createPostMutation.mutate({
       nombreDelPuesto: formData.get("nombreDelPuesto") as string,
-      descripcion: formData.get("descripcion") as string || undefined,
       clienteId: clienteId!,
     });
   };
@@ -312,15 +310,6 @@ export default function ClienteFormularioIntegrado() {
                     placeholder="Ej: Gerente de Ventas"
                   />
                 </div>
-                <div className="col-span-2">
-                  <Label htmlFor="descripcion">Descripción</Label>
-                  <Textarea
-                    id="descripcion"
-                    name="descripcion"
-                    placeholder="Descripción del puesto, responsabilidades..."
-                  />
-                </div>
-
               </div>
               <div className="flex justify-between">
                 <Button type="button" variant="outline" onClick={() => setStep(2)}>

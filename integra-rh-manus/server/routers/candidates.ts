@@ -61,6 +61,7 @@ export const candidatesRouter = router({
         telefono: z.string().optional(),
         medioDeRecepcion: z.string().optional(),
         clienteId: z.number().optional(),
+        clientSiteId: z.number().optional(),
         puestoId: z.number().optional(),
       })
     )
@@ -92,6 +93,7 @@ export const candidatesRouter = router({
           telefono: z.string().optional(),
           medioDeRecepcion: z.string().optional(),
           clienteId: z.number().optional(),
+          clientSiteId: z.number().optional(),
           puestoId: z.number().optional(),
           psicometricos: z.any().optional(),
         }),

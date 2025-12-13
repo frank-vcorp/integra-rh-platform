@@ -21,12 +21,26 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Building2, Briefcase, FileText, UserCheck, DollarSign, UserCog, ScrollText, Search } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  LayoutDashboard,
+  LogOut,
+  PanelLeft,
+  Users,
+  Building2,
+  Briefcase,
+  FileText,
+  UserCheck,
+  DollarSign,
+  UserCog,
+  ScrollText,
+  Search,
+} from "lucide-react";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc";
 
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -141,6 +155,143 @@ function DashboardLayoutContent({
   const menuItems = user?.role !== 'client' ? adminMenuItems : clientMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  const isClient = user?.role === "client";
+
+  // Datos base para sugerencias de búsqueda (solo internos)
+  const { data: clients = [] } = trpc.clients.list.useQuery(undefined, {
+    enabled: !isClient,
+  } as any);
+  const { data: candidates = [] } = trpc.candidates.list.useQuery(undefined, {
+    enabled: !isClient,
+  } as any);
+  const { data: processes = [] } = trpc.processes.list.useQuery(undefined, {
+    enabled: !isClient,
+  } as any);
+  const { data: posts = [] } = trpc.posts.list.useQuery(undefined, {
+    enabled: !isClient,
+  } as any);
+  const { data: surveyors = [] } = trpc.surveyors.list.useQuery(undefined as any, {
+    enabled: !isClient,
+    initialData: [] as any,
+  } as any);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  type Suggestion = {
+    type: "candidato" | "cliente" | "puesto" | "proceso" | "encuestador";
+    label: string;
+    secondary?: string;
+    href: string;
+  };
+
+  const suggestions: Suggestion[] = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q || q.length < 2 || isClient) return [];
+
+    const items: Suggestion[] = [];
+
+    const push = (s: Suggestion) => {
+      if (items.length < 10) items.push(s);
+    };
+
+    // Candidatos
+    for (const c of candidates as any[]) {
+      const haystack = [c.nombreCompleto, c.email, c.telefono]
+        .join(" ")
+        .toLowerCase();
+      if (haystack.includes(q)) {
+        push({
+          type: "candidato",
+          label: c.nombreCompleto,
+          secondary: c.email || c.telefono || "",
+          href: `/candidatos/${c.id}`,
+        });
+      }
+      if (items.length >= 10) break;
+    }
+
+    // Clientes
+    if (items.length < 10) {
+      for (const c of clients as any[]) {
+        const haystack = [
+          c.nombreEmpresa,
+          c.contacto,
+          c.telefono,
+          c.email,
+          c.ubicacionPlaza,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (haystack.includes(q)) {
+          push({
+            type: "cliente",
+            label: c.nombreEmpresa,
+            secondary: c.contacto || c.telefono || c.email || "",
+            href: "/clientes",
+          });
+        }
+        if (items.length >= 10) break;
+      }
+    }
+
+    // Puestos
+    if (items.length < 10) {
+      for (const p of posts as any[]) {
+        const haystack = [p.nombreDelPuesto, p.estatus].join(" ").toLowerCase();
+        if (haystack.includes(q)) {
+          push({
+            type: "puesto",
+            label: p.nombreDelPuesto,
+            secondary: clients.find((c: any) => c.id === p.clienteId)
+              ?.nombreEmpresa,
+            href: "/puestos",
+          });
+        }
+        if (items.length >= 10) break;
+      }
+    }
+
+    // Procesos
+    if (items.length < 10) {
+      for (const p of processes as any[]) {
+        const haystack = [p.clave, p.tipoProducto].join(" ").toLowerCase();
+        if (haystack.includes(q)) {
+          push({
+            type: "proceso",
+            label: `${p.clave} — ${p.tipoProducto}`,
+            secondary: "",
+            href: `/procesos/${p.id}`,
+          });
+        }
+        if (items.length >= 10) break;
+      }
+    }
+
+    // Encuestadores
+    if (items.length < 10) {
+      for (const s of surveyors as any[]) {
+        const haystack = [
+          s.nombre,
+          s.telefono,
+          s.email,
+          s.ciudadBase,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (haystack.includes(q)) {
+          push({
+            type: "encuestador",
+            label: s.nombre,
+            secondary: s.telefono || s.email || "",
+            href: `/encuestadores/${s.id}`,
+          });
+        }
+        if (items.length >= 10) break;
+      }
+    }
+
+    return items;
+  }, [searchTerm, isClient, candidates, clients, posts, processes, surveyors]);
 
   useEffect(() => {
     if (isCollapsed) {
@@ -278,10 +429,19 @@ function DashboardLayoutContent({
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>Salir</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full group-data-[collapsible=icon]:hidden"
+              onClick={logout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Salir
+            </Button>
           </SidebarFooter>
         </Sidebar>
         <div
@@ -326,23 +486,64 @@ function DashboardLayoutContent({
                 <Search className="h-4 w-4 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2" />
                 <input
                   type="search"
-                  placeholder="Buscar candidato, cliente, puesto o proceso..."
+                  placeholder="Buscar candidato, cliente, puesto, proceso o encuestador..."
                   className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setShowSuggestions(true);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      const term = (e.currentTarget as HTMLInputElement).value.trim();
+                      const term = searchTerm.trim();
                       if (!term) return;
+                      setShowSuggestions(false);
                       window.location.href = `/buscar?q=${encodeURIComponent(term)}`;
+                    }
+                    if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  onBlur={() => {
+                    // pequeño delay para permitir click en sugerencia
+                    setTimeout(() => setShowSuggestions(false), 150);
+                  }}
+                  onFocus={() => {
+                    if (searchTerm.trim().length >= 2) {
+                      setShowSuggestions(true);
                     }
                   }}
                 />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 rounded-md border bg-background shadow-lg z-50 max-h-72 overflow-auto text-xs">
+                    {suggestions.map((s, idx) => (
+                      <button
+                        key={`${s.type}-${s.href}-${idx}`}
+                        type="button"
+                        className="w-full text-left px-2 py-1.5 hover:bg-accent flex items-center gap-2"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          window.location.href = s.href;
+                        }}
+                      >
+                        <span className="inline-flex min-w-[80px] items-center justify-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium capitalize">
+                          {s.type}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate">{s.label}</div>
+                          {s.secondary && (
+                            <div className="truncate text-[10px] text-muted-foreground">
+                              {s.secondary}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={logout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Salir
-            </Button>
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>

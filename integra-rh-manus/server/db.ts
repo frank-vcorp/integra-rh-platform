@@ -356,6 +356,40 @@ export async function deleteClient(id: number) {
 }
 
 // ============================================================================
+// PLAZAS / SUCURSALES DE CLIENTE
+// ============================================================================
+
+import { clientSites, InsertClientSite } from "../drizzle/schema";
+
+export async function getClientSitesByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(clientSites)
+    .where(and(eq(clientSites.clientId, clientId), eq(clientSites.activo, true)))
+    .orderBy(asc(clientSites.nombrePlaza));
+}
+
+export async function createClientSite(data: InsertClientSite) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(clientSites).values(data).execute();
+  return (result as any).insertId as number;
+}
+
+export async function getClientSiteById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(clientSites)
+    .where(eq(clientSites.id, id))
+    .limit(1);
+  return rows[0] ?? undefined;
+}
+
+// ============================================================================
 // PUESTOS
 // ============================================================================
 

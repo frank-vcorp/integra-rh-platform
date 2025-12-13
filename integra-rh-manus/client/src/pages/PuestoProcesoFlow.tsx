@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -66,7 +65,6 @@ export default function PuestoProcesoFlow() {
     }
     createPostMutation.mutate({
       nombreDelPuesto: formData.get("nombreDelPuesto") as string,
-      descripcion: formData.get("descripcion") as string || undefined,
       clienteId: parseInt(clienteId),
     });
   };
@@ -134,14 +132,6 @@ export default function PuestoProcesoFlow() {
                     name="nombreDelPuesto"
                     required
                     placeholder="Ej: Gerente de Ventas"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="descripcion">Descripción</Label>
-                  <Textarea
-                    id="descripcion"
-                    name="descripcion"
-                    placeholder="Descripción del puesto, responsabilidades..."
                   />
                 </div>
               </div>

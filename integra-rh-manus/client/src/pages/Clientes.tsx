@@ -329,16 +329,20 @@ export default function Clientes() {
           ) : (
             <>
               {/* Vista de tabla para escritorio */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Empresa</TableHead>
-                      <TableHead>Ubicación</TableHead>
-                      <TableHead>Reclutador</TableHead>
-                      <TableHead>Contacto</TableHead>
-                      <TableHead>Teléfono</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead className="w-[120px]">Ubicación</TableHead>
+                      <TableHead className="hidden 2xl:table-cell">
+                        Reclutador
+                      </TableHead>
+                      <TableHead className="hidden lg:table-cell">
+                        Contacto
+                      </TableHead>
+                      <TableHead className="w-[120px]">Teléfono</TableHead>
+                      <TableHead className="w-[220px]">Email</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -364,11 +368,21 @@ export default function Clientes() {
                             {client.nombreEmpresa}
                           </button>
                         </TableCell>
-                        <TableCell>{client.ubicacionPlaza || "-"}</TableCell>
-                        <TableCell>{client.reclutador || "-"}</TableCell>
-                        <TableCell>{client.contacto || "-"}</TableCell>
-                        <TableCell>{client.telefono || "-"}</TableCell>
-                        <TableCell>{client.email || "-"}</TableCell>
+                        <TableCell className="text-xs">
+                          {client.ubicacionPlaza || "-"}
+                        </TableCell>
+                        <TableCell className="hidden 2xl:table-cell text-xs">
+                          {client.reclutador || "-"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs">
+                          {client.contacto || "-"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {client.telefono || "-"}
+                        </TableCell>
+                        <TableCell className="text-xs break-all">
+                          {client.email || "-"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             {canEditClient && (
@@ -543,7 +557,7 @@ export default function Clientes() {
               ) : (
                 <>
                   {/* Vista de tabla para escritorio */}
-                  <div className="overflow-x-auto hidden sm:block">
+                  <div className="hidden sm:block">
                     <Table>
                       <TableHeader>
                         <TableRow>

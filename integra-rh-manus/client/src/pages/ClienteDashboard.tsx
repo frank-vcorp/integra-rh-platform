@@ -186,7 +186,7 @@ export default function ClienteDashboard() {
                 <p className="text-gray-500">No hay procesos registrados</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div>
                 <Table>
                   <TableHeader>
                     <TableRow>

@@ -19,6 +19,7 @@ import { clientPortalRouter } from './clientPortal';
 import { auditRouter } from './audit';
 import { candidateConsentRouter } from './candidateConsent';
 import { rolesRouter } from './roles';
+import { clientSitesRouter } from "./clientSites";
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -39,6 +40,7 @@ export const appRouter = router({
 
   // Conectamos el router de clientes bajo el prefijo 'clients'
   clients: clientsRouter,
+  clientSites: clientSitesRouter,
 
   // Conectamos el router de puestos bajo el prefijo 'posts'
   posts: postsRouter,

@@ -2,7 +2,14 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Building2, FileText, Search, Users, Briefcase } from "lucide-react";
+import {
+  Building2,
+  FileText,
+  Search,
+  Users,
+  Briefcase,
+  UserCheck,
+} from "lucide-react";
 import { useMemo } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -27,6 +34,11 @@ export default function SearchResults() {
     trpc.processes.list.useQuery();
   const { data: posts = [], isLoading: loadingPosts } =
     trpc.posts.list.useQuery();
+  const { data: surveyors = [], isLoading: loadingSurveyors } =
+    trpc.surveyors.list.useQuery(undefined as any, {
+      enabled: !isClient,
+      initialData: [] as any,
+    } as any);
 
   const scopedClients = useMemo(
     () =>
@@ -131,14 +143,35 @@ export default function SearchResults() {
     });
   }, [scopedProcesses, term, scopedClients, posts, scopedCandidates]);
 
+  const filteredSurveyors = useMemo(() => {
+    if (!term || isClient) return [];
+    return (surveyors as any[]).filter((s) => {
+      const haystack = [
+        s.nombre,
+        s.telefono,
+        s.email,
+        s.ciudadBase,
+        Array.isArray(s.estadosCobertura) ? s.estadosCobertura.join(" ") : "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [surveyors, term, isClient]);
+
   const isLoading =
-    loadingClients || loadingCandidates || loadingProcesses || loadingPosts;
+    loadingClients ||
+    loadingCandidates ||
+    loadingProcesses ||
+    loadingPosts ||
+    loadingSurveyors;
 
   const hasAnyResults =
     filteredClients.length ||
     filteredCandidates.length ||
     filteredPosts.length ||
-    filteredProcesses.length;
+    filteredProcesses.length ||
+    filteredSurveyors.length;
 
   return (
     <div className="space-y-6">
@@ -341,7 +374,45 @@ export default function SearchResults() {
           </CardContent>
         </Card>
       )}
+
+      {term && !isClient && (filteredSurveyors.length > 0 || !isLoading) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Encuestadores
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredSurveyors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Sin coincidencias en encuestadores.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {filteredSurveyors.slice(0, 20).map((s: any) => (
+                  <Link
+                    key={s.id}
+                    href={`/encuestadores/${s.id}`}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{s.nombre}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {s.telefono || s.email || "-"} •{" "}
+                        {s.ciudadBase || "Sin ciudad base"}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline">
+                      Ver
+                    </Button>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
-

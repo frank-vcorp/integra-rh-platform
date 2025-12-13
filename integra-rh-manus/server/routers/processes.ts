@@ -109,6 +109,7 @@ export const processesRouter = router({
         candidatoId: z.number(),
         clienteId: z.number(),
         puestoId: z.number(),
+        clientSiteId: z.number().optional(),
         tipoProducto: z.string(),
         medioDeRecepcion: z.enum([
           'whatsapp','correo','telefono','boca_a_boca','portal','presencial','otro'
@@ -142,6 +143,7 @@ export const processesRouter = router({
         candidatoId: input.candidatoId,
         clienteId: input.clienteId,
         puestoId: input.puestoId,
+        clientSiteId: input.clientSiteId,
         tipoProducto: input.tipoProducto as any,
         medioDeRecepcion: input.medioDeRecepcion as any,
         fechaRecepcion,

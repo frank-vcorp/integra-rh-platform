@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure, requirePermission } from '../_core/trpc';
 import { TRPCError } from '@trpc/server';
-import { createClient, getAllClients, getClientById } from "../db";
+import { createClient, createClientSite, getAllClients, getClientById } from "../db";
 import { logAuditEvent } from "../_core/audit";
 
 export const clientsRouter = router({
@@ -53,6 +53,18 @@ export const clientsRouter = router({
         telefono: input.telefono ?? null,
         email: input.email ?? null,
       } as any);
+
+      // Crear una plaza principal basada en ubicacionPlaza, si se proporcionó.
+      const plaza = input.ubicacionPlaza?.trim();
+      if (plaza) {
+        await createClientSite({
+          clientId: id,
+          nombrePlaza: plaza,
+          ciudad: null,
+          estado: null,
+          activo: true,
+        } as any);
+      }
 
       await logAuditEvent(ctx, {
         action: "create",

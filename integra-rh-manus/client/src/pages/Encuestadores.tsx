@@ -201,7 +201,7 @@ export default function Encuestadores() {
           ) : (
             <>
               {/* Escritorio: tabla */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>

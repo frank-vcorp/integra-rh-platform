@@ -33,6 +33,9 @@ export default function ProcesoDetalle() {
   const updatePanelDetail = trpc.processes.updatePanelDetail.useMutation({
     onSuccess: () => {
       utils.processes.getById.invalidate({ id: processId });
+      // También refrescamos la lista para que la columna "Responsable"
+      // y los conteos de analista asignado se actualicen al instante.
+      utils.processes.list.invalidate();
       toast.success("Bloques actualizados");
     },
     onError: (e:any) => toast.error(e.message || "Error al guardar"),
@@ -358,7 +361,18 @@ export default function ProcesoDetalle() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Analista asignado</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">Analista asignado</p>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    panelForm.especialistaAtraccionId
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : "bg-slate-50 text-slate-600 border border-slate-200"
+                  }`}
+                >
+                  {panelForm.especialistaAtraccionId ? "Asignado" : "Sin asignar"}
+                </span>
+              </div>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <UserCheck className="h-4 w-4 text-blue-600" />
@@ -403,15 +417,27 @@ export default function ProcesoDetalle() {
                   {panelForm.especialistaAtraccionId
                     ? (() => {
                         const uid = Number(panelForm.especialistaAtraccionId);
+                        const u = (users as any[]).find(us => us.id === uid);
                         const count = assignedCounts[uid] || 0;
-                        return `Actualmente tiene ${count} proceso${
+                        const displayName = u?.name || u?.email || "Analista";
+                        return `Analista seleccionado: ${displayName}. Actualmente tiene ${count} proceso${
                           count === 1 ? "" : "s"
                         } asignado${
                           count === 1 ? "" : "s"
-                        }. Recuerda guardar los bloques para aplicar el cambio.`;
+                        }. Para guardar la asignación usa el botón "Guardar bloques" de este recuadro.`;
                       })()
-                    : "Selecciona quién dará seguimiento a este proceso."}
+                    : 'Selecciona quién dará seguimiento a este proceso y luego usa el botón "Guardar bloques" para guardar la asignación.'}
                 </p>
+                <div className="mt-1">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={isClientAuth || !canEditProcess || updatePanelDetail.isPending}
+                    onClick={handleSavePanel}
+                  >
+                    Guardar asignación
+                  </Button>
+                </div>
               </div>
             </div>
             <div>

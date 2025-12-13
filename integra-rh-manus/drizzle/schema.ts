@@ -91,6 +91,24 @@ export type Client = typeof clients.$inferSelect;
 export type InsertClient = typeof clients.$inferInsert;
 
 // ============================================================================
+// PLAZAS / SUCURSALES DE CLIENTE
+// ============================================================================
+
+export const clientSites = mysqlTable("clientSites", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").notNull(),
+  nombrePlaza: varchar("nombrePlaza", { length: 255 }).notNull(),
+  ciudad: varchar("ciudad", { length: 255 }),
+  estado: varchar("estado", { length: 255 }),
+  activo: boolean("activo").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ClientSite = typeof clientSites.$inferSelect;
+export type InsertClientSite = typeof clientSites.$inferInsert;
+
+// ============================================================================
 // PUESTOS DE TRABAJO
 // ============================================================================
 
@@ -119,6 +137,7 @@ export const candidates = mysqlTable("candidates", {
   medioDeRecepcion: varchar("medioDeRecepcion", { length: 100 }),
   clienteId: int("clienteId"),
   puestoId: int("puestoId"),
+  clientSiteId: int("clientSiteId"),
   // Datos de psicométricos (almacenados como JSON)
   psicometricos: json("psicometricos").$type<{
     clavePsicometricas?: string;
@@ -287,6 +306,7 @@ export const processes = mysqlTable("processes", {
   candidatoId: int("candidatoId").notNull(),
   clienteId: int("clienteId").notNull(),
   puestoId: int("puestoId").notNull(),
+  clientSiteId: int("clientSiteId"),
   // Especialista de atracción que gestiona el proceso (FK opcional o nombre libre)
   especialistaAtraccionId: int("especialistaAtraccionId"),
   especialistaAtraccionNombre: varchar("especialistaAtraccionNombre", { length: 255 }),
