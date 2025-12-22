@@ -11,12 +11,13 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useMemo } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 
 function useQueryParam(name: string): string {
-  const [location] = useLocation();
-  const query = location.split("?")[1] || "";
-  const params = new URLSearchParams(query);
+  // Usamos siempre la barra de direcciones real para evitar perder el query
+  const search =
+    typeof window !== "undefined" ? window.location.search : "";
+  const params = new URLSearchParams(search);
   return (params.get(name) || "").trim();
 }
 

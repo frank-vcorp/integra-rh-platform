@@ -1,4 +1,12 @@
 {
     "chatgpt.runCodexInWindowsSubsystemForLinux": true,
-    "chatgpt.openOnStartup": true
+    "chatgpt.openOnStartup": true,
+    "peacock.darkForegroundColor": "#15202b",
+    "peacock.affectPanelBorder": true,
+    "peacock.affectActivityBar": false,
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#043613",
+        "titleBar.activeBackground": "#054B1B",
+        "titleBar.activeForeground": "#EFFEF3"
+    }
 }

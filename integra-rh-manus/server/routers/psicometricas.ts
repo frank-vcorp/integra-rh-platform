@@ -1,5 +1,6 @@
 import { router, protectedProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import * as psicometricas from "../integrations/psicometricas";
 import * as sendgrid from "../integrations/sendgrid";
@@ -35,12 +36,90 @@ export const psicometricasRouter = router({
       const candidate = await db.getCandidateById(input.candidatoId);
       if (!candidate) return { error: "Candidato no encontrado" } as any;
 
+      const existingClave = (candidate.psicometricos as any)?.clavePsicometricas as
+        | string
+        | undefined;
+
+      const previousTestsCsv = ((candidate.psicometricos as any)?.testsCsv as
+        | string
+        | undefined)
+        ?.toString()
+        .trim();
+
+      const mergedTests = new Set<number>();
+      if (previousTestsCsv) {
+        for (const token of previousTestsCsv.split(",")) {
+          const n = Number(token.trim());
+          if (Number.isFinite(n) && n > 0) mergedTests.add(n);
+        }
+      }
+      for (const t of input.tests) mergedTests.add(t);
+      const testsCsv = Array.from(mergedTests).join(",");
+
+      const client = candidate.clienteId ? await db.getClientById(candidate.clienteId) : null;
+      const post = candidate.puestoId ? await db.getPostById(candidate.puestoId) : null;
+
+      // Caso 1: ya existe clave -> agregar/actualizar pruebas en la misma clave
+      if (existingClave) {
+        await psicometricas.actualizaCandidatoPruebas({
+          clave: existingClave,
+          nombre: candidate.nombreCompleto,
+          email: candidate.email || "",
+          vacante: input.vacante,
+          testsCsv,
+        });
+
+        const invitacionUrl =
+          (candidate.psicometricos as any)?.invitacionUrl ||
+          `https://evaluacion.psicometrica.mx/login/${existingClave}`;
+
+        // Persistir actualización
+        try {
+          await db.updateCandidate(input.candidatoId, {
+            psicometricos: {
+              ...(candidate.psicometricos || {}),
+              clavePsicometricas: existingClave,
+              invitacionUrl,
+              testsCsv,
+              estatus: "Asignado",
+              fechaAsignacion: new Date().toISOString(),
+              fechaFinalizacion: null,
+            },
+          } as any);
+        } catch {}
+
+        // Reenviar correo (solo SendGrid)
+        if (candidate.email) {
+          await sendgrid.enviarInvitacionPsicometrica({
+            candidatoNombre: candidate.nombreCompleto,
+            candidatoEmail: candidate.email,
+            invitacionUrl,
+            nombrePuesto: post?.nombreDelPuesto || "Sin especificar",
+            nombreEmpresa: client?.nombreEmpresa || "Sin especificar",
+          });
+        }
+
+        await logAuditEvent(ctx, {
+          action: "assign_psychometrics",
+          entityType: "candidate",
+          entityId: candidate.id,
+          details: {
+            mode: "update_existing_clave",
+            asignacionId: existingClave,
+            tests: Array.from(mergedTests),
+            testsCsv,
+          },
+        });
+
+        return { id: existingClave, invitacionUrl, updated: true };
+      }
+
       const result = await psicometricas.asignarBateriaPsicometrica({
         nombre: candidate.nombreCompleto,
         email: candidate.email || "",
         telefono: candidate.telefono || undefined,
         bateria: input.bateria,
-        testsCsv: input.tests.join(','),
+        testsCsv,
         vacante: input.vacante,
       });
 
@@ -50,6 +129,8 @@ export const psicometricasRouter = router({
           psicometricos: {
             ...(candidate.psicometricos || {}),
             clavePsicometricas: (result as any).id,
+            invitacionUrl: (result as any).invitacionUrl,
+            testsCsv,
             estatus: "Asignado",
             fechaAsignacion: new Date().toISOString(),
           },
@@ -57,8 +138,6 @@ export const psicometricasRouter = router({
       } catch {}
 
       if (candidate.email) {
-        const client = candidate.clienteId ? await db.getClientById(candidate.clienteId) : null;
-        const post = candidate.puestoId ? await db.getPostById(candidate.puestoId) : null;
         await sendgrid.enviarInvitacionPsicometrica({
           candidatoNombre: candidate.nombreCompleto,
           candidatoEmail: candidate.email,
@@ -75,7 +154,9 @@ export const psicometricasRouter = router({
         entityId: candidate.id,
         details: {
           asignacionId: (result as any)?.id,
-          tests: input.tests,
+          mode: "create_new_clave",
+          tests: Array.from(mergedTests),
+          testsCsv,
           bateria: input.bateria,
         },
       });
@@ -86,8 +167,55 @@ export const psicometricasRouter = router({
   reenviarInvitacion: protectedProcedure
     .use(requirePermission("candidatos", "edit"))
     .input(z.object({ asignacionId: z.string() }))
-    .mutation(async ({ input }) => {
-      return psicometricas.reenviarInvitacion(input.asignacionId);
+    .mutation(async ({ input, ctx }) => {
+      // Reenviar por correo (SendGrid) solamente, sin pegar al proveedor.
+      const candidate: any = await db.getCandidateByPsicoClave(input.asignacionId);
+      if (!candidate) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No se encontró candidato para esa clave de asignación",
+        });
+      }
+      if (!candidate.email) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "El candidato no tiene email registrado",
+        });
+      }
+
+      const client = candidate.clienteId
+        ? await db.getClientById(candidate.clienteId)
+        : null;
+      const post = candidate.puestoId ? await db.getPostById(candidate.puestoId) : null;
+      const invitacionUrl =
+        (candidate.psicometricos as any)?.invitacionUrl ||
+        `https://evaluacion.psicometrica.mx/login/${input.asignacionId}`;
+      const emailSuccess = await sendgrid.enviarInvitacionPsicometrica({
+        candidatoNombre: candidate.nombreCompleto,
+        candidatoEmail: candidate.email,
+        invitacionUrl,
+        nombrePuesto: post?.nombreDelPuesto || "Sin especificar",
+        nombreEmpresa: client?.nombreEmpresa || "Sin especificar",
+      });
+
+      if (!emailSuccess) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "No se pudo reenviar el correo de invitación",
+        });
+      }
+
+      await logAuditEvent(ctx, {
+        action: "send_invitation",
+        entityType: "candidate",
+        entityId: candidate.id,
+        details: {
+          asignacionId: input.asignacionId,
+          emailSuccess,
+        },
+      });
+
+      return { success: true, emailSuccess };
     }),
 
   consultarResultados: protectedProcedure
@@ -151,13 +279,40 @@ export const psicometricasRouter = router({
       const existingPdf = docs.find((d: any) => d.tipoDocumento === "PSICOMETRICO");
       const existingJson = docs.find((d: any) => d.tipoDocumento === "PSICOMETRICO_JSON");
 
-      let resultados: any = candidate.psicometricos?.resultadosJson;
-      let normalizedStatus = NORMALIZE_STATUS(candidate.psicometricos?.estatus);
-
-      if (!resultados) {
-        resultados = await psicometricas.consultarResultados(input.asignacionId);
-        normalizedStatus = NORMALIZE_STATUS(resultados?.estatus);
+      // Anti-spam: evitar disparar múltiples consultas/descargas si se hace click repetidamente.
+      // Si ya hay documentos, nunca volvemos a consultar/descargar.
+      const cooldownSec = Number(process.env.PSICOMETRICAS_REPORT_COOLDOWN_SECONDS || "60");
+      const lastReportSyncAt = (candidate.psicometricos as any)?.lastReportSyncAt as string | undefined;
+      const lastTs = lastReportSyncAt ? new Date(lastReportSyncAt).getTime() : 0;
+      const now = Date.now();
+      const withinCooldown = Boolean(lastTs && now - lastTs < cooldownSec * 1000);
+      if (withinCooldown && (!existingPdf || !existingJson)) {
+        const normalizedStatus = NORMALIZE_STATUS(candidate.psicometricos?.estatus);
+        return {
+          status: normalizedStatus,
+          pdf: simplifyDoc(existingPdf),
+          json: simplifyDoc(existingJson),
+          throttled: true,
+        } as any;
       }
+
+      // Marcar intento de sincronización al inicio para bloquear dobles clics concurrentes.
+      try {
+        const current = (candidate.psicometricos || {}) as any;
+        await db.updateCandidate(input.candidatoId, {
+          psicometricos: {
+            ...current,
+            lastReportSyncAt: new Date().toISOString(),
+          } as any,
+        } as any);
+      } catch {}
+
+      // Importante: para minimizar llamadas al proveedor, aquí NO consultamos resultados (Pdf=false).
+      // El JSON se obtiene vía webhook (payload) o queda cacheado en candidate.psicometricos.resultadosJson.
+      const resultados: any = (candidate.psicometricos as any)?.resultadosJson;
+      const normalizedStatus = NORMALIZE_STATUS(
+        (candidate.psicometricos as any)?.estatus || (resultados as any)?.estatus
+      );
 
       const bucket = firebaseStorage.bucket();
       let jsonDoc = simplifyDoc(existingJson);
@@ -180,6 +335,12 @@ export const psicometricasRouter = router({
 
       let pdfDoc = simplifyDoc(existingPdf);
       if (!pdfDoc) {
+        // Evitar llamar al proveedor por PDF si aún no está completado.
+        if (normalizedStatus !== "Completado") {
+          throw new Error(
+            "El reporte aún no está listo. Espera a que el estatus sea 'Completado' y vuelve a intentar."
+          );
+        }
         const buffer = await descargarReportePDF(input.asignacionId);
         const key = `candidates/${input.candidatoId}/psicometria-${Date.now()}.pdf`;
         const file = bucket.file(key);
@@ -204,8 +365,9 @@ export const psicometricasRouter = router({
             ...current,
             clavePsicometricas: input.asignacionId,
             estatus: normalizedStatus,
-            resultadosJson: resultados ?? current.resultadosJson,
+            resultadosJson: resultados !== undefined ? resultados : current.resultadosJson,
             lastConsultAt: new Date().toISOString(),
+            lastReportSyncAt: new Date().toISOString(),
             fechaFinalizacion: normalizedStatus === "Completado"
               ? new Date().toISOString()
               : current.fechaFinalizacion ?? null,

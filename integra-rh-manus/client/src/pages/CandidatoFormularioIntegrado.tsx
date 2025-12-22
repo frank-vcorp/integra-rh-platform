@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,9 +13,24 @@ import { trpc } from "@/lib/trpc";
 import { Users, Briefcase, FileText, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TIPOS_PROCESO, TipoProcesoType } from "@/lib/constants";
+import { TipoProcesoType } from "@/lib/constants";
+import {
+  AmbitoType,
+  IlaModoType,
+  PROCESO_BASE_OPTIONS,
+  ProcesoBaseType,
+  ProcesoConfig,
+  mapProcesoConfigToTipoProducto,
+} from "@/lib/procesoTipo";
 import { useLocation } from "wouter";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function CandidatoFormularioIntegrado() {
   const [, setLocation] = useLocation();
@@ -27,11 +41,99 @@ export default function CandidatoFormularioIntegrado() {
   const clienteIdFromUrl = urlParams.get('clienteId');
   
   const [selectedClient, setSelectedClient] = useState<string>(clienteIdFromUrl || "");
+  const [selectedSite, setSelectedSite] = useState<string>("");
+  const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
+  const [newClientNombreEmpresa, setNewClientNombreEmpresa] = useState("");
+  const [newClientReclutador, setNewClientReclutador] = useState("");
+  const [newClientContacto, setNewClientContacto] = useState("");
+  const [newClientTelefono, setNewClientTelefono] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientPlazasText, setNewClientPlazasText] = useState("");
+
+  const [createSiteDialogOpen, setCreateSiteDialogOpen] = useState(false);
+  const [newSiteName, setNewSiteName] = useState("");
+  const [newSiteCity, setNewSiteCity] = useState("");
+  const [newSiteState, setNewSiteState] = useState("");
   const [candidatoId, setCandidatoId] = useState<number | null>(null);
   const [puestoId, setPuestoId] = useState<number | null>(null);
+  const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
+  const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
+  const [eseAmbito, setEseAmbito] = useState<AmbitoType>("LOCAL");
+  const [eseExtra, setEseExtra] = useState<"NINGUNO" | "BURO" | "LEGAL">(
+    "NINGUNO"
+  );
+  const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
 
   const { data: clients = [] } = trpc.clients.list.useQuery();
+  const { data: clientSitesByClient = [] } = trpc.clientSites.listByClient.useQuery(
+    selectedClient ? { clientId: parseInt(selectedClient) } : { clientId: 0 },
+    { enabled: !!selectedClient } as any
+  );
   const utils = trpc.useUtils();
+
+  const createClientMutation = trpc.clients.create.useMutation({
+    onSuccess: async (data) => {
+      utils.clients.list.invalidate();
+      setSelectedClient(String(data.id));
+      setSelectedSite("");
+
+      const plazas = newClientPlazasText
+        .split(/\r?\n|,/g)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const uniquePlazas = Array.from(new Set(plazas));
+
+      if (uniquePlazas.length > 0) {
+        try {
+          await Promise.all(
+            uniquePlazas.map((nombrePlaza) =>
+              createClientSiteMutation.mutateAsync({
+                clientId: data.id,
+                nombrePlaza,
+              })
+            )
+          );
+          await utils.clientSites.listByClient.invalidate({ clientId: data.id });
+        } catch (e: any) {
+          toast.error(
+            "Cliente creado, pero no se pudieron crear todas las plazas: " +
+              (e?.message || "Error")
+          );
+        }
+      }
+
+      setCreateClientDialogOpen(false);
+      setNewClientNombreEmpresa("");
+      setNewClientReclutador("");
+      setNewClientContacto("");
+      setNewClientTelefono("");
+      setNewClientEmail("");
+      setNewClientPlazasText("");
+      toast.success("Cliente creado correctamente");
+    },
+    onError: (error) => {
+      toast.error("Error al crear cliente: " + error.message);
+    },
+  });
+
+  const createClientSiteMutation = trpc.clientSites.create.useMutation({
+    onSuccess: async (data) => {
+      if (selectedClient) {
+        await utils.clientSites.listByClient.invalidate({
+          clientId: parseInt(selectedClient),
+        });
+      }
+      setSelectedSite(String(data.id));
+      setCreateSiteDialogOpen(false);
+      setNewSiteName("");
+      setNewSiteCity("");
+      setNewSiteState("");
+      toast.success("Plaza creada correctamente");
+    },
+    onError: (error) => {
+      toast.error("No se pudo crear la plaza: " + error.message);
+    },
+  });
 
   // Mutations
   const createCandidateMutation = trpc.candidates.create.useMutation({
@@ -79,6 +181,7 @@ export default function CandidatoFormularioIntegrado() {
       telefono: formData.get("telefono") as string || undefined,
       medioDeRecepcion: formData.get("medioDeRecepcion") as string || undefined,
       clienteId: selectedClient ? parseInt(selectedClient) : undefined,
+      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
     });
   };
 
@@ -88,16 +191,30 @@ export default function CandidatoFormularioIntegrado() {
     if (!selectedClient) return;
     createPostMutation.mutate({
       nombreDelPuesto: formData.get("nombreDelPuesto") as string,
-      descripcion: formData.get("descripcion") as string || undefined,
       clienteId: parseInt(selectedClient),
     });
   };
 
   const handleProcessSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const config: ProcesoConfig =
+      baseTipo === "ILA"
+        ? { base: "ILA", modo: ilaModo }
+        : baseTipo === "ESE"
+        ? { base: "ESE", ambito: eseAmbito, extra: eseExtra }
+        : baseTipo === "VISITA"
+        ? { base: "VISITA", ambito: visitaAmbito }
+        : baseTipo === "BURO"
+        ? { base: "BURO" }
+        : baseTipo === "LEGAL"
+        ? { base: "LEGAL" }
+        : { base: "SEMANAS" };
+
+    const tipoProducto: TipoProcesoType = mapProcesoConfigToTipoProducto(
+      config
+    );
     createProcessMutation.mutate({
-      tipoProducto: formData.get("tipoProducto") as TipoProcesoType,
+      tipoProducto,
       clienteId: parseInt(selectedClient),
       candidatoId: candidatoId!,
       puestoId: puestoId!,
@@ -149,14 +266,27 @@ export default function CandidatoFormularioIntegrado() {
               Paso 1: Crear Candidato
             </CardTitle>
           </CardHeader>
-          <CardContent>
+      <CardContent>
             <form onSubmit={handleCandidateSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="clienteId">Cliente *</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="clienteId">Cliente *</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCreateClientDialogOpen(true)}
+                    >
+                      Agregar cliente
+                    </Button>
+                  </div>
                   <Select
                     value={selectedClient}
-                    onValueChange={setSelectedClient}
+                    onValueChange={(value) => {
+                      setSelectedClient(value);
+                      setSelectedSite("");
+                    }}
                     required
                   >
                     <SelectTrigger>
@@ -166,6 +296,46 @@ export default function CandidatoFormularioIntegrado() {
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id.toString()}>
                           {client.nombreEmpresa}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="clientSiteId">Plaza / CEDI</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!selectedClient}
+                      onClick={() => {
+                        setCreateSiteDialogOpen(true);
+                      }}
+                    >
+                      Agregar plaza
+                    </Button>
+                  </div>
+                  <Select
+                    value={selectedSite}
+                    onValueChange={setSelectedSite}
+                    disabled={!selectedClient}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          selectedClient
+                            ? clientSitesByClient.length
+                              ? "Selecciona una plaza"
+                              : "No hay plazas registradas (agrega una)"
+                            : "Selecciona primero un cliente"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientSitesByClient.map((site: any) => (
+                        <SelectItem key={site.id} value={site.id.toString()}>
+                          {site.nombrePlaza}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -217,6 +387,189 @@ export default function CandidatoFormularioIntegrado() {
         </Card>
       )}
 
+      {/* Dialog: crear cliente (con plazas opcionales) */}
+      <Dialog
+        open={createClientDialogOpen}
+        onOpenChange={(open) => {
+          setCreateClientDialogOpen(open);
+          if (!open) {
+            setNewClientNombreEmpresa("");
+            setNewClientReclutador("");
+            setNewClientContacto("");
+            setNewClientTelefono("");
+            setNewClientEmail("");
+            setNewClientPlazasText("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Nuevo cliente</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!newClientNombreEmpresa.trim()) return;
+              createClientMutation.mutate({
+                nombreEmpresa: newClientNombreEmpresa.trim(),
+                reclutador: newClientReclutador.trim() || undefined,
+                contacto: newClientContacto.trim() || undefined,
+                telefono: newClientTelefono.trim() || undefined,
+                email: newClientEmail.trim() || undefined,
+              });
+            }}
+          >
+            <div className="space-y-1">
+              <Label htmlFor="new-client-nombre">Nombre de la Empresa *</Label>
+              <Input
+                id="new-client-nombre"
+                value={newClientNombreEmpresa}
+                onChange={(e) => setNewClientNombreEmpresa(e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="new-client-reclutador">Reclutador</Label>
+                <Input
+                  id="new-client-reclutador"
+                  value={newClientReclutador}
+                  onChange={(e) => setNewClientReclutador(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="new-client-contacto">Contacto</Label>
+                <Input
+                  id="new-client-contacto"
+                  value={newClientContacto}
+                  onChange={(e) => setNewClientContacto(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="new-client-telefono">Teléfono</Label>
+                <Input
+                  id="new-client-telefono"
+                  value={newClientTelefono}
+                  onChange={(e) => setNewClientTelefono(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="new-client-email">Email</Label>
+                <Input
+                  id="new-client-email"
+                  type="email"
+                  value={newClientEmail}
+                  onChange={(e) => setNewClientEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="new-client-plazas">Plazas / CEDIs (opcional)</Label>
+              <Textarea
+                id="new-client-plazas"
+                value={newClientPlazasText}
+                onChange={(e) => setNewClientPlazasText(e.target.value)}
+                placeholder="Una por línea, o separadas por coma"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateClientDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={createClientMutation.isPending || !newClientNombreEmpresa.trim()}
+              >
+                Crear
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: crear plaza para cliente seleccionado */}
+      <Dialog
+        open={createSiteDialogOpen}
+        onOpenChange={(open) => {
+          setCreateSiteDialogOpen(open);
+          if (!open) {
+            setNewSiteName("");
+            setNewSiteCity("");
+            setNewSiteState("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Agregar plaza</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!selectedClient) return;
+              if (!newSiteName.trim()) return;
+              createClientSiteMutation.mutate({
+                clientId: parseInt(selectedClient),
+                nombrePlaza: newSiteName.trim(),
+                ciudad: newSiteCity.trim() || undefined,
+                estado: newSiteState.trim() || undefined,
+              });
+            }}
+          >
+            <div className="space-y-1">
+              <Label htmlFor="new-site-name">Nombre de la plaza *</Label>
+              <Input
+                id="new-site-name"
+                value={newSiteName}
+                onChange={(e) => setNewSiteName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="new-site-city">Ciudad</Label>
+                <Input
+                  id="new-site-city"
+                  value={newSiteCity}
+                  onChange={(e) => setNewSiteCity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="new-site-state">Estado</Label>
+                <Input
+                  id="new-site-state"
+                  value={newSiteState}
+                  onChange={(e) => setNewSiteState(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateSiteDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={createClientSiteMutation.isPending || !selectedClient || !newSiteName.trim()}
+              >
+                Agregar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Step 2: Puesto */}
       {step === 2 && (
         <Card>
@@ -236,14 +589,6 @@ export default function CandidatoFormularioIntegrado() {
                     name="nombreDelPuesto"
                     required
                     placeholder="Ej: Gerente de Ventas"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="descripcion">Descripción</Label>
-                  <Textarea
-                    id="descripcion"
-                    name="descripcion"
-                    placeholder="Descripción del puesto, responsabilidades..."
                   />
                 </div>
               </div>
@@ -275,16 +620,110 @@ export default function CandidatoFormularioIntegrado() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <Label>Proceso a Realizar *</Label>
-                  <Select name="tipoProducto" defaultValue="ILA" required>
+                  <Select
+                    value={baseTipo}
+                    onValueChange={(v) => setBaseTipo(v as ProcesoBaseType)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_PROCESO.map((tipo) => (
-                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                      {PROCESO_BASE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {baseTipo === "ILA" && (
+                    <div className="mt-3 space-y-1">
+                      <Label className="text-xs">Modalidad ILA</Label>
+                      <Select
+                        value={ilaModo}
+                        onValueChange={(v) => setIlaModo(v as IlaModoType)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NORMAL">
+                            Normal (sin buró ni legal)
+                          </SelectItem>
+                          <SelectItem value="BURO">
+                            Con buró de crédito
+                          </SelectItem>
+                          <SelectItem value="LEGAL">
+                            Con investigación legal
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {baseTipo === "ESE" && (
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ámbito</Label>
+                        <Select
+                          value={eseAmbito}
+                          onValueChange={(v) => setEseAmbito(v as AmbitoType)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOCAL">Local</SelectItem>
+                            <SelectItem value="FORANEO">Foráneo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Complemento</Label>
+                        <Select
+                          value={eseExtra}
+                          onValueChange={(v) =>
+                            setEseExtra(v as "NINGUNO" | "BURO" | "LEGAL")
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NINGUNO">
+                              Sin complemento
+                            </SelectItem>
+                            <SelectItem value="BURO">
+                              Con buró de crédito
+                            </SelectItem>
+                            <SelectItem value="LEGAL">
+                              Con investigación legal
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  {baseTipo === "VISITA" && (
+                    <div className="mt-3 space-y-1">
+                      <Label className="text-xs">Ámbito de visita</Label>
+                      <Select
+                        value={visitaAmbito}
+                        onValueChange={(v) =>
+                          setVisitaAmbito(v as AmbitoType)
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOCAL">Local</SelectItem>
+                          <SelectItem value="FORANEO">Foránea</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg space-y-2">

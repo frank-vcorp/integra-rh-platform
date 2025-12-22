@@ -12,6 +12,15 @@ import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
 import { useHasPermission } from "@/_core/hooks/usePermission";
+import {
+  AmbitoType,
+  IlaModoType,
+  PROCESO_BASE_OPTIONS,
+  ProcesoBaseType,
+  ProcesoConfig,
+  mapProcesoConfigToTipoProducto,
+  parseTipoProductoToConfig,
+} from "@/lib/procesoTipo";
 
 export default function ProcesoDetalle() {
   const params = useParams();
@@ -227,13 +236,39 @@ export default function ProcesoDetalle() {
     estatusVisual: "en_proceso",
     fechaCierre: "",
     investigacionLaboral: { resultado: "", detalles: "", completado: false },
-    investigacionLegal: { antecedentes: "", flagRiesgo: false, archivoAdjuntoUrl: "" },
+    investigacionLegal: {
+      antecedentes: "",
+      flagRiesgo: false,
+      archivoAdjuntoUrl: "",
+      notasPeriodisticas: "",
+      observacionesImss: "",
+      semanasComentario: "",
+    },
     buroCredito: { estatus: "", score: "", aprobado: null as null | boolean },
     visitaDetalle: { tipo: "", comentarios: "", fechaRealizacion: "", enlaceReporteUrl: "" },
   });
+  const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
+  const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
+  const [eseAmbito, setEseAmbito] = useState<AmbitoType>("LOCAL");
+  const [eseExtra, setEseExtra] = useState<"NINGUNO" | "BURO" | "LEGAL">(
+    "NINGUNO"
+  );
+  const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
 
   useEffect(() => {
     if (!process) return;
+    const cfg = parseTipoProductoToConfig(
+      (process.tipoProducto || "ILA") as any
+    );
+    setBaseTipo(cfg.base);
+    if (cfg.base === "ILA") {
+      setIlaModo(cfg.modo);
+    } else if (cfg.base === "ESE") {
+      setEseAmbito(cfg.ambito);
+      setEseExtra(cfg.extra);
+    } else if (cfg.base === "VISITA") {
+      setVisitaAmbito(cfg.ambito);
+    }
     setPanelForm({
       especialistaAtraccionId: (process as any).especialistaAtraccionId
         ? String((process as any).especialistaAtraccionId)
@@ -250,6 +285,9 @@ export default function ProcesoDetalle() {
         antecedentes: (process as any).investigacionLegal?.antecedentes || "",
         flagRiesgo: Boolean((process as any).investigacionLegal?.flagRiesgo),
         archivoAdjuntoUrl: (process as any).investigacionLegal?.archivoAdjuntoUrl || "",
+        notasPeriodisticas: (process as any).investigacionLegal?.notasPeriodisticas || "",
+        observacionesImss: (process as any).investigacionLegal?.observacionesImss || "",
+        semanasComentario: (process as any).investigacionLegal?.semanasComentario || "",
       },
       buroCredito: {
         estatus: (process as any).buroCredito?.estatus || "",
@@ -267,6 +305,9 @@ export default function ProcesoDetalle() {
     });
   }, [process]);
 
+  const iaDictamenCliente: any =
+    (process as any)?.investigacionLaboral?.iaDictamenCliente || null;
+
   const assignedCounts = useMemo(() => {
     const counts: Record<number, number> = {};
     (allProcesses as any[]).forEach((p: any) => {
@@ -282,6 +323,20 @@ export default function ProcesoDetalle() {
 
   const handleSavePanel = () => {
     if (!process) return;
+    const config: ProcesoConfig =
+      baseTipo === "ILA"
+        ? { base: "ILA", modo: ilaModo }
+        : baseTipo === "ESE"
+        ? { base: "ESE", ambito: eseAmbito, extra: eseExtra }
+        : baseTipo === "VISITA"
+        ? { base: "VISITA", ambito: visitaAmbito }
+        : baseTipo === "BURO"
+        ? { base: "BURO" }
+        : baseTipo === "LEGAL"
+        ? { base: "LEGAL" }
+        : { base: "SEMANAS" };
+    const tipoProducto = mapProcesoConfigToTipoProducto(config);
+
     updatePanelDetail.mutate({
       id: processId,
       especialistaAtraccionId: panelForm.especialistaAtraccionId
@@ -311,6 +366,7 @@ export default function ProcesoDetalle() {
         fechaRealizacion: panelForm.visitaDetalle.fechaRealizacion || undefined,
         enlaceReporteUrl: panelForm.visitaDetalle.enlaceReporteUrl || undefined,
       },
+      tipoProducto,
     });
   };
 
@@ -442,7 +498,90 @@ export default function ProcesoDetalle() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Proceso a realizar</p>
-              <p className="font-medium">{process.tipoProducto}</p>
+              <div className="space-y-2">
+                <select
+                  className="border rounded-md h-9 px-2 w-full text-sm"
+                  value={baseTipo}
+                  disabled={!canEditProcess || isClientAuth}
+                  onChange={(e) =>
+                    setBaseTipo(e.target.value as ProcesoBaseType)
+                  }
+                >
+                  {PROCESO_BASE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                {baseTipo === "ILA" && (
+                  <select
+                    className="border rounded-md h-8 px-2 w-full text-xs"
+                    value={ilaModo}
+                    disabled={!canEditProcess || isClientAuth}
+                    onChange={(e) =>
+                      setIlaModo(e.target.value as IlaModoType)
+                    }
+                  >
+                    <option value="NORMAL">
+                      Normal (sin buró ni legal)
+                    </option>
+                    <option value="BURO">Con buró de crédito</option>
+                    <option value="LEGAL">Con investigación legal</option>
+                  </select>
+                )}
+
+                {baseTipo === "ESE" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className="border rounded-md h-8 px-2 w-full text-xs"
+                      value={eseAmbito}
+                      disabled={!canEditProcess || isClientAuth}
+                      onChange={(e) =>
+                        setEseAmbito(e.target.value as AmbitoType)
+                      }
+                    >
+                      <option value="LOCAL">Local</option>
+                      <option value="FORANEO">Foráneo</option>
+                    </select>
+                    <select
+                      className="border rounded-md h-8 px-2 w-full text-xs"
+                      value={eseExtra}
+                      disabled={!canEditProcess || isClientAuth}
+                      onChange={(e) =>
+                        setEseExtra(
+                          e.target.value as "NINGUNO" | "BURO" | "LEGAL"
+                        )
+                      }
+                    >
+                      <option value="NINGUNO">Sin complemento</option>
+                      <option value="BURO">Con buró de crédito</option>
+                      <option value="LEGAL">
+                        Con investigación legal
+                      </option>
+                    </select>
+                  </div>
+                )}
+
+                {baseTipo === "VISITA" && (
+                  <select
+                    className="border rounded-md h-8 px-2 w-full text-xs"
+                    value={visitaAmbito}
+                    disabled={!canEditProcess || isClientAuth}
+                    onChange={(e) =>
+                      setVisitaAmbito(e.target.value as AmbitoType)
+                    }
+                  >
+                    <option value="LOCAL">Local</option>
+                    <option value="FORANEO">Foránea</option>
+                  </select>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Valor actual en BD:{" "}
+                  <span className="font-mono">{process.tipoProducto}</span>
+                </p>
+              </div>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Medio de recepción</p>
@@ -462,6 +601,17 @@ export default function ProcesoDetalle() {
                   <Save className="h-4 w-4 mr-1"/> Guardar
                 </Button>
               </div>
+              {!isClientAuth &&
+                iaDictamenCliente?.notaInternaAnalista &&
+                process.calificacionFinal &&
+                process.calificacionFinal !== "pendiente" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Nota IA para el analista:{" "}
+                    <span className="italic">
+                      {iaDictamenCliente.notaInternaAnalista}
+                    </span>
+                  </p>
+                )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Estatus</p>
@@ -579,7 +729,7 @@ export default function ProcesoDetalle() {
             <div className="border rounded p-3 bg-white shadow-sm">
               <div className="flex items-center gap-2 mb-2">
                 <Landmark className="h-4 w-4 text-indigo-600" />
-                <p className="font-semibold">Investigación Legal</p>
+                <p className="font-semibold">Investigación legal y documental</p>
               </div>
               <Label className="text-xs">Antecedentes</Label>
               <Input
@@ -591,6 +741,53 @@ export default function ProcesoDetalle() {
               <Input
                 value={panelForm.investigacionLegal.archivoAdjuntoUrl}
                 onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, archivoAdjuntoUrl: e.target.value } }))}
+                disabled={isClientAuth || !canEditProcess}
+              />
+              <Label className="text-xs mt-2">Notas periodísticas / búsqueda en medios</Label>
+              <Textarea
+                value={panelForm.investigacionLegal.notasPeriodisticas}
+                onChange={e =>
+                  setPanelForm(f => ({
+                    ...f,
+                    investigacionLegal: {
+                      ...f.investigacionLegal,
+                      notasPeriodisticas: e.target.value,
+                    },
+                  }))
+                }
+                rows={2}
+                disabled={isClientAuth || !canEditProcess}
+              />
+              <Label className="text-xs mt-2">Observaciones IMSS</Label>
+              <Textarea
+                value={panelForm.investigacionLegal.observacionesImss}
+                onChange={e =>
+                  setPanelForm(f => ({
+                    ...f,
+                    investigacionLegal: {
+                      ...f.investigacionLegal,
+                      observacionesImss: e.target.value,
+                    },
+                  }))
+                }
+                rows={2}
+                disabled={isClientAuth || !canEditProcess}
+              />
+              <Label className="text-xs mt-2">
+                Comentario sobre cotejo de semanas cotizadas
+              </Label>
+              <Textarea
+                value={panelForm.investigacionLegal.semanasComentario}
+                onChange={e =>
+                  setPanelForm(f => ({
+                    ...f,
+                    investigacionLegal: {
+                      ...f.investigacionLegal,
+                      semanasComentario: e.target.value,
+                    },
+                  }))
+                }
+                rows={2}
                 disabled={isClientAuth || !canEditProcess}
               />
               <div className="mt-2 flex items-center gap-2 text-sm">
@@ -937,6 +1134,7 @@ export default function ProcesoDetalle() {
                 <select name="tipoDocumento" id="tipoDocumento" className="mt-1 block w-full border rounded-md h-9 px-2">
                   <option value="DICTAMEN">Dictamen</option>
                   <option value="VISITA_EVIDENCIA">Evidencia de visita</option>
+                  <option value="SEMANAS_COTIZADAS">Cotejo semanas IMSS</option>
                   <option value="OTRO">Otro</option>
                 </select>
               </div>

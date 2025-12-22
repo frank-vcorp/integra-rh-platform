@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck } from "lucide-react";
+import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck, Sparkles } from "lucide-react";
 import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
+import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 
 /**
  * Vista de detalle de proceso para clientes
@@ -13,7 +14,7 @@ import { Loader2 } from "lucide-react";
 export default function ClienteProcesoDetalle() {
   const params = useParams();
   const procesoId = parseInt(params.id || "0");
-  const { clientId } = useClientAuth();
+  const { clientId, clientData } = useClientAuth();
 
   const { data: process, isLoading: processLoading } = trpc.processes.getById.useQuery({ id: procesoId });
   const { data: candidate } = trpc.candidates.getById.useQuery(
@@ -57,20 +58,6 @@ export default function ClienteProcesoDetalle() {
     entregado: "Entregado",
   };
 
-  const calificacionLabels: Record<string, string> = {
-    pendiente: "Pendiente",
-    recomendable: "Recomendable",
-    con_reservas: "Con Reservas",
-    no_recomendable: "No Recomendable",
-  };
-
-  const calificacionColors: Record<string, string> = {
-    pendiente: "text-gray-600",
-    recomendable: "text-green-600",
-    con_reservas: "text-yellow-600",
-    no_recomendable: "text-red-600",
-  };
-
   const blocks = [
     {
       key: "investigacionLaboral",
@@ -90,7 +77,10 @@ export default function ClienteProcesoDetalle() {
       data: (process as any)?.investigacionLegal as any,
       render: (d: any) => ({
         estado: d?.antecedentes || "Sin antecedentes registrados",
-        detalle: d?.flagRiesgo ? "Con riesgo" : undefined,
+        detalle:
+          d?.flagRiesgo
+            ? "Con riesgo"
+            : d?.notasPeriodisticas || d?.observacionesImss || undefined,
         link: d?.archivoAdjuntoUrl,
         flag: d ? "en curso" : "pendiente",
       }),
@@ -135,6 +125,16 @@ export default function ClienteProcesoDetalle() {
   };
 
   const avance = calcAvance();
+
+  const iaDictamenCliente: any =
+    (process as any)?.investigacionLaboral?.iaDictamenCliente || null;
+
+  const puedeVerIa =
+    !!clientData?.iaSuggestionsEnabled &&
+    !!iaDictamenCliente &&
+    process.calificacionFinal &&
+    process.calificacionFinal !== "pendiente" &&
+    process.calificacionFinal !== "no_recomendable";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -235,8 +235,12 @@ export default function ClienteProcesoDetalle() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-6">
-              <p className={`text-4xl font-bold ${calificacionColors[process.calificacionFinal || 'pendiente']}`}>
-                {calificacionLabels[process.calificacionFinal || 'pendiente']}
+              <p
+                className={`text-4xl font-bold ${getCalificacionTextClass(
+                  process.calificacionFinal,
+                )}`}
+              >
+                {getCalificacionLabel(process.calificacionFinal)}
               </p>
               {process.calificacionFinal === 'pendiente' && (
                 <p className="text-sm text-gray-500 mt-2">
@@ -246,6 +250,46 @@ export default function ClienteProcesoDetalle() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Resumen IA para el Cliente (opcional) */}
+        {puedeVerIa && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-blue-600" />
+                Sugerencias de IA sobre este proceso
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {iaDictamenCliente.resumenEjecutivoCliente && (
+                <p className="text-sm text-gray-700">
+                  {iaDictamenCliente.resumenEjecutivoCliente}
+                </p>
+              )}
+              {Array.isArray(iaDictamenCliente.recomendacionesCliente) &&
+                iaDictamenCliente.recomendacionesCliente.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 mb-1">
+                      Recomendaciones para su seguimiento:
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+                      {iaDictamenCliente.recomendacionesCliente.map(
+                        (rec: string, idx: number) => (
+                          <li key={idx}>{rec}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+              <p className="text-xs text-gray-500">
+                Este resumen fue generado automáticamente a partir de la
+                información revisada por el equipo de Integra RH y está pensado
+                como apoyo para interpretar el dictamen humano, no para
+                reemplazarlo.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Avance y bloques de investigación (solo lectura) */}
         <Card>

@@ -36,8 +36,11 @@ import {
   InsertRolePermission,
   userRoles,
   InsertUserRole,
+  candidateSelfTokens,
+  InsertCandidateSelfToken,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { randomBytes } from "crypto";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -500,12 +503,19 @@ export async function getCandidateByPsicoClave(clave: string) {
   const db = await getDb();
   if (!db) return undefined;
   // Uso de SQL nativo para JSON_EXTRACT
-  const rows: any = await (db as any).execute(
+  const raw: any = await (db as any).execute(
     sql`SELECT * FROM candidates WHERE JSON_EXTRACT(psicometricos, '$.clavePsicometricas') = ${clave} LIMIT 1`
   );
-  // drizzle-mysql2 devuelve diferente forma según driver; normalizamos
-  const arr = Array.isArray(rows) ? rows : rows[0];
-  return arr && arr.length > 0 ? (arr[0] as any) : undefined;
+
+  // drizzle-mysql2 puede devolver:
+  // - rows[]
+  // - [rows[], fields]
+  // Normalizamos para obtener siempre rows[]
+  const rows: any[] = Array.isArray(raw)
+    ? (Array.isArray(raw[0]) ? raw[0] : raw)
+    : (Array.isArray(raw?.[0]) ? raw[0] : raw?.rows);
+
+  return Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : undefined;
 }
 
 export async function createCandidate(data: InsertCandidate) {
@@ -528,6 +538,57 @@ export async function deleteCandidate(id: number) {
 }
 
 // ============================================================================
+// TOKENS SELF-SERVICE DE CANDIDATO
+// ============================================================================
+
+export async function createCandidateSelfToken(candidateId: number, ttlHours = 6) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
+
+  // Revocar tokens anteriores activos de este candidato
+  await db
+    .update(candidateSelfTokens)
+    .set({ revoked: true })
+    .where(eq(candidateSelfTokens.candidateId, candidateId));
+
+  const [result] = await db
+    .insert(candidateSelfTokens)
+    .values({
+      candidateId,
+      token,
+      expiresAt,
+      revoked: false,
+    } as InsertCandidateSelfToken)
+    .execute();
+
+  const id = (result as any).insertId as number;
+  return { id, token, expiresAt };
+}
+
+export async function getCandidateSelfToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(candidateSelfTokens)
+    .where(eq(candidateSelfTokens.token, token))
+    .limit(1);
+  return rows[0] ?? undefined;
+}
+
+export async function touchCandidateSelfTokenUsed(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(candidateSelfTokens)
+    .set({ usedAt: new Date() })
+    .where(eq(candidateSelfTokens.id, id));
+}
+
+// ============================================================================
 // HISTORIAL LABORAL
 // ============================================================================
 
@@ -535,6 +596,17 @@ export async function getWorkHistoryByCandidate(candidatoId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(workHistory).where(eq(workHistory.candidatoId, candidatoId)).orderBy(desc(workHistory.createdAt));
+}
+
+export async function getWorkHistoryById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(workHistory)
+    .where(eq(workHistory.id, id))
+    .limit(1);
+  return rows[0] ?? undefined;
 }
 
 export async function createWorkHistory(data: InsertWorkHistory) {
@@ -629,6 +701,25 @@ export async function getNextConsecutive(
       )
     );
   
+  const max = result[0]?.maxConsecutivo;
+  return max ? max + 1 : 1;
+}
+
+// Consecutivo por prefijo de clave (p.ej. ESE/ILA/VISITA) y año.
+// Importante: la clave usa prefijo (ESE-YYYY-NNN) pero `tipoProducto` puede variar
+// (ESE LOCAL/ESE FORANEO), por lo que el consecutivo no puede calcularse solo por tipo.
+export async function getNextConsecutiveByClavePrefix(prefix: string, year: number) {
+  const db = await getDb();
+  if (!db) return 1;
+
+  const safePrefix = prefix.trim().toUpperCase();
+  const likePattern = `${safePrefix}-${year}-%`;
+
+  const result = await db
+    .select({ maxConsecutivo: sql<number>`MAX(${processes.consecutivo})` })
+    .from(processes)
+    .where(sql`${processes.clave} LIKE ${likePattern}`);
+
   const max = result[0]?.maxConsecutivo;
   return max ? max + 1 : 1;
 }

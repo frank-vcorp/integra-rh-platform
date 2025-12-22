@@ -7,7 +7,8 @@ import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
 import { ESTATUS_INVESTIGACION_LABELS, EstatusInvestigacionType } from "@/lib/constants";
-import { calcularTiempoTrabajado } from "@/lib/dateUtils";
+import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
+import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 
 const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
   en_revision: "bg-yellow-100 text-yellow-800",
@@ -25,7 +26,7 @@ const getInvestigacionClass = (estatus?: string) =>
     ? INVESTIGACION_BADGE[estatus as EstatusInvestigacionType]
     : INVESTIGACION_BADGE["en_revision"];
 
-const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("es-MX") : "-");
+const formatDate = (value?: string | null) => (value ? formatearFecha(value) : "-");
 
 /**
  * Vista de detalle de candidato para clientes
@@ -37,13 +38,8 @@ export default function ClienteCandidatoDetalle() {
   const { clientId } = useClientAuth();
 
   const { data: candidate, isLoading: candidateLoading } = trpc.candidates.getById.useQuery({ id: candidatoId });
-  const { data: allProcesses = [] } = trpc.processes.list.useQuery();
+  const { data: candidateProcesses = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId });
   const { data: workHistory = [], isLoading: workHistoryLoading } = trpc.workHistory.getByCandidate.useQuery({ candidatoId });
-  
-  // Filtrar procesos del candidato que pertenecen al cliente
-  const candidateProcesses = allProcesses.filter(
-    p => p.candidatoId === candidatoId && p.clienteId === clientId
-  );
 
   if (candidateLoading) {
     return (
@@ -170,18 +166,12 @@ export default function ClienteCandidatoDetalle() {
                           
                           <div>
                             <p className="text-gray-600">Calificación</p>
-                            <p className={`font-medium ${
-                              process.calificacionFinal === 'recomendable'
-                                ? 'text-green-600'
-                                : process.calificacionFinal === 'no_recomendable'
-                                ? 'text-red-600'
-                                : process.calificacionFinal === 'con_reservas'
-                                ? 'text-yellow-600'
-                                : 'text-gray-400'
-                            }`}>
-                              {process.calificacionFinal === 'pendiente' 
-                                ? 'Pendiente' 
-                                : process.calificacionFinal?.replace(/_/g, ' ').toUpperCase()}
+                            <p
+                              className={`font-medium ${getCalificacionTextClass(
+                                process.calificacionFinal,
+                              )}`}
+                            >
+                              {getCalificacionLabel(process.calificacionFinal)}
                             </p>
                           </div>
                           

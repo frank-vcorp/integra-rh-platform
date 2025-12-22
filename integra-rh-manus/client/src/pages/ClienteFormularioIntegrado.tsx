@@ -13,7 +13,15 @@ import { trpc } from "@/lib/trpc";
 import { Building2, Users, Briefcase, FileText, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TIPOS_PROCESO, TipoProcesoType } from "@/lib/constants";
+import { TipoProcesoType } from "@/lib/constants";
+import {
+  AmbitoType,
+  IlaModoType,
+  PROCESO_BASE_OPTIONS,
+  ProcesoBaseType,
+  ProcesoConfig,
+  mapProcesoConfigToTipoProducto,
+} from "@/lib/procesoTipo";
 import { useLocation } from "wouter";
 import { Separator } from "@/components/ui/separator";
 
@@ -23,6 +31,13 @@ export default function ClienteFormularioIntegrado() {
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [candidatoId, setCandidatoId] = useState<number | null>(null);
   const [puestoId, setPuestoId] = useState<number | null>(null);
+  const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
+  const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
+  const [eseAmbito, setEseAmbito] = useState<AmbitoType>("LOCAL");
+  const [eseExtra, setEseExtra] = useState<"NINGUNO" | "BURO" | "LEGAL">(
+    "NINGUNO"
+  );
+  const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
 
   const utils = trpc.useUtils();
 
@@ -83,7 +98,6 @@ export default function ClienteFormularioIntegrado() {
       contacto: formData.get("contacto") as string || undefined,
       email: formData.get("email") as string || undefined,
       telefono: formData.get("telefono") as string || undefined,
-      ubicacionPlaza: formData.get("ubicacionPlaza") as string || undefined,
     });
   };
 
@@ -110,9 +124,24 @@ export default function ClienteFormularioIntegrado() {
 
   const handleProcessSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const config: ProcesoConfig =
+      baseTipo === "ILA"
+        ? { base: "ILA", modo: ilaModo }
+        : baseTipo === "ESE"
+        ? { base: "ESE", ambito: eseAmbito, extra: eseExtra }
+        : baseTipo === "VISITA"
+        ? { base: "VISITA", ambito: visitaAmbito }
+        : baseTipo === "BURO"
+        ? { base: "BURO" }
+        : baseTipo === "LEGAL"
+        ? { base: "LEGAL" }
+        : { base: "SEMANAS" };
+
+    const tipoProducto: TipoProcesoType = mapProcesoConfigToTipoProducto(
+      config
+    );
     createProcessMutation.mutate({
-      tipoProducto: formData.get("tipoProducto") as TipoProcesoType,
+      tipoProducto,
       clienteId: clienteId!,
       candidatoId: candidatoId!,
       puestoId: puestoId!,
@@ -206,14 +235,6 @@ export default function ClienteFormularioIntegrado() {
                     id="telefono"
                     name="telefono"
                     placeholder="(55) 1234-5678"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="ubicacionPlaza">Ubicación / Plaza</Label>
-                  <Input
-                    id="ubicacionPlaza"
-                    name="ubicacionPlaza"
-                    placeholder="Ciudad, estado"
                   />
                 </div>
               </div>
@@ -339,16 +360,110 @@ export default function ClienteFormularioIntegrado() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <Label>Proceso a Realizar *</Label>
-                  <Select name="tipoProducto" defaultValue="ILA" required>
+                  <Select
+                    value={baseTipo}
+                    onValueChange={(v) => setBaseTipo(v as ProcesoBaseType)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_PROCESO.map((tipo) => (
-                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                      {PROCESO_BASE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {baseTipo === "ILA" && (
+                    <div className="mt-3 space-y-1">
+                      <Label className="text-xs">Modalidad ILA</Label>
+                      <Select
+                        value={ilaModo}
+                        onValueChange={(v) => setIlaModo(v as IlaModoType)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NORMAL">
+                            Normal (sin buró ni legal)
+                          </SelectItem>
+                          <SelectItem value="BURO">
+                            Con buró de crédito
+                          </SelectItem>
+                          <SelectItem value="LEGAL">
+                            Con investigación legal
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {baseTipo === "ESE" && (
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ámbito</Label>
+                        <Select
+                          value={eseAmbito}
+                          onValueChange={(v) => setEseAmbito(v as AmbitoType)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOCAL">Local</SelectItem>
+                            <SelectItem value="FORANEO">Foráneo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Complemento</Label>
+                        <Select
+                          value={eseExtra}
+                          onValueChange={(v) =>
+                            setEseExtra(v as "NINGUNO" | "BURO" | "LEGAL")
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NINGUNO">
+                              Sin complemento
+                            </SelectItem>
+                            <SelectItem value="BURO">
+                              Con buró de crédito
+                            </SelectItem>
+                            <SelectItem value="LEGAL">
+                              Con investigación legal
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  {baseTipo === "VISITA" && (
+                    <div className="mt-3 space-y-1">
+                      <Label className="text-xs">Ámbito de visita</Label>
+                      <Select
+                        value={visitaAmbito}
+                        onValueChange={(v) =>
+                          setVisitaAmbito(v as AmbitoType)
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOCAL">Local</SelectItem>
+                          <SelectItem value="FORANEO">Foránea</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg space-y-2">

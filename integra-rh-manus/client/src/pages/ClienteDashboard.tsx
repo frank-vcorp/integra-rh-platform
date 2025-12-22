@@ -19,10 +19,11 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { ESTATUS_INVESTIGACION_LABELS, EstatusInvestigacionType } from "@/lib/constants";
-import { calcularTiempoTrabajado } from "@/lib/dateUtils";
+import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Link } from "wouter";
 import { Loader2 } from "lucide-react";
+import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 
 /**
  * Dashboard para clientes empresariales
@@ -223,19 +224,13 @@ export default function ClienteDashboard() {
                             </span>
                           </TableCell>
                           <TableCell>
-                            {process.calificacionFinal === 'pendiente' ? (
-                              <span className="text-gray-400">Pendiente</span>
-                            ) : (
-                              <span className={`font-medium ${
-                                process.calificacionFinal === 'recomendable'
-                                  ? 'text-green-600'
-                                  : process.calificacionFinal === 'no_recomendable'
-                                  ? 'text-red-600'
-                                  : 'text-yellow-600'
-                              }`}>
-                                {process.calificacionFinal?.replace(/_/g, ' ').toUpperCase()}
-                              </span>
-                            )}
+                            <span
+                              className={`font-medium ${getCalificacionTextClass(
+                                process.calificacionFinal,
+                              )}`}
+                            >
+                              {getCalificacionLabel(process.calificacionFinal)}
+                            </span>
                           </TableCell>
                           <TableCell>
                             {new Date(process.fechaRecepcion).toLocaleDateString('es-MX')}
@@ -401,8 +396,8 @@ function WorkHistoryPreview({ candidatoId }: { candidatoId: number }) {
                 <p className="font-semibold text-gray-900">{job.empresa}</p>
                 <p>{job.puesto || "—"}</p>
                 <p className="text-xs text-gray-500">
-                  {job.fechaInicio ? new Date(job.fechaInicio).toLocaleDateString("es-MX") : "—"} -{" "}
-                  {job.fechaFin ? new Date(job.fechaFin).toLocaleDateString("es-MX") : "Actual"} •{" "}
+                  {job.fechaInicio ? formatearFecha(job.fechaInicio) : "—"} -{" "}
+                  {job.fechaFin ? formatearFecha(job.fechaFin) : "Actual"} •{" "}
                   {job.tiempoTrabajado || calcularTiempoTrabajado(job.fechaInicio, job.fechaFin) || "Tiempo no disponible"}
                 </p>
               </div>

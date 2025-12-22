@@ -2,6 +2,24 @@
  * Utilidades para cálculos de fechas
  */
 
+function parseWorkDate(value?: string): Date | null {
+  if (!value) return null;
+
+  // Soportar YYYY, YYYY-MM y YYYY-MM-DD
+  if (/^\d{4}$/.test(value)) {
+    const d = new Date(`${value}-01-01`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  if (/^\d{4}-\d{2}$/.test(value)) {
+    const d = new Date(`${value}-01`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 /**
  * Calcula el tiempo trabajado entre dos fechas
  * @param fechaInicio Fecha de inicio en formato YYYY-MM-DD
@@ -13,11 +31,11 @@ export function calcularTiempoTrabajado(fechaInicio?: string, fechaFin?: string)
     return "";
   }
 
-  const inicio = new Date(fechaInicio);
-  const fin = fechaFin ? new Date(fechaFin) : new Date();
+  const inicio = parseWorkDate(fechaInicio);
+  const fin = fechaFin ? parseWorkDate(fechaFin) : new Date();
 
   // Validar fechas
-  if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
+  if (!inicio || !fin || isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
     return "";
   }
 
@@ -60,12 +78,22 @@ export function calcularTiempoTrabajado(fechaInicio?: string, fechaFin?: string)
 export function formatearFecha(fecha?: string | Date): string {
   if (!fecha) return "";
   
-  const date = typeof fecha === 'string' ? new Date(fecha) : fecha;
-  if (isNaN(date.getTime())) return "";
+  const date = typeof fecha === "string" ? (parseWorkDate(fecha) ?? null) : fecha;
+  if (!date || isNaN(date.getTime())) return "";
 
   const meses = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   return `${meses[date.getMonth()]} ${date.getFullYear()}`;

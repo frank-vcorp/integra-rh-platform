@@ -28,6 +28,7 @@ import ClienteCandidatoDetalle from "./pages/ClienteCandidatoDetalle";
 import Visitas from "./pages/Visitas";
 import { ConsentPage } from "./pages/ConsentPage";
 import SearchResults from "./pages/SearchResults";
+import CandidatoSelfService from "./pages/CandidatoSelfService";
 
 import LoginPage from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -44,6 +45,8 @@ function Router() {
     <Switch>
       {/* Public consent route */}
       <Route path="/consentir/:token" component={ConsentPage} />
+      {/* Public candidate self-service route */}
+      <Route path="/pre-registro/:token" component={CandidatoSelfService} />
 
       {/* Public client access routes */}
       <Route path="/cliente/dashboard" component={ClienteDashboard} />

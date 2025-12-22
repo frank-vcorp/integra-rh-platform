@@ -121,10 +121,32 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html,
   body {
     @apply bg-background text-foreground;
+    text-transform: uppercase;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Excepciones: no transformar valores capturados ni texto sensible. */
+  input,
+  textarea,
+  code,
+  pre,
+  kbd,
+  samp,
+  .no-uppercase {
+    text-transform: none;
+  }
+
+  /* Tailwind preflight pone `text-transform: none` en button/select: re-heredar. */
+  button,
+  [role="button"],
+  a,
+  select,
+  option {
+    text-transform: inherit !important;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold;
@@ -139,6 +161,15 @@
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
+  }
+}
+
+@layer utilities {
+  /* Neutraliza utilidades que vuelven a minúsculas/capitalización. */
+  .lowercase,
+  .capitalize,
+  .normal-case {
+    text-transform: inherit !important;
   }
 }
 

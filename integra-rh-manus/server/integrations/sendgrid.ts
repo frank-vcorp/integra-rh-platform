@@ -103,11 +103,12 @@ export async function enviarInvitacionPsicometrica(params: {
       display: inline-block; 
       padding: 12px 30px; 
       background: #2563eb; 
-      color: white; 
+      color: #ffffff !important;
       text-decoration: none; 
       border-radius: 5px;
       margin: 20px 0;
     }
+    a.button, a.button:visited, a.button:hover, a.button:active { color: #ffffff !important; }
     .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
   </style>
 </head>
@@ -125,7 +126,7 @@ export async function enviarInvitacionPsicometrica(params: {
       <p>Como parte del proceso, te invitamos a completar una batería de pruebas psicométricas. Este proceso tomará aproximadamente 45-60 minutos.</p>
       
       <p style="text-align: center;">
-        <a href="${params.invitacionUrl}" class="button">Iniciar Evaluación</a>
+        <a href="${params.invitacionUrl}" class="button" style="color:#ffffff !important;">Iniciar Evaluación</a>
       </p>
       
       <p><strong>Instrucciones importantes:</strong></p>

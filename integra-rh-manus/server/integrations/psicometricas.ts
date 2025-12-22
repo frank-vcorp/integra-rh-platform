@@ -3,6 +3,8 @@
  * Documentación: Ver /context/Fichas_tecnicas/psicometricas API/
  */
 
+import https from "https";
+
 const PSICOMETRICAS_API_URL = "https://admin.psicometricas.mx/api";
 const PSICOMETRICAS_TOKEN = process.env.PSICOMETRICAS_TOKEN || "";
 const PSICOMETRICAS_PASSWORD = process.env.PSICOMETRICAS_PASSWORD || "";
@@ -27,6 +29,111 @@ interface ResultadoPsicometrico {
   pdfUrl?: string;
 }
 
+function truncateForLog(input: string, maxLen = 400) {
+  const text = (input || "").toString();
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + "…";
+}
+
+function looksLikeCloudflareChallenge(body: string) {
+  const t = (body || "").toLowerCase();
+  return (
+    t.includes("one moment, please") ||
+    t.includes("your request is being verified") ||
+    t.includes("cf-browser-verification") ||
+    t.includes("cloudflare")
+  );
+}
+
+async function requestFormEncoded(
+  path: string,
+  form: URLSearchParams,
+  method: "POST" | "PUT" = "POST"
+): Promise<{ status: number; body: string }> {
+  const body = form.toString();
+  const url = new URL(`${PSICOMETRICAS_API_URL}${path}`);
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: url.hostname,
+        path: url.pathname + url.search,
+        protocol: url.protocol,
+        method,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(body),
+          Accept: "application/json, text/plain, */*",
+          "Accept-Language": "es-MX,es;q=0.9,en;q=0.8",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+          // Algunos WAF/anti-bot bloquean requests sin User-Agent.
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      },
+      res => {
+        const chunks: Buffer[] = [];
+        res.on("data", c => chunks.push(c as Buffer));
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf-8");
+          // Si la respuesta parece challenge HTML (Cloudflare), devolvemos el body
+          // para que el caller emita un mensaje de error más claro y sin volcar HTML completo.
+          resolve({ status: res.statusCode ?? 0, body: text });
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function postFormEncoded(
+  path: string,
+  form: URLSearchParams
+): Promise<{ status: number; body: string }> {
+  return requestFormEncoded(path, form, "POST");
+}
+
+/**
+ * Actualiza pruebas de un candidato existente (misma Clave)
+ * Doc: PUT /actualizaCandidato
+ */
+export async function actualizaCandidatoPruebas(params: {
+  clave: string;
+  nombre: string;
+  email: string;
+  testsCsv: string;
+  vacante?: string;
+  lang?: "Mx" | "Es";
+}): Promise<{ success: boolean }> {
+  try {
+    const form = new URLSearchParams();
+    form.set("Token", PSICOMETRICAS_TOKEN);
+    form.set("Password", PSICOMETRICAS_PASSWORD);
+    form.set("Clave", params.clave);
+    form.set("Candidate", params.nombre);
+    if (params.email) form.set("Email", params.email);
+    if (params.vacante) form.set("Vacancy", params.vacante);
+    form.set("Tests", params.testsCsv);
+    if (params.lang) form.set("Lang", params.lang);
+
+    const { status, body } = await requestFormEncoded(
+      "/actualizaCandidato",
+      form,
+      "PUT"
+    );
+    if (status !== 200) {
+      throw new Error(`Error al actualizar candidato (Psicométricas): ${body}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("[Psicométricas] Error al actualizar candidato:", error);
+    throw error;
+  }
+}
+
 /**
  * Asigna una batería de pruebas psicométricas a un candidato
  */
@@ -43,18 +150,41 @@ export async function asignarBateriaPsicometrica(
     form.set("Tests", params.testsCsv);
     if (params.bateria) form.set("Battery", params.bateria);
 
-    const response = await fetch(`${PSICOMETRICAS_API_URL}/agregaCandidato`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString(),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Error API Psicométricas: ${error}`);
+    const { status, body } = await postFormEncoded("/agregaCandidato", form);
+    if (looksLikeCloudflareChallenge(body)) {
+      throw new Error(
+        `Error API Psicométricas: el proveedor devolvió un challenge HTML (Cloudflare/WAF). ` +
+          `Esto requiere whitelist de IP de salida (ideal: IP estática vía Cloud NAT) o que el proveedor desactive el challenge para /api. ` +
+          `Respuesta (truncada): ${truncateForLog(body)}`
+      );
     }
-    const data = await response.json();
-    const clave = data.clave as string;
+    if (status !== 200) {
+      throw new Error(`Error API Psicométricas: ${truncateForLog(body)}`);
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      throw new Error(
+        `Error API Psicométricas (JSON inválido). Respuesta (truncada): ${truncateForLog(
+          body
+        )}`
+      );
+    }
+    const clave = (data as any)?.clave as string | undefined;
+
+    // Si la API responde 200 pero no entrega una clave, tratamos el caso como error
+    // para que el frontend vea el detalle y no se marque "Asignado" sin poder rastrear.
+    if (!clave) {
+      console.error("[Psicométricas] Respuesta sin clave válida:", data);
+      throw new Error(
+        `[Psicométricas] Respuesta sin clave. Verifica Token/Password, Tests y vacante. Respuesta cruda: ${JSON.stringify(
+          data
+        )}`
+      );
+    }
+
     const invitacionUrl = `https://evaluacion.psicometrica.mx/login/${clave}`;
     return { id: clave, invitacionUrl };
   } catch (error) {
@@ -74,12 +204,15 @@ export async function reenviarInvitacion(
     form.set("Token", PSICOMETRICAS_TOKEN);
     form.set("Password", PSICOMETRICAS_PASSWORD);
     form.set("Clave", asignacionId);
-    const response = await fetch(`${PSICOMETRICAS_API_URL}/reenviarInvitacion`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString(),
-    });
-    if (!response.ok) throw new Error("Error al reenviar invitación");
+    const { status, body } = await postFormEncoded(
+      "/reenviarInvitacion",
+      form
+    );
+    if (status !== 200) {
+      throw new Error(
+        `Error al reenviar invitación (Psicométricas): ${body}`
+      );
+    }
     return { success: true };
   } catch (error) {
     console.error("[Psicométricas] Error al reenviar invitación:", error);

@@ -38,6 +38,10 @@
   - `[✓]` Crear proceso (endpoint + UI)
 - `[✓]` PVM-INT-API-01: Psicométricas — asignar/reenviar/consultar (tRPC)
 - `[✓]` PVM-INT-API-02: Email — invitación psicométrica (tRPC)
+- `[✓]` PVM-INT-API-03: Reenviar invitación psicométrica por email (SendGrid)
+  - *Decisión:* el reenvío se hace **solo por SendGrid** (sin llamar al endpoint `/reenviarInvitacion` del proveedor) para ahorrar peticiones y centralizar el canal.
+  - *Implementación:* se almacena `psicometricos.invitacionUrl` al asignar; el reenvío usa esa URL o la reconstruye con la clave.
+  - *Criterio de aceptación:* al presionar “Reenviar invitación”, se intenta enviar correo SendGrid y el candidato lo recibe (asumiendo `from` verificado).
 - `[✓]` PVM-WHB-01: Webhook Psicométricas `POST /api/webhooks/psicometricas`
 
 ### PVM - Autenticación
@@ -62,6 +66,7 @@
  - `[✓]` PVM-WEB-06: Bitácora de candidato (comentarios)
  - `[✓]` PVM-WEB-07: UI Psicométricas (asignar/reenviar/ver resultados)
  - `[✓]` PVM-WEB-08: Envío de invitaciones (email)
+ - `[✓]` PVM-WEB-09: Self-Service — Botón Guardar Borrador y Sticky Header (UX)
 
 ### PVM - Tareas Transversales
  - `[✓]` PVM-OBS-01: Logger estructurado y requestId — SPEC: `context/SPEC-PVM-OBS-01.md`
@@ -75,32 +80,64 @@
 
 ### UI-REF: Refinamiento de UI/UX
  - `[✓]` UI-REF-01: Implementar Sistema de Diseño (shadcn/ui + Tremor) — SPEC: `context/SPEC-UI-REF-01.md`
+ - `[✓]` UI-REF-02: Normalización visual a MAYÚSCULAS (global)
+ - `[✓]` UI-REF-03: Ajuste etiqueta ILA → “INVESTIGACIÓN LABORAL”
 
 ### PVM - Dashboard Clientes (Nuevo)
  - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
  - `[✓]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Incluye portal de cliente por enlace con branding Sinergia RH.
 
-**Estado Actual (21/11/2025)**
+**Estado Actual (18/12/2025)**
 
+- **Incidente Resuelto:** El bloqueo de WAF (Cloudflare) en integración con Psicométricas fue temporal y se ha restablecido el servicio.
+  - Solucionado error 500 "Candidato sin email" (normalización DB).
+  - Corregido estilo de botón en correos (texto blanco).
+  - Mejorado manejo de errores en integración Psicométricas (detección de HTML/WAF).
+  - UI: normalización visual a MAYÚSCULAS (con excepciones en campos de entrada).
+  - UI: override de preflight/utilidades para que menú/botones/selects hereden MAYÚSCULAS.
+  - UI: etiqueta ILA ajustada a “ILA (INVESTIGACION LABORAL)”.
+  - UI: normalización de visualización para registros históricos: “Integral de antecedentes” → “Investigacion Laboral”.
+  - UI: Flujo Rápido (Candidato → Proceso) permite agregar Cliente y Plazas (alta de plaza desde Plaza/CEDI).
+  - UI: Listado de Procesos soporta ordenamiento por Fecha de Recepción.
+  - Build: se desbloquea build Vite al agregar `rollup` (evita deploy de artefactos stale).
+  - UI: CandidatoDetalle corrige crash en consentimiento (`buildConsentUrl` indefinido) al abrir detalles.
+  - API: Se agregó logging de errores tRPC con `requestId` y se endureció `workHistory.generateIaDictamen` para evitar 500 no transformables (Mini dictamen IA).
+  - **Mini Dictamen IA (19 dic):** Mapeo automático de `esRecomendable` (conclusión) → `resultadoVerificacion` (tabla). Botón mini dictamen deshabilitado hasta `estatusInvestigacion="terminado"`. Tooltip dinámico guía al usuario. Flujo manual: marcar como "FINALIZADO" → habilita botón → presionar genera mini dictamen analizando toda la info del empleo.
+  - UI: Listado de Candidatos agrega columna **Fecha registro** (usa `createdAt`) y permite ordenamiento.
+  - UI: CandidatoDetalle agrega acción **Editar autocaptura** (abre Self-Service) y hace más visible el bloque de estado/revisión.
+  - UI: CandidatoDetalle muestra tooltips aunque el botón esté deshabilitado (ej. “Aún no hay captura para revisar”).
+  - UI: CandidatoDetalle en “Perfil extendido” muestra % de completitud y oculta secciones/campos vacíos.
+- **Hosting:** `https://integra-rh.web.app/` operativo.
 - Hosting activo en `https://integra-rh.web.app/` sirviendo `integra-rh-manus/dist/public`; CORS habilitado para ese dominio.
 - Autenticación: logout limpia Firebase + sesión local y redirige al login; login refresca ID token tras Google/password.
 - Backend: contexto auth tolerante a fallos de DB y crea usuario efímero con claims; soporte Cloud Run (socket `/cloudsql/...`) y Dockerfile multistage.
 - Build: `pnpm run build` usa `NODE_ENV=production`; `firebase.json` apunta a `dist/public`.
 - Se mantienen: invitaciones #WhatsApp, SendGrid operativo, Admin SDK configurado, migración `users.whatsapp` aplicada.
 - Portal de Cliente: acceso mediante enlace con token (`clientAccessTokens` + `clientPortal.listDataByToken`), dashboard resumido por procesos/candidatos y branding principal Sinergia RH (Soportado por Integra-RH).
-- Despliegue: servicio `api` actualizado en Cloud Run (rev api-00016-x9j) y hosting en `https://integra-rh.web.app/` consumiendo esa API.
+- Portal de Cliente: `candidates.getById` permite ver expediente completo con `ClientToken` (evita 403 por permisos internos en enlaces compartidos).
 
 **Cambios Clave**
 
+- `server/db.ts`: Fix normalización `execute` para `getCandidateByPsicoClave` (evita error 500 por email undefined).
+- `server/integrations/sendgrid.ts`: Estilos `!important` para botones de correo (texto blanco).
+- `server/integrations/psicometricas.ts`: Headers anti-bot y detección de WAF.
 - `client/src/_core/hooks/useAuth.ts`: logout sincroniza Firebase, limpia tokens cliente y redirige.
 - `client/src/components/DashboardLayout.tsx`: botón de salir en móvil/desktop, menú admin por defecto hasta conocer rol.
 - `client/src/pages/Login.tsx`: usa `AuthContext` (Firebase), refresca idToken en Google y password.
 - `server/_core/context.ts`: auth resiliente; cae a user efímero con claims si falla DB.
 - `server/_core/index.ts`: CORS para `https://integra-rh.web.app`.
+- `server/_core/index.ts`: Propaga `x-request-id` como header de respuesta (correlación navegador ↔ logs Cloud Run).
+- `server/_core/index.ts`: Log estructurado de errores tRPC (incluye `requestId`) para diagnóstico de 500.
+- `server/routers/workHistory.ts`: Hardening en generación de mini dictamen IA (manejo de errores y logging) para evitar fallas no transformables en el cliente.
+- `integra-rh-manus/client/src/pages/Candidatos.tsx`: Columna “Fecha registro” (campo `createdAt`) y sort en listado.
+- `integra-rh-manus/client/src/pages/CandidatoDetalle.tsx`: Botón “Editar autocaptura” (abre Self-Service) y visibilidad del bloque “Estado de la captura”.
 - `server/routers/auth.ts`: `logout` no-op para compatibilidad con el hook.
 - `server/db.ts`: detección Cloud Run con pool por socket `/cloudsql/integra-rh:us-central1:integra-rh-v2-db-dev`; TCP local.
 - `firebase.json`: hosting desde `integra-rh-manus/dist/public`.
 - `package.json`: build con `NODE_ENV=production`; nuevo `Dockerfile` multistage para Cloud Run.
+- `integra-rh-manus/package.json`: añade `rollup` como `devDependency` para asegurar `pnpm run build`.
+- `integra-rh-manus/client/src/index.css`: `text-transform: uppercase` global (con excepciones para inputs/código).
+- `integra-rh-manus/client/src/lib/procesoTipo.ts`: “ILA (INVESTIGACION LABORAL)”.
 - Migración y soporte WhatsApp siguen en `drizzle/0012_tan_ezekiel_stane.sql` y `scripts/fix-users-whatsapp.ts`.
 - `integra-rh-manus/scripts/seed-demo.ts`: genera/actualiza dataset demo (cliente Sycom, puesto, candidato con psico JSON/PDF y proceso completo) usando el correo `frank.saavedra.marin@gmail.com`.
 
@@ -115,8 +152,9 @@
 
 - Verificar en Firebase Console que esté habilitado Google Sign-in (Auth → Sign-in method → Google) si se usará.
 - Validar end-to-end: login/logout en `https://integra-rh.web.app/` y flujo de invitación (correo + WA).
+- Re-deploy Hosting tras build exitoso: `cd integra-rh-manus && pnpm run build` y luego `firebase deploy --only hosting` (para que sirva los nuevos assets hasheados).
 - Opcional: máscara/validación visual para WhatsApp; por ahora flexible (placeholder `+52XXXXXXXXXX`).
-- Opcional: botón de “Reenviar invitación” que reutilice el reset link.
+- Reenvío de invitación: hoy el botón “Reenviar invitación” reenvía vía proveedor Psicométricas (endpoint `/reenviarInvitacion`) y no por SendGrid; si se espera reenvío por correo INTEGRA, implementar `PVM-INT-API-03`.
 - Opcional: vistas/roles — revisar restricciones de cliente vs admin en secciones sensibles.
 - Opcional: healthcheck/metrics + RBAC base (PVM-OBS/PVM-SEC).
 
@@ -125,3 +163,4 @@
 - Commit y tag previos: `checkpoint/20251102-1856-whatsapp-users-sendgrid` (ver `Checkpoints/cp-20251102-1856-whatsapp-users-sendgrid.md`).
 - Checkpoint intermedio: `checkpoint/20251119-1850-auth-cors-cloudrun` (este documento).
 - Checkpoint nuevo: `checkpoint/20251121-1545-client-portal-token` (ver `Checkpoints/CHK_2025-11-21_1545.md`).
+- Checkpoint actual: `checkpoint/20251216-0330-fix-email-waf` (ver `Checkpoints/CHK_2025-12-16_0330-fix-email-waf-diagnosis.md`).

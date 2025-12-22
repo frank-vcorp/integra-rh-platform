@@ -152,3 +152,79 @@ estructura propia, reutilizable y sin duplicados.
   - En formularios de candidato/proceso, usar estos endpoints para llenar
     y crear plazas.
 
+---
+
+## P3 – Catálogo de procesos simplificado (tipos base + complementos)
+
+### Objetivo
+
+Reducir la complejidad del catálogo de procesos que ven las usuarias
+("ESE LOCAL CON BURÓ DE CRÉDITO", "ESE FORANEO CON INVESTIGACIÓN LEGAL",
+etc.), permitiendo que seleccionen:
+
+- Un **tipo base** de proceso.
+- Algunos **complementos** (ámbito local/foráneo, buró de crédito,
+  investigación legal).
+
+Todo esto manteniendo compatibilidad con los valores actuales del campo
+`tipoProducto` en la base de datos.
+
+### Tipos base visibles en la UI
+
+- `ILA`
+- `ESE` (estudio socioeconómico)
+- `VISITA DOMICILIARIA`
+- `BURÓ DE CRÉDITO`
+- `INVESTIGACIÓN LEGAL`
+- `SEMANAS COTIZADAS`
+
+### Complementos y mapeo a `tipoProducto`
+
+- **ILA**
+  - Modo (exclusivo):
+    - Normal → `ILA`
+    - Con buró de crédito → `ILA CON BURÓ DE CRÉDITO`
+    - Con investigación legal → `ILA CON INVESTIGACIÓN LEGAL`
+
+- **ESE**
+  - Ámbito:
+    - Local → prefijo `ESE LOCAL`
+    - Foráneo → prefijo `ESE FORANEO`
+  - Extra (exclusivo):
+    - Sin extra → `ESE LOCAL` / `ESE FORANEO`
+    - Con buró de crédito → `ESE LOCAL CON BURÓ DE CRÉDITO` /
+      `ESE FORANEO CON BURÓ DE CRÉDITO`
+    - Con investigación legal → `ESE LOCAL CON INVESTIGACIÓN LEGAL` /
+      `ESE FORANEO CON INVESTIGACIÓN LEGAL`
+
+- **VISITA DOMICILIARIA**
+  - Ámbito:
+    - Local → `VISITA LOCAL`
+    - Foránea → `VISITA FORANEA`
+
+- **BURÓ DE CRÉDITO**
+  - Fijo → `BURÓ DE CRÉDITO`
+
+- **INVESTIGACIÓN LEGAL**
+  - Fijo → `INVESTIGACIÓN LEGAL`
+
+- **SEMANAS COTIZADAS**
+  - Fijo → `SEMANAS COTIZADAS`
+
+### Alcance de implementación
+
+- Formularios de creación de procesos:
+  - `Procesos.tsx` (Nuevo Proceso desde la lista).
+  - `ClienteFormularioIntegrado.tsx` (flujo completo Cliente → Candidato → Puesto → Proceso).
+  - `CandidatoFormularioIntegrado.tsx` (flujo rápido Candidato → Puesto → Proceso).
+- Solo se cambia la forma de seleccionar el tipo; el listado y la base siguen
+  usando los valores actuales de `tipoProducto`.
+
+### Notas técnicas
+
+- Se introduce una pequeña configuración en el frontend (estado de tipo base,
+  ámbito y extra) y una función de ayuda que mapea esa configuración a un
+  `TipoProcesoType` válido.
+- No se modifica el enum `tipoProducto` del esquema Drizzle ni el router de
+  procesos: siguen recibiendo una cadena `TipoProcesoType` como hasta ahora.
+

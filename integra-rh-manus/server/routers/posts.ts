@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { router, protectedProcedure, requirePermission } from '../_core/trpc';
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure, hasPermission, requirePermission } from '../_core/trpc';
 import { getAllPosts, getPostsByClient, createPost, updatePost, deletePost } from '../db';
 
 export const postsRouter = router({
@@ -7,10 +8,20 @@ export const postsRouter = router({
    * Lista global de puestos (ordenados por creación desc)
    */
   list: protectedProcedure
-    .use(requirePermission("puestos", "view"))
-    .query(async () => {
-    return await getAllPosts();
-  }),
+    .query(async ({ ctx }) => {
+      if (ctx.user?.role === 'client') {
+        if (!ctx.user.clientId) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Please login (10001)' });
+        }
+        return await getPostsByClient(ctx.user.clientId);
+      }
+
+      if (!hasPermission(ctx, 'puestos', 'view')) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'No puedes ver puestos' });
+      }
+
+      return await getAllPosts();
+    }),
 
   /**
    * Devuelve una lista de todos los puestos asociados a un cliente específico.

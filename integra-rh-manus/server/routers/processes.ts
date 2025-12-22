@@ -4,6 +4,8 @@ import * as db from "../db";
 import { storage as firebaseStorage } from "../firebase";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent } from "../_core/audit";
+import { invokeLLM } from "../_core/llm";
+import { ENV } from "../_core/env";
 
 function assertCanEditProcess(ctx: any, proc: any) {
   if (!ctx.user) {
@@ -45,6 +47,19 @@ function assertCanEditProcess(ctx: any, proc: any) {
   });
 }
 
+const CALIFICACION_LABELS: Record<string, string> = {
+  pendiente: "Pendiente",
+  recomendable: "Recomendable",
+  con_reservas: "Recomendable con reservas",
+  no_recomendable: "No recomendable",
+};
+
+const safeText = (value: unknown) => {
+  if (value === null || value === undefined) return "-";
+  const text = String(value).trim();
+  return text.length > 0 ? text : "-";
+};
+
 export const processesRouter = router({
   list: publicProcedure.query(async ({ ctx }) => {
     console.log("[processes.list] headers:", ctx.req.headers);
@@ -79,9 +94,14 @@ export const processesRouter = router({
   }),
 
   getById: protectedProcedure
-    .use(requirePermission("procesos", "view"))
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
+      if (ctx.user?.role === "admin") {
+        if (!hasPermission(ctx, "procesos", "view")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No puedes ver procesos" });
+        }
+      }
+
       const process = await db.getProcessById(input.id);
       if (ctx.user.role === "client" && process?.clienteId !== ctx.user.clientId) {
         return null;
@@ -90,9 +110,14 @@ export const processesRouter = router({
     }),
 
   getByCandidate: protectedProcedure
-    .use(requirePermission("procesos", "view"))
     .input(z.object({ candidatoId: z.number() }))
     .query(async ({ input, ctx }) => {
+      if (ctx.user?.role === "admin") {
+        if (!hasPermission(ctx, "procesos", "view")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No puedes ver procesos" });
+        }
+      }
+
       if (ctx.user.role === "client") {
         const candidate = await db.getCandidateById(input.candidatoId);
         if (candidate?.clienteId !== ctx.user.clientId) {
@@ -122,9 +147,6 @@ export const processesRouter = router({
       const fechaRecepcion = input.fechaRecepcion ?? new Date();
       const year = fechaRecepcion.getFullYear();
 
-      // Obtener consecutivo siguiente para el tipo/año
-      const consecutivo = await db.getNextConsecutive(input.tipoProducto as any, year);
-
       // Derivar prefijo para la clave (ej. ILA, ESE, VISITA, etc.)
       const derivePrefix = (tipo: string) => {
         const t = tipo.trim().toUpperCase();
@@ -137,6 +159,9 @@ export const processesRouter = router({
         return t.split(' ')[0].replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'PROC';
       };
       const prefix = derivePrefix(input.tipoProducto);
+
+      // Obtener consecutivo siguiente por prefijo/año (evita colisiones ESE LOCAL vs ESE FORANEO)
+      const consecutivo = await db.getNextConsecutiveByClavePrefix(prefix, year);
       const clave = `${prefix}-${year}-${String(consecutivo).padStart(3, '0')}`;
 
       const id = await db.createProcess({
@@ -208,6 +233,9 @@ export const processesRouter = router({
         details: { calificacionFinal: input.calificacionFinal },
       });
 
+      // Intentar generar/actualizar el resumen IA para cliente en segundo plano
+      void maybeGenerateProcessIaDictamen(input.id);
+
       return { ok: true } as const;
     }),
 
@@ -215,6 +243,7 @@ export const processesRouter = router({
     .use(requirePermission("procesos", "edit"))
     .input(z.object({
       id: z.number(),
+      tipoProducto: z.string().optional(),
       especialistaAtraccionId: z.number().nullable().optional(),
       especialistaAtraccionNombre: z.string().trim().nullable().optional(),
       estatusVisual: z.enum(["nuevo","en_proceso","pausado","cerrado","descartado"]),
@@ -228,6 +257,9 @@ export const processesRouter = router({
         antecedentes: z.string().trim().optional(),
         flagRiesgo: z.boolean().optional(),
         archivoAdjuntoUrl: z.string().trim().optional(),
+        notasPeriodisticas: z.string().trim().optional(),
+        observacionesImss: z.string().trim().optional(),
+        semanasComentario: z.string().trim().optional(),
       }).partial().optional(),
       buroCredito: z.object({
         estatus: z.string().trim().optional(),
@@ -249,6 +281,7 @@ export const processesRouter = router({
       assertCanEditProcess(ctx, proc);
 
       const payload: any = {
+        tipoProducto: input.tipoProducto as any ?? proc.tipoProducto,
         especialistaAtraccionId: input.especialistaAtraccionId ?? null,
         especialistaAtraccionNombre: input.especialistaAtraccionNombre ?? null,
         estatusVisual: input.estatusVisual,
@@ -297,6 +330,9 @@ export const processesRouter = router({
 
       // actualizar proceso con enlaces
       await db.updateProcess(proc.id, { archivoDictamenUrl: signedUrl as any, archivoDictamenPath: key as any } as any);
+      // Generar/actualizar resumen IA para el cliente en segundo plano
+      void maybeGenerateProcessIaDictamen(proc.id);
+
       return { url: signedUrl, path: key } as const;
     }),
 
@@ -403,3 +439,190 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 });
+
+async function maybeGenerateProcessIaDictamen(procesoId: number) {
+  try {
+    if (!ENV.forgeApiKey) {
+      // IA no configurada; salir silenciosamente
+      return;
+    }
+
+    const proc = await db.getProcessById(procesoId);
+    if (!proc) return;
+
+    // Solo generar cuando exista calificación final distinta de pendiente
+    if (!proc.calificacionFinal || proc.calificacionFinal === "pendiente") {
+      return;
+    }
+
+    // Respetar la preferencia de IA a nivel cliente
+    const client = proc.clienteId ? await db.getClientById(proc.clienteId) : undefined;
+    if (!client?.iaSuggestionsEnabled) {
+      return;
+    }
+
+    const candidate = proc.candidatoId
+      ? await db.getCandidateById(proc.candidatoId)
+      : undefined;
+
+    const trabajos = proc.candidatoId
+      ? await db.getWorkHistoryByCandidate(proc.candidatoId)
+      : [];
+
+    const trabajosTexto =
+      trabajos.length === 0
+        ? "Sin historial laboral registrado en el sistema."
+        : trabajos
+            .map((w: any, idx: number) => {
+              const ia = (w.investigacionDetalle as any)?.iaDictamen || {};
+              const lineaBase =
+                `Empleo ${idx + 1}: ${safeText(w.puesto)} en ${safeText(
+                  w.empresa
+                )} (${safeText(w.fechaInicio)} – ${safeText(w.fechaFin || "Actual")}). ` +
+                `Dictamen humano: ${safeText(
+                  CALIFICACION_LABELS[w.resultadoVerificacion as string] ||
+                    w.resultadoVerificacion
+                )}.`;
+              const lineaIa = ia.resumenCorto
+                ? ` Resumen IA: ${String(ia.resumenCorto)}`
+                : "";
+              return lineaBase + lineaIa;
+            })
+            .join("\n");
+
+    const invLab: any = (proc as any).investigacionLaboral || {};
+    const invLegal: any = (proc as any).investigacionLegal || {};
+    const buro: any = (proc as any).buroCredito || {};
+    const visita: any = (proc as any).visitaDetalle || (proc as any).visitStatus || {};
+
+    const systemPrompt =
+      "Eres un redactor experto en informes ejecutivos para clientes corporativos en México. " +
+      "Recibes la información de un proceso de investigación de un candidato (laboral, legal, buró, visita, etc.) " +
+      "y debes generar un resumen claro, profesional y fácil de entender para un gerente de recursos humanos.\n\n" +
+      "Muy importante:\n" +
+      "- El dictamen HUMANO (calificación final) ya está definido y NO debes cambiarlo ni contradecirlo.\n" +
+      "- Tus textos deben reforzar y explicar la decisión humana, nunca suavizar un 'no recomendable' ni elevar un 'con reservas' a 'recomendable'.\n" +
+      "- El texto que generes será visible para el cliente, así que evita términos técnicos excesivos.\n" +
+      "- Devuelve SIEMPRE un JSON válido con las claves: resumenEjecutivoCliente, recomendacionesCliente, notaInternaAnalista, dictamenFinal.";
+
+    const userPrompt =
+      `Información del proceso:\n` +
+      `- Clave del proceso: ${safeText(proc.clave)}\n` +
+      `- Tipo de proceso: ${safeText(proc.tipoProducto)}\n` +
+      `- Cliente: ${safeText(client?.nombreEmpresa)}\n` +
+      `- Candidato: ${safeText(candidate?.nombreCompleto)}\n` +
+      `- Puesto: ${safeText((candidate as any)?.puestoNombre || "")}\n` +
+      `- Fecha de recepción: ${safeText(proc.fechaRecepcion)}\n` +
+      `- Fecha de cierre: ${safeText(proc.fechaCierre)}\n` +
+      `- Calificación final (humana): ${safeText(
+        CALIFICACION_LABELS[proc.calificacionFinal as string] ||
+          proc.calificacionFinal
+      )}\n\n` +
+      `Bloques del proceso:\n` +
+      `1) Investigación laboral:\n` +
+      `   - Resultado: ${safeText(invLab.resultado)}\n` +
+      `   - Detalles: ${safeText(invLab.detalles)}\n` +
+      `   - Completado: ${invLab.completado ? "Sí" : "No"}\n\n` +
+      `2) Investigación legal:\n` +
+      `   - Antecedentes: ${safeText(invLegal.antecedentes)}\n` +
+      `   - Indicador de riesgo: ${
+        invLegal.flagRiesgo === true
+          ? "Con riesgo"
+          : invLegal.flagRiesgo === false
+          ? "Sin riesgo relevante"
+          : "No especificado"
+      }\n\n` +
+      `3) Buró de crédito:\n` +
+      `   - Estatus: ${safeText(buro.estatus)}\n` +
+      `   - Score: ${safeText(buro.score)}\n` +
+      `   - Aprobado: ${
+        buro.aprobado === true
+          ? "Aprobado"
+          : buro.aprobado === false
+          ? "Rechazado"
+          : "No especificado"
+      }\n\n` +
+      `4) Visita domiciliaria/virtual:\n` +
+      `   - Tipo: ${safeText(visita.tipo || visita.status)}\n` +
+      `   - Comentarios: ${safeText(visita.comentarios || visita.observaciones)}\n` +
+      `   - Fecha realización / programada: ${safeText(
+        visita.fechaRealizacion || visita.scheduledDateTime
+      )}\n\n` +
+      `Historial laboral considerado (incluye resúmenes IA por empleo cuando existen):\n` +
+      `${trabajosTexto}\n\n` +
+      `Instrucciones de salida:\n` +
+      `- resumenEjecutivoCliente: 1–3 párrafos cortos que expliquen de forma equilibrada el perfil del candidato, apoyando el dictamen humano.\n` +
+      `- recomendacionesCliente: arreglo de frases cortas con sugerencias prácticas (por ejemplo: tipo de seguimiento, periodo de prueba, áreas a supervisar).\n` +
+      `- notaInternaAnalista: comentario breve SOLO para el analista (no para el cliente), aclarando cómo usar este resumen IA.\n` +
+      `- dictamenFinal: copia EXACTA del valor de calificación final: "${proc.calificacionFinal}".\n\n` +
+      `Responde ÚNICAMENTE con un objeto JSON con esta estructura:\n` +
+      `{\n` +
+      `  "resumenEjecutivoCliente": "string",\n` +
+      `  "recomendacionesCliente": ["string"],\n` +
+      `  "notaInternaAnalista": "string",\n` +
+      `  "dictamenFinal": "${proc.calificacionFinal}"\n` +
+      `}`;
+
+    const result = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1024,
+    });
+
+    const firstChoice = result.choices?.[0];
+    if (!firstChoice) return;
+
+    const rawContent = firstChoice.message.content as any;
+    let jsonText: string | undefined;
+
+    if (typeof rawContent === "string") {
+      jsonText = rawContent;
+    } else if (Array.isArray(rawContent)) {
+      const textPart = rawContent.find((p: any) => p.type === "text");
+      jsonText = textPart?.text;
+    }
+
+    if (!jsonText) return;
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      return;
+    }
+
+    const iaDictamenCliente = {
+      resumenEjecutivoCliente:
+        typeof parsed.resumenEjecutivoCliente === "string"
+          ? parsed.resumenEjecutivoCliente
+          : "",
+      recomendacionesCliente: Array.isArray(parsed.recomendacionesCliente)
+        ? parsed.recomendacionesCliente.map((x: any) => String(x)).filter(Boolean)
+        : [],
+      notaInternaAnalista:
+        typeof parsed.notaInternaAnalista === "string"
+          ? parsed.notaInternaAnalista
+          : "",
+      dictamenFinal: proc.calificacionFinal,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const mergedInvestigacionLaboral = {
+      ...(invLab || {}),
+      iaDictamenCliente,
+    };
+
+    await db.updateProcess(proc.id, {
+      investigacionLaboral: mergedInvestigacionLaboral as any,
+    } as any);
+  } catch (error) {
+    console.error(
+      "[IA] Error generando dictamen IA para proceso",
+      procesoId,
+      error
+    );
+  }
+}

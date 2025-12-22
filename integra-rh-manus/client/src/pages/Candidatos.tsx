@@ -196,38 +196,54 @@ export default function Candidatos() {
     return haystack.includes(searchParam);
   });
 
-  const [candidateSortKey, setCandidateSortKey] = useState<"nombre" | "cliente" | "progreso">("nombre");
+  const [candidateSortKey, setCandidateSortKey] = useState<
+    "nombre" | "cliente" | "progreso" | "fechaRegistro"
+  >("nombre");
   const [candidateSortDir, setCandidateSortDir] = useState<"asc" | "desc">("asc");
 
   const candidates = useMemo(() => {
     const list = [...candidatesBase];
     list.sort((a, b) => {
-      let av: string = "";
-      let bv: string = "";
+      let avString = "";
+      let bvString = "";
+      let avNumber: number | null = null;
+      let bvNumber: number | null = null;
       if (candidateSortKey === "cliente") {
-        av = (getClientName(a.clienteId) || "").toLowerCase();
-        bv = (getClientName(b.clienteId) || "").toLowerCase();
+        avString = (getClientName(a.clienteId) || "").toLowerCase();
+        bvString = (getClientName(b.clienteId) || "").toLowerCase();
       } else if (candidateSortKey === "progreso") {
-        av = a.investigacionProgreso ?? 0;
-        bv = b.investigacionProgreso ?? 0;
+        const aProg = (a as any)?.investigacionProgreso;
+        const bProg = (b as any)?.investigacionProgreso;
+        avNumber = typeof aProg === "number" ? aProg : 0;
+        bvNumber = typeof bProg === "number" ? bProg : 0;
+      } else if (candidateSortKey === "fechaRegistro") {
+        avNumber = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        bvNumber = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       } else {
-        av = (a.nombreCompleto || "").toLowerCase();
-        bv = (b.nombreCompleto || "").toLowerCase();
+        avString = (a.nombreCompleto || "").toLowerCase();
+        bvString = (b.nombreCompleto || "").toLowerCase();
       }
-      if (av < bv) return candidateSortDir === "asc" ? -1 : 1;
-      if (av > bv) return candidateSortDir === "asc" ? 1 : -1;
+
+      if (avNumber !== null && bvNumber !== null) {
+        if (avNumber < bvNumber) return candidateSortDir === "asc" ? -1 : 1;
+        if (avNumber > bvNumber) return candidateSortDir === "asc" ? 1 : -1;
+        return 0;
+      }
+
+      if (avString < bvString) return candidateSortDir === "asc" ? -1 : 1;
+      if (avString > bvString) return candidateSortDir === "asc" ? 1 : -1;
       return 0;
     });
     return list;
   }, [candidatesBase, candidateSortKey, candidateSortDir, clients]);
 
-  const toggleCandidateSort = (key: "nombre" | "cliente" | "progreso") => {
+  const toggleCandidateSort = (key: "nombre" | "cliente" | "progreso" | "fechaRegistro") => {
     setCandidateSortKey((prev) => {
       if (prev === key) {
         setCandidateSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
         return prev;
       }
-      setCandidateSortDir("asc");
+      setCandidateSortDir(key === "fechaRegistro" ? "desc" : "asc");
       return key;
     });
   };
@@ -313,7 +329,6 @@ export default function Candidatos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
-                      <TableHead>Email</TableHead>
                       <TableHead>Teléfono</TableHead>
                       <TableHead>
                         <button
@@ -328,6 +343,16 @@ export default function Candidatos() {
                       <TableHead>Plaza</TableHead>
                       <TableHead>Puesto</TableHead>
                       <TableHead>Medio de Recepción</TableHead>
+                      <TableHead>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleCandidateSort("fechaRegistro")}
+                        >
+                          Fecha registro
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -337,12 +362,16 @@ export default function Candidatos() {
                         <TableCell className="font-medium">
                           {candidate.nombreCompleto}
                         </TableCell>
-                        <TableCell>{candidate.email || "-"}</TableCell>
                         <TableCell>{candidate.telefono || "-"}</TableCell>
                         <TableCell>{getClientName(candidate.clienteId)}</TableCell>
                         <TableCell>{getSiteName(candidate.clientSiteId)}</TableCell>
                         <TableCell>{getPostName(candidate.puestoId)}</TableCell>
                         <TableCell>{candidate.medioDeRecepcion || "-"}</TableCell>
+                        <TableCell>
+                          {candidate.createdAt
+                            ? new Date(candidate.createdAt).toLocaleDateString()
+                            : "-"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Tooltip>
@@ -467,6 +496,12 @@ export default function Candidatos() {
                       </div>
                     </div>
                     <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">
+                      <div>
+                        <span className="font-semibold">Fecha registro: </span>
+                        {candidate.createdAt
+                          ? new Date(candidate.createdAt).toLocaleDateString()
+                          : "-"}
+                      </div>
                       <div>
                         <span className="font-semibold">Email: </span>
                         {candidate.email || "-"}

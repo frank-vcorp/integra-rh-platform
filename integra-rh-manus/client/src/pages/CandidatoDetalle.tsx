@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { CAUSALES_SALIDA, CausalSalidaType, ESTATUS_INVESTIGACION, EstatusInvestigacionType, ESTATUS_INVESTIGACION_LABELS } from "@/lib/constants";
 import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
+import { ReviewAndCompleteDialog } from "@/components/ReviewAndCompleteDialog";
 
 const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
   en_revision: "bg-yellow-100 text-yellow-800",
@@ -73,13 +74,17 @@ export default function CandidatoDetalle() {
   const params = useParams();
   const candidateId = parseInt(params.id || "0");
 
-  const [workHistoryDialogOpen, setWorkHistoryDialogOpen] = useState(false);
+  // Estado para el nuevo dialog unificado "Revisar y Completar"
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [editingWorkHistory, setEditingWorkHistory] = useState<any>(null);
+  
+  // Estados para investigación profunda (3 bloques) - mantienen su lógica
   const [investigationDialogOpen, setInvestigationDialogOpen] = useState(false);
   const [investigationStep, setInvestigationStep] = useState(1);
   const [investigationTarget, setInvestigationTarget] = useState<any | null>(null);
   const [periodRowCount, setPeriodRowCount] = useState(1);
+  
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
-  const [editingWorkHistory, setEditingWorkHistory] = useState<any>(null);
   const [consentAction, setConsentAction] = useState<'email' | 'whatsapp' | 'copy' | null>(null);
   const [selfServiceUrl, setSelfServiceUrl] = useState<string>("");
   const [selfServiceExpiresAt, setSelfServiceExpiresAt] = useState<Date | null>(null);
@@ -241,7 +246,8 @@ export default function CandidatoDetalle() {
   const createWorkHistoryMutation = trpc.workHistory.create.useMutation({
     onSuccess: () => {
       utils.workHistory.getByCandidate.invalidate();
-      setWorkHistoryDialogOpen(false);
+      setReviewDialogOpen(false);
+      setEditingWorkHistory(null);
       toast.success("Historial laboral agregado");
     },
     onError: (error: any) => {
@@ -252,7 +258,7 @@ export default function CandidatoDetalle() {
   const updateWorkHistoryMutation = trpc.workHistory.update.useMutation({
     onSuccess: () => {
       utils.workHistory.getByCandidate.invalidate();
-      setWorkHistoryDialogOpen(false);
+      setReviewDialogOpen(false);
       setEditingWorkHistory(null);
       toast.success("Historial laboral actualizado");
     },
@@ -374,56 +380,6 @@ export default function CandidatoDetalle() {
     }
   };
 
-  const handleWorkHistorySubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const causalRH = formData.get("causalSalidaRH") as string;
-    const causalJefe = formData.get("causalSalidaJefeInmediato") as string;
-
-    const buildMonthYear = (year?: string | null, month?: string | null) => {
-      const y = (year ?? "").toString().trim();
-      const m = (month ?? "").toString().trim();
-      if (!y) return undefined;
-      return m ? `${y}-${m}` : y;
-    };
-
-    const fechaInicio = buildMonthYear(
-      formData.get("fechaInicioAnio") as string | null,
-      formData.get("fechaInicioMes") as string | null,
-    );
-    const fechaFin = buildMonthYear(
-      formData.get("fechaFinAnio") as string | null,
-      formData.get("fechaFinMes") as string | null,
-    );
-    const tiempoTrabajadoEmpresa = (formData.get("tiempoTrabajadoEmpresa") as string) || undefined;
-    const estatusInvestigacion = formData.get("estatusInvestigacion") as EstatusInvestigacionType | null;
-    const comentarioInvestigacion = formData.get("comentarioInvestigacion") as string | null;
-    
-    // Calcular tiempo trabajado automáticamente
-    const tiempoTrabajado = calcularTiempoTrabajado(fechaInicio, fechaFin);
-    
-    const data = {
-      candidatoId: candidateId,
-      empresa: formData.get("empresa") as string,
-      puesto: formData.get("puesto") as string || undefined,
-      fechaInicio,
-      fechaFin,
-      tiempoTrabajado: tiempoTrabajado || undefined,
-      tiempoTrabajadoEmpresa: tiempoTrabajadoEmpresa || undefined,
-      causalSalidaRH: (causalRH && causalRH !== "") ? causalRH as CausalSalidaType : undefined,
-      causalSalidaJefeInmediato: (causalJefe && causalJefe !== "") ? causalJefe as CausalSalidaType : undefined,
-      observaciones: formData.get("observaciones") as string || undefined,
-      estatusInvestigacion: (estatusInvestigacion || undefined) as EstatusInvestigacionType | undefined,
-      comentarioInvestigacion: comentarioInvestigacion || undefined,
-    };
-
-    if (editingWorkHistory) {
-      updateWorkHistoryMutation.mutate({ id: editingWorkHistory.id, data });
-    } else {
-      createWorkHistoryMutation.mutate(data);
-    }
-  };
-
   const handleCommentSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -438,7 +394,7 @@ export default function CandidatoDetalle() {
 
   const handleEditWorkHistory = (item: any) => {
     setEditingWorkHistory(item);
-    setWorkHistoryDialogOpen(true);
+    setReviewDialogOpen(true);
   };
 
   const handleDeleteWorkHistory = (id: number) => {
@@ -1403,7 +1359,7 @@ export default function CandidatoDetalle() {
                 size="sm"
                 onClick={() => {
                   setEditingWorkHistory(null);
-                  setWorkHistoryDialogOpen(true);
+                  setReviewDialogOpen(true);
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -2190,218 +2146,20 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
-      {/* Work History Dialog */}
-    <Dialog open={workHistoryDialogOpen} onOpenChange={setWorkHistoryDialogOpen}>
-      <DialogContent className="max-w-2xl" aria-describedby="workhistory-desc">
-        <DialogHeader>
-          <DialogTitle>
-            {editingWorkHistory ? "Editar Historial Laboral" : "Agregar Historial Laboral"}
-          </DialogTitle>
-        </DialogHeader>
-        <p id="workhistory-desc" className="sr-only">Formulario para capturar o editar el historial laboral del candidato.</p>
-        <form onSubmit={handleWorkHistorySubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="empresa">Empresa *</Label>
-                <Input
-                  id="empresa"
-                  name="empresa"
-                  defaultValue={editingWorkHistory?.empresa}
-                  required
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="puesto">Puesto</Label>
-                <Input
-                  id="puesto"
-                  name="puesto"
-                  defaultValue={editingWorkHistory?.puesto}
-                />
-              </div>
-              <div>
-                <Label>Fecha de Inicio</Label>
-                <div className="flex gap-2">
-                  <select
-                    name="fechaInicioMes"
-                    defaultValue={
-                      editingWorkHistory?.fechaInicio
-                        ? String(editingWorkHistory.fechaInicio).split("-")[1] ?? ""
-                        : ""
-                    }
-                    className="mt-1 block w-full border rounded-md h-10 px-3"
-                  >
-                    <option value="">Mes (opc)</option>
-                    <option value="01">Enero</option>
-                    <option value="02">Febrero</option>
-                    <option value="03">Marzo</option>
-                    <option value="04">Abril</option>
-                    <option value="05">Mayo</option>
-                    <option value="06">Junio</option>
-                    <option value="07">Julio</option>
-                    <option value="08">Agosto</option>
-                    <option value="09">Septiembre</option>
-                    <option value="10">Octubre</option>
-                    <option value="11">Noviembre</option>
-                    <option value="12">Diciembre</option>
-                  </select>
-                  <select
-                    name="fechaInicioAnio"
-                    defaultValue={
-                      editingWorkHistory?.fechaInicio
-                        ? String(editingWorkHistory.fechaInicio).split("-")[0] ?? ""
-                        : ""
-                    }
-                    className="mt-1 block w-full border rounded-md h-10 px-3"
-                  >
-                    <option value="">Año</option>
-                    {Array.from({ length: 60 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                      <option key={y} value={String(y)}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <Label>Fecha de Fin</Label>
-                <div className="flex gap-2">
-                  <select
-                    name="fechaFinMes"
-                    defaultValue={
-                      editingWorkHistory?.fechaFin
-                        ? String(editingWorkHistory.fechaFin).split("-")[1] ?? ""
-                        : ""
-                    }
-                    className="mt-1 block w-full border rounded-md h-10 px-3"
-                  >
-                    <option value="">Mes (opc)</option>
-                    <option value="01">Enero</option>
-                    <option value="02">Febrero</option>
-                    <option value="03">Marzo</option>
-                    <option value="04">Abril</option>
-                    <option value="05">Mayo</option>
-                    <option value="06">Junio</option>
-                    <option value="07">Julio</option>
-                    <option value="08">Agosto</option>
-                    <option value="09">Septiembre</option>
-                    <option value="10">Octubre</option>
-                    <option value="11">Noviembre</option>
-                    <option value="12">Diciembre</option>
-                  </select>
-                  <select
-                    name="fechaFinAnio"
-                    defaultValue={
-                      editingWorkHistory?.fechaFin
-                        ? String(editingWorkHistory.fechaFin).split("-")[0] ?? ""
-                        : ""
-                    }
-                    className="mt-1 block w-full border rounded-md h-10 px-3"
-                  >
-                    <option value="">Año</option>
-                    {Array.from({ length: 60 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                      <option key={y} value={String(y)}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="tiempoTrabajadoEmpresa">
-                  Tiempo informado por la empresa
-                </Label>
-                <Input
-                  id="tiempoTrabajadoEmpresa"
-                  name="tiempoTrabajadoEmpresa"
-                  placeholder="Ej. 3 años 2 meses"
-                  defaultValue={editingWorkHistory?.tiempoTrabajadoEmpresa || ""}
-                />
-              </div>
-              <div>
-                <Label htmlFor="causalSalidaRH">Causal de Salida por parte de RH</Label>
-                <select
-                  id="causalSalidaRH"
-                  name="causalSalidaRH"
-                  defaultValue={editingWorkHistory?.causalSalidaRH ?? ""}
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
-                >
-                  <option value="">Sin especificar</option>
-                  {CAUSALES_SALIDA.map((causal) => (
-                    <option key={causal} value={causal}>{causal}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="causalSalidaJefeInmediato">Causal de Salida por parte del Jefe Inmediato</Label>
-                <select
-                  id="causalSalidaJefeInmediato"
-                  name="causalSalidaJefeInmediato"
-                  defaultValue={editingWorkHistory?.causalSalidaJefeInmediato ?? ""}
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
-                >
-                  <option value="">Sin especificar</option>
-                  {CAUSALES_SALIDA.map((causal) => (
-                    <option key={causal} value={causal}>{causal}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="observaciones">Observaciones</Label>
-                <Textarea
-                  id="observaciones"
-                  name="observaciones"
-                  defaultValue={editingWorkHistory?.observaciones}
-                  rows={3}
-                />
-              </div>
-              <div>
-                <Label htmlFor="estatusInvestigacion">Estatus de verificación</Label>
-                <select
-                  id="estatusInvestigacion"
-                  name="estatusInvestigacion"
-                  defaultValue={editingWorkHistory?.estatusInvestigacion || "en_revision"}
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
-                >
-                  {ESTATUS_INVESTIGACION.map((status) => (
-                    <option key={status} value={status}>
-                      {ESTATUS_INVESTIGACION_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="comentarioInvestigacion">Comentario de verificación</Label>
-                <Textarea
-                  id="comentarioInvestigacion"
-                  name="comentarioInvestigacion"
-                  defaultValue={editingWorkHistory?.comentarioInvestigacion || ""}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setWorkHistoryDialogOpen(false);
-                  setEditingWorkHistory(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  createWorkHistoryMutation.isPending || updateWorkHistoryMutation.isPending
-                }
-              >
-                {editingWorkHistory ? "Actualizar" : "Agregar"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Review and Complete Dialog - NEW UNIFIED DIALOG */}
+      <ReviewAndCompleteDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        workHistoryItem={editingWorkHistory}
+        onSave={async (data) => {
+          if (editingWorkHistory?.id) {
+            await updateWorkHistoryMutation.mutateAsync(data);
+          } else {
+            await createWorkHistoryMutation.mutateAsync(data);
+          }
+        }}
+        isPending={createWorkHistoryMutation.isPending || updateWorkHistoryMutation.isPending}
+      />
 
       {/* Investigación Laboral Dialog */}
       <Dialog

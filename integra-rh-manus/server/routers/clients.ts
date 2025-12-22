@@ -40,6 +40,7 @@ export const clientsRouter = router({
       contacto: z.string().optional(),
       telefono: z.string().optional(),
       email: z.string().email().optional(),
+      iaSuggestionsEnabled: z.boolean().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       if (ctx.user?.role !== 'admin') {
@@ -52,6 +53,7 @@ export const clientsRouter = router({
         contacto: input.contacto ?? null,
         telefono: input.telefono ?? null,
         email: input.email ?? null,
+        iaSuggestionsEnabled: input.iaSuggestionsEnabled ?? false,
       } as any);
 
       // Crear una plaza principal basada en ubicacionPlaza, si se proporcionó.
@@ -88,6 +90,7 @@ export const clientsRouter = router({
         contacto: z.string().optional(),
         telefono: z.string().optional(),
         email: z.string().email().optional(),
+        iaSuggestionsEnabled: z.boolean().optional(),
       }),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -104,6 +107,9 @@ export const clientsRouter = router({
         telefono: data.telefono ?? null,
         email: data.email ?? null,
       };
+      if (data.iaSuggestionsEnabled !== undefined) {
+        payload.iaSuggestionsEnabled = data.iaSuggestionsEnabled;
+      }
       await updateClient(id, payload);
 
       await logAuditEvent(ctx, {

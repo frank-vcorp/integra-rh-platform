@@ -1,0 +1,69 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  CHECKPOINT EJECUTIVO - 22 DIC 2025                        ║
+║                   Self-Service Cleanup Pre-Implementación                  ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+📍 ESTADO ACTUAL (PROBLEMAS):
+   ❌ Aceptación de datos NO se guarda en BD (solo en React)
+   ❌ 2 diálogos confusos hacen parecer datos diferentes
+   ❌ Sin auditoría de quién cambió qué
+   ❌ Badge "Capturado por" no actualiza si analista edita
+
+📍 ESTADO FUTURO (SOLUCIÓN):
+   ✅ Aceptación guardada en BD + timestamp
+   ✅ 1 Dialog claro (SECCIÓN A: Candidato, SECCIÓN B: Analista)
+   ✅ Auditoría automática de cambios
+   ✅ Datos más claros visualmente
+
+📍 IMPACTO EN ANALISTAS:
+   • 1 nueva línea en header (Badge aceptación)
+   • 1 nuevo Dialog (pero MÁS claro que los 2 anteriores)
+   • 3 Bloques investigación (IDÉNTICOS, SIN CAMBIOS)
+   • Menos confusión, menos errores
+   • Tiempo adaptación: 5-60 min según experiencia
+
+📍 CAMBIOS EN BD:
+   NUEVOS CAMPOS:
+   - candidates.aceptoAvisoPrivacidad: boolean
+   - candidates.aceptoAvisoPrivacidadAt: timestamp
+   
+   SIN CAMBIOS:
+   - workHistory (estructura igual)
+   - 3 bloques investigación (idénticos)
+
+📍 FASES:
+   Fase 1 (2h): Guardar aceptación + badge
+   Fase 2 (3h): Reorganizar dialog historial
+   Fase 3 (1h): Auditoría completa
+   TOTAL: 6 horas
+
+📍 CRONOGRAMA:
+   Inicio: 23 dic (después de este checkpoint)
+   Fecha estimada cierre: 24-25 dic
+   Deploy: 26 dic (antes de fin de año)
+
+📍 RIESGOS MITIGADOS:
+   ✅ Auditoría legal: "¿Aceptó términos?" → Respuesta: Sí, [fecha]
+   ✅ Confusión de analistas: Dialogs claros
+   ✅ Errores de duplicación: Estructura unificada
+   ✅ Regresión: 3 bloques NO cambian
+
+📍 PRÓXIMOS PASOS:
+   1. Revisar este checkpoint completo
+   2. Confirmar "Go/No-go" para implementación
+   3. Avisar a analistas con demo de 10 min
+   4. Hacer backup BD
+   5. Comenzar FASE 1
+
+📍 ARCHIVOS GENERADOS:
+   ✅ /Checkpoints/CHK_2025-12-22_SELFSERVICE-CLEANUP-PRE-IMPL.md
+   ✅ /RELACION-SELFSERVICE-INVESTIGACION.md
+   ✅ /IMPLICACIONES-PARA-ANALISTAS.md
+   ✅ /ANALISIS-SELFSERVICE-ESTADO-ACTUAL.md
+   ✅ /OPCIONES-HOMOGENIZACION.md
+   ✅ /ANALISIS-HISTORIAL-LABORAL.md
+
+═══════════════════════════════════════════════════════════════════════════════
+
+ESTADO: ✅ CHECKPOINT COMPLETO - LISTO PARA IMPLEMENTACIÓN
+

@@ -9,7 +9,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Building2, Pencil, Trash2, Share2, Copy, Mail, MessageCircle, Eye } from "lucide-react";
+import {
+  Plus,
+  Building2,
+  Pencil,
+  Trash2,
+  Share2,
+  Copy,
+  Mail,
+  MessageCircle,
+  Eye,
+  MapPin,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -20,8 +31,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useHasPermission } from "@/_core/hooks/usePermission";
+import { formatTipoProductoDisplay } from "@/lib/procesoTipo";
 
 export default function Clientes() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,6 +48,12 @@ export default function Clientes() {
   const [linkEmail, setLinkEmail] = useState("");
   const [linkPhone, setLinkPhone] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
+  const [sitesDialogOpen, setSitesDialogOpen] = useState(false);
+  const [sitesClient, setSitesClient] = useState<any | null>(null);
+  const [newSiteName, setNewSiteName] = useState("");
+  const [newSiteCity, setNewSiteCity] = useState("");
+  const [newSiteState, setNewSiteState] = useState("");
+  const [newClientPlazasText, setNewClientPlazasText] = useState("");
 
   const { data: clients = [], isLoading } = trpc.clients.list.useQuery();
   const { data: allProcesses = [] } = trpc.processes.list.useQuery();
@@ -44,12 +63,52 @@ export default function Clientes() {
   const [processDialogOpen, setProcessDialogOpen] = useState(false);
   const utils = trpc.useUtils();
 
+  const {
+    data: clientSitesByClient = [],
+    isLoading: clientSitesLoading,
+  } = trpc.clientSites.listByClient.useQuery(
+    { clientId: sitesClient?.id ?? 0 },
+    { enabled: !!sitesClient }
+  );
+
+  const createSiteForNewClientMutation = trpc.clientSites.create.useMutation();
+
   const createMutation = trpc.clients.create.useMutation({
     onSuccess: (data) => {
       utils.clients.list.invalidate();
       setCreatedClientId(data.id);
       setShowContinueFlow(true);
       toast.success("Cliente creado exitosamente");
+
+      const plazas = newClientPlazasText
+        .split(/\r?\n|,/g)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const uniquePlazas = Array.from(new Set(plazas));
+      if (uniquePlazas.length > 0) {
+        void (async () => {
+          try {
+            await Promise.all(
+              uniquePlazas.map((nombrePlaza) =>
+                createSiteForNewClientMutation.mutateAsync({
+                  clientId: data.id,
+                  nombrePlaza,
+                })
+              )
+            );
+            await utils.clientSites.listByClient.invalidate({ clientId: data.id });
+          } catch (e: any) {
+            toast.error(
+              "Cliente creado, pero no se pudieron crear todas las plazas: " +
+                (e?.message || "Error")
+            );
+          } finally {
+            setNewClientPlazasText("");
+          }
+        })();
+      } else {
+        setNewClientPlazasText("");
+      }
     },
     onError: (error) => {
       toast.error("Error al crear cliente: " + error.message);
@@ -112,7 +171,6 @@ export default function Clientes() {
     const formData = new FormData(e.currentTarget);
     const data = {
       nombreEmpresa: formData.get("nombreEmpresa") as string,
-      ubicacionPlaza: formData.get("ubicacionPlaza") as string || undefined,
       reclutador: formData.get("reclutador") as string || undefined,
       contacto: formData.get("contacto") as string || undefined,
       telefono: formData.get("telefono") as string || undefined,
@@ -128,6 +186,7 @@ export default function Clientes() {
 
   const handleEdit = (client: any) => {
     setEditingClient(client);
+    setNewClientPlazasText("");
     setDialogOpen(true);
   };
 
@@ -139,6 +198,7 @@ export default function Clientes() {
 
   const handleOpenDialog = () => {
     setEditingClient(null);
+    setNewClientPlazasText("");
     setDialogOpen(true);
   };
 
@@ -197,6 +257,21 @@ export default function Clientes() {
     window.open(`mailto:${linkEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
+  const createSiteMutation = trpc.clientSites.create.useMutation({
+    onSuccess: () => {
+      if (sitesClient?.id) {
+        utils.clientSites.listByClient.invalidate({ clientId: sitesClient.id });
+      }
+      setNewSiteName("");
+      setNewSiteCity("");
+      setNewSiteState("");
+      toast.success("Plaza creada correctamente");
+    },
+    onError: (error) => {
+      toast.error("No se pudo crear la plaza: " + error.message);
+    },
+  });
+
   const filteredClients = clients.filter(
     (client) =>
       client.nombreEmpresa.toLowerCase().includes(filter.toLowerCase()) ||
@@ -218,6 +293,26 @@ export default function Clientes() {
   const getPostName = (puestoId: number) => {
     const post = posts.find((p: any) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
+  };
+
+  const toggleIaMutation = trpc.clients.update.useMutation({
+    onSuccess: () => {
+      utils.clients.list.invalidate();
+      toast.success("Preferencia de IA actualizada");
+    },
+    onError: (error) => {
+      toast.error("No se pudo actualizar la preferencia de IA: " + error.message);
+    },
+  });
+
+  const handleToggleIa = (client: any) => {
+    if (!canEditClient) return;
+    toggleIaMutation.mutate({
+      id: client.id,
+      data: {
+        iaSuggestionsEnabled: !client.iaSuggestionsEnabled,
+      },
+    });
   };
 
   const getStatusLabel = (status: string): string => {
@@ -334,7 +429,6 @@ export default function Clientes() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Empresa</TableHead>
-                      <TableHead className="w-[120px]">Ubicación</TableHead>
                       <TableHead className="hidden 2xl:table-cell">
                         Reclutador
                       </TableHead>
@@ -343,97 +437,132 @@ export default function Clientes() {
                       </TableHead>
                       <TableHead className="w-[120px]">Teléfono</TableHead>
                       <TableHead className="w-[220px]">Email</TableHead>
+                      <TableHead className="w-[120px] text-center">
+                        IA Cliente
+                      </TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredClients.map((client) => (
-                      <TableRow
-                        key={client.id}
-                        className={
-                          selectedClientForProcesses?.id === client.id
-                            ? "bg-slate-50 cursor-pointer"
-                            : "cursor-pointer"
-                        }
-                        onClick={() => {
-                          setSelectedClientForProcesses(client);
-                          setProcessDialogOpen(true);
-                        }}
-                      >
-                        <TableCell className="font-medium">
-                          <button
-                            type="button"
-                            className="text-left hover:underline"
+                    <TableRow
+                      key={client.id}
+                      className={
+                        selectedClientForProcesses?.id === client.id
+                          ? "bg-slate-50 cursor-pointer"
+                          : "cursor-pointer"
+                      }
+                      onClick={() => {
+                        setSelectedClientForProcesses(client);
+                        setProcessDialogOpen(true);
+                      }}
+                    >
+                      <TableCell className="font-medium">
+                        <button
+                          type="button"
+                          className="text-left hover:underline"
+                        >
+                          {client.nombreEmpresa}
+                        </button>
+                      </TableCell>
+                      <TableCell className="hidden 2xl:table-cell text-xs">
+                        {client.reclutador || "-"}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-xs">
+                        {client.contacto || "-"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {client.telefono || "-"}
+                      </TableCell>
+                      <TableCell className="text-xs break-all">
+                        {client.email || "-"}
+                      </TableCell>
+                      <TableCell className="text-xs text-center">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleIa(client);
+                          }}
+                          className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] border ${
+                            client.iaSuggestionsEnabled
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                              : "bg-slate-50 text-slate-500 border-slate-200"
+                          }`}
+                          title={
+                            client.iaSuggestionsEnabled
+                              ? "Desactivar sugerencias IA en el portal del cliente"
+                              : "Activar sugerencias IA en el portal del cliente"
+                          }
+                        >
+                          {client.iaSuggestionsEnabled
+                            ? "IA activada"
+                            : "IA desactivada"}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSitesClient(client);
+                              setSitesDialogOpen(true);
+                            }}
+                            title="Plazas / sucursales"
                           >
-                            {client.nombreEmpresa}
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {client.ubicacionPlaza || "-"}
-                        </TableCell>
-                        <TableCell className="hidden 2xl:table-cell text-xs">
-                          {client.reclutador || "-"}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-xs">
-                          {client.contacto || "-"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {client.telefono || "-"}
-                        </TableCell>
-                        <TableCell className="text-xs break-all">
-                          {client.email || "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {canEditClient && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(client);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canDeleteClient && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(client.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            )}
+                            <MapPin className="h-4 w-4" />
+                          </Button>
+                          {canEditClient && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openLinkDialog(client);
+                                handleEdit(client);
                               }}
                             >
-                              <Share2 className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
+                          )}
+                          {canDeleteClient && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedClientForProcesses(client);
-                                setProcessDialogOpen(true);
+                                handleDelete(client.id);
                               }}
-                              title="Ver procesos de este cliente"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLinkDialog(client);
+                            }}
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedClientForProcesses(client);
+                              setProcessDialogOpen(true);
+                            }}
+                            title="Ver procesos de este cliente"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                     ))}
                   </TableBody>
                 </Table>
@@ -455,8 +584,20 @@ export default function Clientes() {
                         <h3 className="font-semibold text-sm">
                           {client.nombreEmpresa}
                         </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {client.ubicacionPlaza || "Sin ubicación"}
+                        {/* Ubicación principal se gestiona ahora vía Plazas */}
+                        <p className="text-[11px] mt-1">
+                          <span className="font-semibold">IA cliente: </span>
+                          <span
+                            className={
+                              client.iaSuggestionsEnabled
+                                ? "text-emerald-700"
+                                : "text-slate-500"
+                            }
+                          >
+                            {client.iaSuggestionsEnabled
+                              ? "Activada"
+                              : "Desactivada"}
+                          </span>
                         </p>
                       </div>
                       <div className="flex gap-1">
@@ -494,8 +635,22 @@ export default function Clientes() {
                             e.stopPropagation();
                             openLinkDialog(client);
                           }}
+                          title="Compartir enlace"
                         >
                           <Share2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSitesClient(client);
+                            setSitesDialogOpen(true);
+                          }}
+                          title="Plazas / sucursales"
+                        >
+                          <MapPin className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -506,9 +661,34 @@ export default function Clientes() {
                             setSelectedClientForProcesses(client);
                             setProcessDialogOpen(true);
                           }}
+                          title="Ver procesos"
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
+                        {canEditClient && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleIa(client);
+                            }}
+                            title={
+                              client.iaSuggestionsEnabled
+                                ? "Desactivar sugerencias IA"
+                                : "Activar sugerencias IA"
+                            }
+                          >
+                            <span
+                              className={
+                                client.iaSuggestionsEnabled
+                                  ? "h-3 w-3 rounded-full bg-emerald-500"
+                                  : "h-3 w-3 rounded-full border border-slate-300"
+                              }
+                            />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">
@@ -580,7 +760,7 @@ export default function Clientes() {
                             <TableCell>{getCandidateName(p.candidatoId)}</TableCell>
                             <TableCell>{getPostName(p.puestoId)}</TableCell>
                             <TableCell className="text-xs">
-                              {p.tipoProducto}
+                              {formatTipoProductoDisplay(p.tipoProducto)}
                             </TableCell>
                             <TableCell className="text-xs">
                               <span className={`badge ${getStatusBadgeClass(p.estatusProceso)}`}>
@@ -623,7 +803,7 @@ export default function Clientes() {
                           </div>
                           <div>
                             <span className="font-semibold">Tipo: </span>
-                            {p.tipoProducto}
+                            {formatTipoProductoDisplay(p.tipoProducto)}
                           </div>
                         </div>
                       </div>
@@ -631,6 +811,119 @@ export default function Clientes() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: plazas / sucursales del cliente */}
+      <Dialog
+        open={sitesDialogOpen && !!sitesClient}
+        onOpenChange={(open) => {
+          setSitesDialogOpen(open);
+          if (!open) {
+            setSitesClient(null);
+            setNewSiteName("");
+            setNewSiteCity("");
+            setNewSiteState("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>
+              Plazas de {sitesClient?.nombreEmpresa || ""}
+            </DialogTitle>
+          </DialogHeader>
+          {sitesClient && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Registra las plazas, sucursales o CEDIs asociados a este cliente.
+                Podrás seleccionarlas al crear candidatos y procesos.
+              </div>
+              <div className="border rounded-md p-3 max-h-60 overflow-auto">
+                {clientSitesLoading ? (
+                  <p className="text-sm text-muted-foreground">
+                    Cargando plazas...
+                  </p>
+                ) : clientSitesByClient.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aún no hay plazas registradas para este cliente.
+                  </p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {clientSitesByClient.map((site: any) => (
+                      <li
+                        key={site.id}
+                        className="flex items-center justify-between gap-2 rounded border bg-white px-2 py-1"
+                      >
+                        <div>
+                          <p className="font-medium">{site.nombrePlaza}</p>
+                          {(site.ciudad || site.estado) && (
+                            <p className="text-xs text-muted-foreground">
+                              {[site.ciudad, site.estado]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <form
+                className="space-y-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!sitesClient?.id || !newSiteName.trim()) return;
+                  createSiteMutation.mutate({
+                    clientId: sitesClient.id,
+                    nombrePlaza: newSiteName.trim(),
+                    ciudad: newSiteCity.trim() || undefined,
+                    estado: newSiteState.trim() || undefined,
+                  });
+                }}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className="md:col-span-3">
+                    <Label htmlFor="site-name">Nombre de la plaza *</Label>
+                    <Input
+                      id="site-name"
+                      value={newSiteName}
+                      onChange={(e) => setNewSiteName(e.target.value)}
+                      placeholder="Ej. XALAPA, CEDIS OAXACA..."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="site-city">Ciudad</Label>
+                    <Input
+                      id="site-city"
+                      value={newSiteCity}
+                      onChange={(e) => setNewSiteCity(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="site-state">Estado</Label>
+                    <Input
+                      id="site-state"
+                      value={newSiteState}
+                      onChange={(e) => setNewSiteState(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={createSiteMutation.isPending || !newSiteName.trim()}
+                  >
+                    Agregar plaza
+                  </Button>
+                </div>
+              </form>
             </div>
           )}
         </DialogContent>
@@ -655,14 +948,6 @@ export default function Clientes() {
                   name="nombreEmpresa"
                   defaultValue={editingClient?.nombreEmpresa}
                   required
-                />
-              </div>
-              <div>
-                <Label htmlFor="ubicacionPlaza">Ubicación/Plaza</Label>
-                <Input
-                  id="ubicacionPlaza"
-                  name="ubicacionPlaza"
-                  defaultValue={editingClient?.ubicacionPlaza}
                 />
               </div>
               <div>
@@ -698,6 +983,20 @@ export default function Clientes() {
                   defaultValue={editingClient?.email}
                 />
               </div>
+
+              {!editingClient && (
+                <div className="col-span-2">
+                  <Label htmlFor="new-client-plazas">
+                    Plazas / CEDIs (opcional)
+                  </Label>
+                  <Textarea
+                    id="new-client-plazas"
+                    value={newClientPlazasText}
+                    onChange={(e) => setNewClientPlazasText(e.target.value)}
+                    placeholder="Una por línea, o separadas por coma"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button
@@ -706,6 +1005,7 @@ export default function Clientes() {
                 onClick={() => {
                   setDialogOpen(false);
                   setEditingClient(null);
+                  setNewClientPlazasText("");
                 }}
               >
                 Cancelar

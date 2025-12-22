@@ -18,6 +18,7 @@ import { surveyorMessagesRouter } from './surveyorMessages';
 import { clientPortalRouter } from './clientPortal';
 import { auditRouter } from './audit';
 import { candidateConsentRouter } from './candidateConsent';
+import { candidateSelfRouter } from "./candidateSelf";
 import { rolesRouter } from './roles';
 import { clientSitesRouter } from "./clientSites";
 
@@ -53,6 +54,7 @@ export const appRouter = router({
   workHistory: workHistoryRouter,
   candidateComments: candidateCommentsRouter,
   candidateConsent: candidateConsentRouter,
+  candidateSelf: candidateSelfRouter,
 
   // Candidatos y Procesos
   candidates: candidatesRouter,

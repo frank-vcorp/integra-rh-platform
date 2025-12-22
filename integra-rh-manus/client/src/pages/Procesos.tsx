@@ -30,7 +30,16 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useHasPermission } from "@/_core/hooks/usePermission";
-import { TIPOS_PROCESO, TipoProcesoType } from "@/lib/constants";
+import { TipoProcesoType } from "@/lib/constants";
+import {
+  AmbitoType,
+  IlaModoType,
+  PROCESO_BASE_OPTIONS,
+  ProcesoBaseType,
+  ProcesoConfig,
+  formatTipoProductoDisplay,
+  mapProcesoConfigToTipoProducto,
+} from "@/lib/procesoTipo";
 
 export default function Procesos() {
   const { user } = useAuth();
@@ -40,7 +49,13 @@ export default function Procesos() {
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [selectedPost, setSelectedPost] = useState<string>("");
-  const [tipoProducto, setTipoProducto] = useState<TipoProcesoType>("ILA");
+  const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
+  const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
+  const [eseAmbito, setEseAmbito] = useState<AmbitoType>("LOCAL");
+  const [eseExtra, setEseExtra] = useState<"NINGUNO" | "BURO" | "LEGAL">(
+    "NINGUNO"
+  );
+  const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
 
   const { data: allProcesses = [], isLoading } = trpc.processes.list.useQuery();
   // Filtrar procesos según rol
@@ -90,6 +105,23 @@ export default function Procesos() {
       return;
     }
 
+    const config: ProcesoConfig =
+      baseTipo === "ILA"
+        ? { base: "ILA", modo: ilaModo }
+        : baseTipo === "ESE"
+        ? { base: "ESE", ambito: eseAmbito, extra: eseExtra }
+        : baseTipo === "VISITA"
+        ? { base: "VISITA", ambito: visitaAmbito }
+        : baseTipo === "BURO"
+        ? { base: "BURO" }
+        : baseTipo === "LEGAL"
+        ? { base: "LEGAL" }
+        : { base: "SEMANAS" };
+
+    const tipoProducto: TipoProcesoType = mapProcesoConfigToTipoProducto(
+      config
+    );
+
     createMutation.mutate({
       candidatoId: parseInt(selectedCandidate),
       clienteId: parseInt(selectedClient),
@@ -103,7 +135,11 @@ export default function Procesos() {
     setSelectedCandidate("");
     setSelectedClient("");
     setSelectedPost("");
-    setTipoProducto("ILA");
+    setBaseTipo("ILA");
+    setIlaModo("NORMAL");
+    setEseAmbito("LOCAL");
+    setEseExtra("NINGUNO");
+    setVisitaAmbito("LOCAL");
     setDialogOpen(true);
   };
 
@@ -181,17 +217,31 @@ export default function Procesos() {
     ? allPosts.filter((p) => p.clienteId === parseInt(selectedClient))
     : allPosts;
 
-  const [processSortKey, setProcessSortKey] = useState<"clave" | "tipo" | "estatus">("clave");
+  const [processSortKey, setProcessSortKey] = useState<
+    "clave" | "tipo" | "estatus" | "fechaRecepcion"
+  >("clave");
   const [processSortDir, setProcessSortDir] = useState<"asc" | "desc">("asc");
 
   const processes = useMemo(() => {
     const list = [...processesBase];
     list.sort((a, b) => {
+      if (processSortKey === "fechaRecepcion") {
+        const at = Number.isFinite(new Date(a.fechaRecepcion).getTime())
+          ? new Date(a.fechaRecepcion).getTime()
+          : 0;
+        const bt = Number.isFinite(new Date(b.fechaRecepcion).getTime())
+          ? new Date(b.fechaRecepcion).getTime()
+          : 0;
+        if (at < bt) return processSortDir === "asc" ? -1 : 1;
+        if (at > bt) return processSortDir === "asc" ? 1 : -1;
+        return 0;
+      }
+
       let av: string = "";
       let bv: string = "";
       if (processSortKey === "tipo") {
-        av = (a.tipoProducto || "").toLowerCase();
-        bv = (b.tipoProducto || "").toLowerCase();
+        av = formatTipoProductoDisplay(a.tipoProducto).toLowerCase();
+        bv = formatTipoProductoDisplay(b.tipoProducto).toLowerCase();
       } else if (processSortKey === "estatus") {
         av = getStatusLabel(a.estatusProceso).toLowerCase();
         bv = getStatusLabel(b.estatusProceso).toLowerCase();
@@ -206,13 +256,15 @@ export default function Procesos() {
     return list;
   }, [processesBase, processSortKey, processSortDir]);
 
-  const toggleProcessSort = (key: "clave" | "tipo" | "estatus") => {
+  const toggleProcessSort = (
+    key: "clave" | "tipo" | "estatus" | "fechaRecepcion"
+  ) => {
     setProcessSortKey((prev) => {
       if (prev === key) {
         setProcessSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
         return prev;
       }
-      setProcessSortDir("asc");
+      setProcessSortDir(key === "fechaRecepcion" ? "desc" : "asc");
       return key;
     });
   };
@@ -421,18 +473,28 @@ export default function Procesos() {
                       <TableHead className="max-w-[220px]">
                         Candidato
                       </TableHead>
-	                      <TableHead className="max-w-[220px]">
-	                        Cliente
-	                      </TableHead>
-	                      <TableHead className="max-w-[220px]">
-	                        Puesto
-	                      </TableHead>
-	                      <TableHead className="max-w-[200px]">
-	                        Responsable
-	                      </TableHead>
-	                      <TableHead className="w-[120px]">
-	                        Fecha Recepción
-	                      </TableHead>
+                      <TableHead className="max-w-[220px]">
+                        Cliente
+                      </TableHead>
+                      <TableHead className="max-w-[200px]">
+                        Plaza
+                      </TableHead>
+                      <TableHead className="max-w-[220px]">
+                        Puesto
+                      </TableHead>
+                      <TableHead className="max-w-[200px]">
+                        Responsable
+                      </TableHead>
+                      <TableHead className="w-[120px]">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold"
+                          onClick={() => toggleProcessSort("fechaRecepcion")}
+                        >
+                          Fecha Recepción
+                          <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </TableHead>
                       <TableHead>
                         <button
                           type="button"
@@ -443,7 +505,6 @@ export default function Procesos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
-                      <TableHead>Plaza</TableHead>
                       <TableHead className="w-[120px] text-right">
                         Acciones
                       </TableHead>
@@ -460,26 +521,26 @@ export default function Procesos() {
                         </TableCell>
                         <TableCell>
                           <span className="badge badge-info">
-                            {process.tipoProducto}
+                            {formatTipoProductoDisplay(process.tipoProducto)}
                           </span>
                         </TableCell>
                         <TableCell className="max-w-[220px] text-xs">
                           {getCandidateName(process.candidatoId)}
                         </TableCell>
-	                        <TableCell className="max-w-[220px] text-xs">
-	                          {getClientName(process.clienteId)}
-	                        </TableCell>
+                        <TableCell className="max-w-[220px] text-xs">
+                          {getClientName(process.clienteId)}
+                        </TableCell>
                         <TableCell className="max-w-[200px] text-xs">
                           {getSiteName((process as any).clientSiteId)}
                         </TableCell>
-	                        <TableCell className="max-w-[220px] text-xs">
-	                          {getPostName(process.puestoId)}
-	                        </TableCell>
-	                        <TableCell className="max-w-[200px] text-xs">
-	                          {getResponsableName(
-	                            (process as any).especialistaAtraccionId,
-	                          )}
-	                        </TableCell>
+                        <TableCell className="max-w-[220px] text-xs">
+                          {getPostName(process.puestoId)}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] text-xs">
+                          {getResponsableName(
+                            (process as any).especialistaAtraccionId,
+                          )}
+                        </TableCell>
                         <TableCell className="text-xs">
                           {new Date(
                             process.fechaRecepcion,
@@ -567,7 +628,7 @@ export default function Procesos() {
                     <div className="space-y-0.5 text-[11px]">
                       <div>
                         <span className="font-semibold">Tipo: </span>
-                        {process.tipoProducto}
+                        {formatTipoProductoDisplay(process.tipoProducto)}
                       </div>
                       <div>
                         <span className="font-semibold">Candidato: </span>
@@ -648,19 +709,112 @@ export default function Procesos() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-4">
               <div>
-                <Label htmlFor="tipoProducto">Proceso a Realizar *</Label>
-                <Select value={tipoProducto} onValueChange={(v) => setTipoProducto(v as TipoProcesoType)}>
+                <Label htmlFor="tipo-base">Proceso a realizar *</Label>
+                <Select
+                  value={baseTipo}
+                  onValueChange={(v) => setBaseTipo(v as ProcesoBaseType)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIPOS_PROCESO.map((tipo) => (
-                      <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                    {PROCESO_BASE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+
+                {baseTipo === "ILA" && (
+                  <div className="mt-3 space-y-1">
+                    <Label className="text-xs">Modalidad ILA</Label>
+                    <Select
+                      value={ilaModo}
+                      onValueChange={(v) => setIlaModo(v as IlaModoType)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NORMAL">
+                          Normal (sin buró ni legal)
+                        </SelectItem>
+                        <SelectItem value="BURO">
+                          Con buró de crédito
+                        </SelectItem>
+                        <SelectItem value="LEGAL">
+                          Con investigación legal
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {baseTipo === "ESE" && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Ámbito</Label>
+                      <Select
+                        value={eseAmbito}
+                        onValueChange={(v) => setEseAmbito(v as AmbitoType)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOCAL">Local</SelectItem>
+                          <SelectItem value="FORANEO">Foráneo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Complemento</Label>
+                      <Select
+                        value={eseExtra}
+                        onValueChange={(v) =>
+                          setEseExtra(v as "NINGUNO" | "BURO" | "LEGAL")
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NINGUNO">
+                            Sin complemento
+                          </SelectItem>
+                          <SelectItem value="BURO">
+                            Con buró de crédito
+                          </SelectItem>
+                          <SelectItem value="LEGAL">
+                            Con investigación legal
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {baseTipo === "VISITA" && (
+                  <div className="mt-3 space-y-1">
+                    <Label className="text-xs">Ámbito de visita</Label>
+                    <Select
+                      value={visitaAmbito}
+                      onValueChange={(v) => setVisitaAmbito(v as AmbitoType)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOCAL">Local</SelectItem>
+                        <SelectItem value="FORANEO">Foránea</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  La clave se generará automáticamente (ej: ILA-2025-001)
+                  La clave se generará automáticamente (ej: ILA-2025-001) según
+                  el tipo de proceso seleccionado.
                 </p>
               </div>
 
