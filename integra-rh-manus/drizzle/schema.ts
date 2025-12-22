@@ -83,6 +83,7 @@ export const clients = mysqlTable("clients", {
   contacto: varchar("contacto", { length: 255 }),
   telefono: varchar("telefono", { length: 50 }),
   email: varchar("email", { length: 320 }),
+  iaSuggestionsEnabled: boolean("iaSuggestionsEnabled").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -149,6 +150,84 @@ export const candidates = mysqlTable("candidates", {
     resultadoPdfUrl?: string;
     resultadoPdfPath?: string;
   }>(),
+  // Perfil detallado del candidato (datos personales, domicilio, contacto de emergencia, etc.)
+  perfilDetalle: json("perfilDetalle").$type<{
+    generales?: {
+      // Datos de identificación y de la vacante
+      puestoSolicitado?: string;
+      plaza?: string;
+      ciudadResidencia?: string;
+      fechaNacimiento?: string;
+      lugarNacimiento?: string;
+      edad?: number;
+      nss?: string;
+      curp?: string;
+      rfc?: string;
+      telefonoCasa?: string;
+      telefonoRecados?: string;
+    };
+    domicilio?: {
+      calle?: string;
+      numero?: string;
+      interior?: string;
+      colonia?: string;
+      municipio?: string;
+      estado?: string;
+      cp?: string;
+      mapLink?: string;
+    };
+    redesSociales?: {
+      facebook?: string;
+      instagram?: string;
+      twitterX?: string;
+      tiktok?: string;
+    };
+    situacionFamiliar?: {
+      estadoCivil?: string;
+      fechaMatrimonioUnion?: string;
+      parejaDeAcuerdoConTrabajo?: string;
+      esposaEmbarazada?: string;
+      hijosDescripcion?: string;
+      quienCuidaHijos?: string;
+      dondeVivenCuidadores?: string;
+      pensionAlimenticia?: string;
+      vivienda?: string;
+    };
+    parejaNoviazgo?: {
+      tieneNovio?: string;
+      nombreNovio?: string;
+      ocupacionNovio?: string;
+      domicilioNovio?: string;
+      apoyoEconomicoMutuo?: string;
+      negocioEnConjunto?: string;
+    };
+    financieroAntecedentes?: {
+      tieneDeudas?: string;
+      institucionDeuda?: string;
+      buroCreditoDeclarado?: string;
+      haSidoSindicalizado?: string;
+      haEstadoAfianzado?: string;
+      accidentesVialesPrevios?: string;
+      accidentesTrabajoPrevios?: string;
+    };
+    contactoEmergencia?: {
+      nombre?: string;
+      parentesco?: string;
+      telefono?: string;
+    };
+  }>(),
+  // Captura inicial self-service
+  selfFilledStatus: mysqlEnum("selfFilledStatus", [
+    "pendiente",
+    "recibido",
+    "revisado",
+  ]).default("pendiente"),
+  selfFilledAt: timestamp("selfFilledAt"),
+  selfFilledReviewedBy: int("selfFilledReviewedBy"),
+  selfFilledReviewedAt: timestamp("selfFilledReviewedAt"),
+  // Consent tracking: Privacy notice acceptance
+  aceptoAvisoPrivacidad: boolean("aceptoAvisoPrivacidad").default(false).notNull(),
+  aceptoAvisoPrivacidadAt: timestamp("aceptoAvisoPrivacidadAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -271,9 +350,20 @@ export const workHistory = mysqlTable("workHistory", {
       informanteEmail?: string;
       comentariosAdicionales?: string;
     };
+    iaDictamen?: {
+      resumenCorto?: string;
+      fortalezas?: string[];
+      riesgos?: string[];
+      sugerenciasSeguimiento?: string[];
+      recomendacionTexto?: string;
+      soloUsoInterno?: boolean;
+      generatedAt?: string;
+    };
   }>(),
   // Puntaje numérico de desempeño 0–100 calculado a partir de la matriz
   desempenoScore: int("desempenoScore"),
+  // Origen del registro (capturado por el candidato o por el analista)
+  capturadoPor: mysqlEnum("capturadoPor", ["candidato", "analista"]).default("analista").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -372,11 +462,22 @@ export const processes = mysqlTable("processes", {
     resultado?: string;
     detalles?: string;
     completado?: boolean;
+    iaDictamenCliente?: {
+      resumenEjecutivoCliente?: string;
+      recomendacionesCliente?: string[];
+      notaInternaAnalista?: string;
+      dictamenFinal?: string;
+      generatedAt?: string;
+    };
   }>(),
   investigacionLegal: json("investigacionLegal").$type<{
     antecedentes?: string;
     flagRiesgo?: boolean;
     archivoAdjuntoUrl?: string;
+    // Investigación documental complementaria
+    notasPeriodisticas?: string;
+    observacionesImss?: string;
+    semanasComentario?: string;
   }>(),
   buroCredito: json("buroCredito").$type<{
     estatus?: string;
@@ -538,7 +639,7 @@ export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   userId: int("userId"),
-  actorType: mysqlEnum("actorType", ["admin", "client", "system"]).default("system").notNull(),
+  actorType: mysqlEnum("actorType", ["admin", "client", "system", "candidate"]).default("system").notNull(),
   action: varchar("action", { length: 100 }).notNull(),
   entityType: varchar("entityType", { length: 100 }).notNull(),
   entityId: varchar("entityId", { length: 100 }),
@@ -579,3 +680,23 @@ export const candidateConsents = mysqlTable("candidate_consents", {
 
 export type CandidateConsent = typeof candidateConsents.$inferSelect;
 export type InsertCandidateConsent = typeof candidateConsents.$inferInsert;
+
+// ============================================================================
+// TOKENS SELF-SERVICE DE CANDIDATO
+// ============================================================================
+
+export const candidateSelfTokens = mysqlTable("candidateSelfTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  candidateId: int("candidateId").notNull().references(() => candidates.id, {
+    onDelete: "cascade",
+  }),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedAt: timestamp("usedAt"),
+  revoked: boolean("revoked").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CandidateSelfToken = typeof candidateSelfTokens.$inferSelect;
+export type InsertCandidateSelfToken = typeof candidateSelfTokens.$inferInsert;

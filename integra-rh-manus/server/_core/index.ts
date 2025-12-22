@@ -34,11 +34,12 @@ async function startServer() {
   const app = express();
 
   // Asignar un requestId a cada petición y loguear entrada.
-  app.use((req, _res, next) => {
+  app.use((req, res, next) => {
     const existingId =
       (req.headers["x-request-id"] as string | undefined) ?? undefined;
     const requestId = logger.ensureRequestId(existingId);
     (req as any).requestId = requestId;
+    res.setHeader("x-request-id", requestId);
     logger.info("incoming_request", {
       requestId,
       method: req.method,
@@ -60,6 +61,7 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
   // OAuth routes disabled: using Firebase Auth only in this environment
   // tRPC API
   app.use(
@@ -67,6 +69,19 @@ async function startServer() {
     createExpressMiddleware({
       router: appRouter,
       createContext,
+      onError({ error, path, type, ctx }) {
+        try {
+          logger.error("trpc_error", {
+            requestId: ctx?.requestId,
+            path,
+            type,
+            code: error.code,
+            message: error.message,
+          });
+        } catch {
+          // no-op
+        }
+      },
     })
   );
   // Webhooks externos
@@ -92,6 +107,149 @@ async function startServer() {
       res.status(500).json({ ok: false });
     }
   });
+  
+  // REST endpoint para autosave simple (DEBE estar ANTES de setupVite/serveStatic)
+  app.post("/api/candidate-autosave", async (req, res) => {
+    try {
+      const { token, email, telefono } = req.body;
+      
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+
+      const tokenRow = await (await import("../db")).getCandidateSelfToken(token);
+      if (!tokenRow || tokenRow.revoked) {
+        return res.status(403).json({ error: "Invalid token" });
+      }
+
+      const now = new Date();
+      if (tokenRow.expiresAt <= now) {
+        return res.status(403).json({ error: "Token expired" });
+      }
+
+      const { getDb } = await import("../db");
+      const database = await getDb();
+      if (!database) {
+        return res.status(500).json({ error: "Database unavailable" });
+      }
+
+      const { candidates } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+
+      // Update candidate email/phone if provided
+      if (email || telefono) {
+        await database
+          .update(candidates)
+          .set({
+            ...(email && { email }),
+            ...(telefono && { telefono }),
+          })
+          .where(eq(candidates.id, tokenRow.candidateId));
+      }
+
+      res.status(200).json({ ok: true });
+    } catch (error: any) {
+      console.error("autosave error:", error);
+      res.status(500).json({ error: error.message || "Internal error" });
+    }
+  });
+
+  // REST endpoint para guardar TODOS los datos del formulario (draft completo)
+  app.post("/api/candidate-save-full-draft", async (req, res) => {
+    try {
+      const { token, candidate, perfil, workHistory, aceptoAvisoPrivacidad } = req.body;
+      
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+
+      const db = await import("../db");
+      const tokenRow = await db.getCandidateSelfToken(token);
+      if (!tokenRow || tokenRow.revoked) {
+        return res.status(403).json({ error: "Invalid token" });
+      }
+
+      const now = new Date();
+      if (tokenRow.expiresAt <= now) {
+        return res.status(403).json({ error: "Token expired" });
+      }
+
+      const { getDb } = await import("../db");
+      const database = await getDb();
+      if (!database) {
+        return res.status(500).json({ error: "Database unavailable" });
+      }
+
+      const { candidates, workHistory: workHistoryTable } = await import("../../drizzle/schema");
+      const { eq, and } = await import("drizzle-orm");
+      const { normalizeWorkDateInput } = await import("../_core/workDate");
+
+      // Guardar datos del candidato
+      if (candidate) {
+        await database
+          .update(candidates)
+          .set({
+            email: candidate.email || undefined,
+            telefono: candidate.telefono || undefined,
+            perfilDetalle: perfil || undefined,
+            // Guardar consentimiento si se proporciona
+            ...(aceptoAvisoPrivacidad && { 
+              aceptoAvisoPrivacidad: true,
+              aceptoAvisoPrivacidadAt: new Date(),
+            }),
+          } as any)
+          .where(eq(candidates.id, tokenRow.candidateId));
+      }
+
+      // Guardar historial laboral (SOLO campos que captura el candidato)
+      if (workHistory && Array.isArray(workHistory)) {
+        for (const item of workHistory) {
+          const fechaInicioValue = normalizeWorkDateInput(item.fechaInicio) ?? "";
+          const fechaFinValueRaw = item.esActual === true ? "" : (item.fechaFin ?? "");
+          const fechaFinValue = fechaFinValueRaw ? (normalizeWorkDateInput(fechaFinValueRaw) ?? "") : "";
+
+          if (item.id && item.id > 0) {
+            // Actualizar (solo campos del candidato)
+            await database
+              .update(workHistoryTable)
+              .set({
+                empresa: item.empresa,
+                puesto: item.puesto,
+                fechaInicio: fechaInicioValue,
+                fechaFin: fechaFinValue,
+                tiempoTrabajado: item.tiempoTrabajado,
+              })
+              .where(
+                and(
+                  eq(workHistoryTable.id, item.id),
+                  eq(workHistoryTable.candidatoId, tokenRow.candidateId),
+                ),
+              );
+          } else if (item.empresa && item.empresa.trim()) {
+            // Insertar nuevo (solo campos del candidato, sin causales)
+            await database.insert(workHistoryTable).values({
+              candidatoId: tokenRow.candidateId,
+              empresa: item.empresa,
+              puesto: item.puesto || "",
+              fechaInicio: fechaInicioValue,
+              fechaFin: fechaFinValue,
+              tiempoTrabajado: item.tiempoTrabajado ?? "",
+              tiempoTrabajadoEmpresa: "",
+              estatusInvestigacion: "en_revision",
+              resultadoVerificacion: "pendiente",
+              capturadoPor: "candidato",
+            } as any);
+          }
+        }
+      }
+
+      res.status(200).json({ ok: true });
+    } catch (error: any) {
+      console.error("save-full-draft error:", error);
+      res.status(500).json({ error: error.message || "Internal error" });
+    }
+  });
+  
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

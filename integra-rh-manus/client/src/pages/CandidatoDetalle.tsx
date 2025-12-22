@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -23,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { CAUSALES_SALIDA, CausalSalidaType, ESTATUS_INVESTIGACION, EstatusInvestigacionType, ESTATUS_INVESTIGACION_LABELS } from "@/lib/constants";
-import { calcularTiempoTrabajado } from "@/lib/dateUtils";
+import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 
 const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
   en_revision: "bg-yellow-100 text-yellow-800",
@@ -40,6 +41,15 @@ const getInvestigacionClass = (estatus?: string) =>
   estatus && estatus in INVESTIGACION_BADGE
     ? INVESTIGACION_BADGE[estatus as EstatusInvestigacionType]
     : INVESTIGACION_BADGE["en_revision"];
+
+const buildConsentUrl = (token?: string | null) => {
+  if (!token) return "";
+  const origin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "";
+  return `${origin}/consentir/${encodeURIComponent(token)}`;
+};
 
 const INVESTIGATION_BLOCKS = [
   {
@@ -71,6 +81,8 @@ export default function CandidatoDetalle() {
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [editingWorkHistory, setEditingWorkHistory] = useState<any>(null);
   const [consentAction, setConsentAction] = useState<'email' | 'whatsapp' | 'copy' | null>(null);
+  const [selfServiceUrl, setSelfServiceUrl] = useState<string>("");
+  const [selfServiceExpiresAt, setSelfServiceExpiresAt] = useState<Date | null>(null);
 
   const { data: candidate, isLoading } = trpc.candidates.getById.useQuery({ id: candidateId });
   const { data: workHistory = [] } = trpc.workHistory.getByCandidate.useQuery({ candidatoId: candidateId });
@@ -78,6 +90,33 @@ export default function CandidatoDetalle() {
   const { data: documents = [] } = trpc.documents.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: procesos = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: consent, refetch: refetchConsent } = trpc.candidateConsent.getConsentByCandidateId.useQuery({ candidateId: candidateId });
+  const createSelfServiceLink = trpc.candidateSelf.createToken.useMutation({
+    onSuccess: (res) => {
+      setSelfServiceUrl(res.url);
+      setSelfServiceExpiresAt(res.expiresAt ? new Date(res.expiresAt as any) : null);
+      toast.success("Enlace de pre-registro generado");
+      try {
+        navigator.clipboard?.writeText(res.url);
+        toast.info("Enlace copiado al portapapeles");
+      } catch {
+        // ignorar fallo al copiar
+      }
+
+      if (openSelfServiceAfterCreate) {
+        setOpenSelfServiceAfterCreate(false);
+        try {
+          window.open(res.url, "_blank", "noopener,noreferrer");
+        } catch {
+          // no-op
+        }
+      }
+    },
+    onError: (err) => {
+      toast.error("No se pudo generar el enlace: " + err.message);
+    },
+  });
+
+  const [openSelfServiceAfterCreate, setOpenSelfServiceAfterCreate] = useState(false);
 
   const sendConsentLink = trpc.candidateConsent.sendConsentLink.useMutation({
     onSuccess: (data) => {
@@ -102,6 +141,19 @@ export default function CandidatoDetalle() {
   });
 
   // Llamar incondicionalmente a los hooks; usar initialData/enabled para orden estable
+  const generateIaMini = trpc.workHistory.generateIaDictamen.useMutation({
+    onSuccess: (res) => {
+      utils.workHistory.getByCandidate.invalidate({ candidatoId: candidateId });
+      if (res.generated) {
+        toast.success("Mini dictamen IA generado para este empleo.");
+      } else {
+        toast.info("Se procesó la solicitud, pero no se generó un mini dictamen IA.");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Error al generar el mini dictamen IA.");
+    },
+  });
   const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery(undefined, {
     initialData: [],
   });
@@ -120,11 +172,16 @@ export default function CandidatoDetalle() {
     onError: (e: any) => toast.error('Error: ' + e.message)
   });
   const asignarPsico = trpc.psicometricas.asignarBateria.useMutation({
-    onSuccess: () => {
-      toast.success("Psicométrica asignada");
+    onSuccess: (res) => {
+      const clave = (res as any)?.id;
+      if (clave) {
+        toast.success(`Psicométrica asignada. Clave: ${clave}`);
+      } else {
+        toast.success("Psicométrica asignada.");
+      }
       utils.candidates.getById.invalidate({ id: candidateId });
     },
-    onError: (e:any) => toast.error("Error: "+e.message)
+    onError: (e:any) => toast.error("Error: "+(e?.message || String(e)))
   });
   const guardarReportePsico = trpc.psicometricas.guardarReporte.useMutation({
     onSuccess: (res) => {
@@ -169,6 +226,13 @@ export default function CandidatoDetalle() {
     { clientId: candidate?.clienteId || 0 },
     { enabled: Boolean(candidate?.clienteId), initialData: [] }
   );
+  const markSelfReviewed = trpc.candidates.markSelfFilledReviewed.useMutation({
+    onSuccess: () => {
+      utils.candidates.getById.invalidate({ id: candidateId });
+      toast.success("Captura inicial marcada como revisada");
+    },
+    onError: (e: any) => toast.error("Error: " + e.message),
+  });
 
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
@@ -235,6 +299,9 @@ export default function CandidatoDetalle() {
       toast.error("Error: " + error.message);
     },
   });
+
+  const hasValue = (v: unknown) =>
+    v !== undefined && v !== null && String(v).trim().length > 0;
 
   // Documents
   const uploadDocumentMutation = trpc.documents.upload.useMutation({
@@ -312,8 +379,22 @@ export default function CandidatoDetalle() {
     const formData = new FormData(e.currentTarget);
     const causalRH = formData.get("causalSalidaRH") as string;
     const causalJefe = formData.get("causalSalidaJefeInmediato") as string;
-    const fechaInicio = formData.get("fechaInicio") as string || undefined;
-    const fechaFin = (formData.get("fechaFin") as string) || undefined;
+
+    const buildMonthYear = (year?: string | null, month?: string | null) => {
+      const y = (year ?? "").toString().trim();
+      const m = (month ?? "").toString().trim();
+      if (!y) return undefined;
+      return m ? `${y}-${m}` : y;
+    };
+
+    const fechaInicio = buildMonthYear(
+      formData.get("fechaInicioAnio") as string | null,
+      formData.get("fechaInicioMes") as string | null,
+    );
+    const fechaFin = buildMonthYear(
+      formData.get("fechaFinAnio") as string | null,
+      formData.get("fechaFinMes") as string | null,
+    );
     const tiempoTrabajadoEmpresa = (formData.get("tiempoTrabajadoEmpresa") as string) || undefined;
     const estatusInvestigacion = formData.get("estatusInvestigacion") as EstatusInvestigacionType | null;
     const comentarioInvestigacion = formData.get("comentarioInvestigacion") as string | null;
@@ -497,6 +578,79 @@ export default function CandidatoDetalle() {
     );
   }
 
+  const perfil: any = (candidate as any).perfilDetalle || {};
+  const generales = perfil.generales || {};
+  const domicilio = perfil.domicilio || {};
+  const contactoEmergencia = perfil.contactoEmergencia || {};
+
+  const perfilFields = [
+    generales.puestoSolicitado,
+    generales.plaza,
+    generales.ciudadResidencia,
+    generales.rfc,
+    generales.telefonoCasa,
+    generales.telefonoRecados,
+    domicilio.calle,
+    domicilio.colonia,
+    domicilio.municipio,
+    domicilio.estado,
+    domicilio.cp,
+    domicilio.mapLink,
+    contactoEmergencia.nombre,
+    contactoEmergencia.parentesco,
+    contactoEmergencia.telefono,
+    perfil.situacionFamiliar?.estadoCivil,
+    perfil.situacionFamiliar?.hijosDescripcion,
+    perfil.situacionFamiliar?.vivienda,
+    perfil.redesSociales?.facebook,
+    perfil.redesSociales?.instagram,
+    perfil.redesSociales?.twitterX,
+    perfil.redesSociales?.tiktok,
+    perfil.financieroAntecedentes?.tieneDeudas,
+    perfil.financieroAntecedentes?.institucionDeuda,
+    perfil.financieroAntecedentes?.buroCreditoDeclarado,
+    perfil.financieroAntecedentes?.haSidoSindicalizado,
+    perfil.financieroAntecedentes?.haEstadoAfianzado,
+  ];
+
+  const perfilFilledCount = perfilFields.filter(hasValue).length;
+  const perfilTotalCount = perfilFields.length;
+  const perfilPct = perfilTotalCount > 0 ? Math.round((perfilFilledCount / perfilTotalCount) * 100) : 0;
+
+  const hasIdentificacion =
+    hasValue(generales.puestoSolicitado) ||
+    hasValue(generales.plaza) ||
+    hasValue(generales.ciudadResidencia) ||
+    hasValue(generales.rfc) ||
+    hasValue(generales.telefonoCasa) ||
+    hasValue(generales.telefonoRecados);
+  const hasDomicilio =
+    hasValue(domicilio.calle) ||
+    hasValue(domicilio.colonia) ||
+    hasValue(domicilio.municipio) ||
+    hasValue(domicilio.estado) ||
+    hasValue(domicilio.cp) ||
+    hasValue(domicilio.mapLink);
+  const hasContactoEmergencia =
+    hasValue(contactoEmergencia.nombre) ||
+    hasValue(contactoEmergencia.parentesco) ||
+    hasValue(contactoEmergencia.telefono);
+  const hasEntornoFamiliar =
+    hasValue(perfil.situacionFamiliar?.estadoCivil) ||
+    hasValue(perfil.situacionFamiliar?.hijosDescripcion) ||
+    hasValue(perfil.situacionFamiliar?.vivienda);
+  const hasRedes =
+    hasValue(perfil.redesSociales?.facebook) ||
+    hasValue(perfil.redesSociales?.instagram) ||
+    hasValue(perfil.redesSociales?.twitterX) ||
+    hasValue(perfil.redesSociales?.tiktok);
+  const hasEconomia =
+    hasValue(perfil.financieroAntecedentes?.tieneDeudas) ||
+    hasValue(perfil.financieroAntecedentes?.institucionDeuda) ||
+    hasValue(perfil.financieroAntecedentes?.buroCreditoDeclarado) ||
+    hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) ||
+    hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -513,7 +667,21 @@ export default function CandidatoDetalle() {
         </Tooltip>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">{candidate.nombreCompleto}</h1>
-          <p className="text-muted-foreground mt-1">Detalle del candidato</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-muted-foreground">Detalle del candidato</p>
+            {/* Badge de consentimiento */}
+            {candidate.aceptoAvisoPrivacidad && candidate.aceptoAvisoPrivacidadAt && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md cursor-help">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                    Aceptó términos ({format(new Date(candidate.aceptoAvisoPrivacidadAt), "dd/MM/yyyy", { locale: es })})
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>Consentimiento de privacidad registrado</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </div>
 
@@ -542,46 +710,394 @@ export default function CandidatoDetalle() {
                 {new Date(candidate.createdAt).toLocaleDateString()}
               </p>
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">NSS (IMSS)</p>
+              <p className="font-medium flex items-center gap-1">
+                {hasValue(generales.nss) && (
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                )}
+                {generales.nss || "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">CURP</p>
+              <p className="font-medium flex items-center gap-1">
+                {hasValue(generales.curp) && (
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                )}
+                {generales.curp || "-"}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Perfil extendido del candidato */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            Perfil extendido del candidato
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] cursor-help">
+                  ?
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                Datos declarados por el candidato en su formulario de auto‑registro:
+                identificación, domicilio, contacto de emergencia y entorno familiar.
+                Usa “Editar perfil extendido” para corregirlos (abre el formulario del
+                candidato) y “Marcar como revisada” cuando ya validaste.
+              </TooltipContent>
+            </Tooltip>
+          </CardTitle>
+
+          {!isClientAuth && (
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={createSelfServiceLink.isPending}
+                      onClick={() => {
+                        setOpenSelfServiceAfterCreate(true);
+                        createSelfServiceLink.mutate({
+                          candidateId,
+                          ttlHours: 6,
+                          baseUrl: window.location.origin,
+                        });
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {createSelfServiceLink.isPending
+                    ? "Abriendo..."
+                    : "Editar perfil extendido"}
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={
+                        markSelfReviewed.isPending ||
+                        candidate.selfFilledStatus !== "recibido"
+                      }
+                      onClick={() => markSelfReviewed.mutate({ id: candidateId })}
+                    >
+                      <CheckCircle2
+                        className={
+                          candidate.selfFilledStatus === "revisado"
+                            ? "h-4 w-4 text-emerald-500"
+                            : "h-4 w-4"
+                        }
+                      />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {candidate.selfFilledStatus === "revisado"
+                    ? "Revisado"
+                    : candidate.selfFilledStatus === "recibido"
+                    ? markSelfReviewed.isPending
+                      ? "Marcando..."
+                      : "Marcar como revisada"
+                    : "Aún no hay captura para revisar"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <Progress value={perfilPct} />
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
+              {perfilPct}%
+            </span>
+          </div>
+
+          {perfilFilledCount > 0 && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {hasIdentificacion && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Identificación</p>
+                  {hasValue(generales.puestoSolicitado) && (
+                    <p>
+                      <span className="text-muted-foreground">Puesto solicitado: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {generales.puestoSolicitado}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(generales.plaza) && (
+                    <p>
+                      <span className="text-muted-foreground">Plaza / CEDI: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {generales.plaza}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(generales.ciudadResidencia) && (
+                    <p>
+                      <span className="text-muted-foreground">Ciudad de residencia: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {generales.ciudadResidencia}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(generales.rfc) && (
+                    <p>
+                      <span className="text-muted-foreground">RFC: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {generales.rfc}
+                      </span>
+                    </p>
+                  )}
+                  {(hasValue(generales.telefonoCasa) || hasValue(generales.telefonoRecados)) && (
+                    <p>
+                      <span className="text-muted-foreground">Tel. casa / recados: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {[generales.telefonoCasa, generales.telefonoRecados]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasDomicilio && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Domicilio</p>
+                  {(hasValue(domicilio.calle) ||
+                    hasValue(domicilio.colonia) ||
+                    hasValue(domicilio.municipio) ||
+                    hasValue(domicilio.estado) ||
+                    hasValue(domicilio.cp)) && (
+                    <p>
+                      <span className="text-muted-foreground">Dirección: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {[domicilio.calle, domicilio.colonia, domicilio.municipio, domicilio.estado, domicilio.cp]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(domicilio.mapLink) && (
+                    <p>
+                      <a
+                        href={domicilio.mapLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-600 underline"
+                      >
+                        Ver ubicación en mapa
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasContactoEmergencia && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Contacto de emergencia</p>
+                  {hasValue(contactoEmergencia.nombre) && (
+                    <p>
+                      <span className="text-muted-foreground">Nombre: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {contactoEmergencia.nombre}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(contactoEmergencia.parentesco) && (
+                    <p>
+                      <span className="text-muted-foreground">Parentesco: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {contactoEmergencia.parentesco}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(contactoEmergencia.telefono) && (
+                    <p>
+                      <span className="text-muted-foreground">Teléfono: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {contactoEmergencia.telefono}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasEntornoFamiliar && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Entorno familiar</p>
+                  {hasValue(perfil.situacionFamiliar?.estadoCivil) && (
+                    <p>
+                      <span className="text-muted-foreground">Estado civil: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.estadoCivil}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.hijosDescripcion) && (
+                    <p>
+                      <span className="text-muted-foreground">Hijos / comentarios: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.hijosDescripcion}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.vivienda) && (
+                    <p>
+                      <span className="text-muted-foreground">Vivienda: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.vivienda}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasRedes && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Redes sociales</p>
+                  {hasValue(perfil.redesSociales?.facebook) && (
+                    <p>
+                      <span className="text-muted-foreground">Facebook: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.redesSociales?.facebook}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.redesSociales?.instagram) && (
+                    <p>
+                      <span className="text-muted-foreground">Instagram: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.redesSociales?.instagram}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.redesSociales?.twitterX) && (
+                    <p>
+                      <span className="text-muted-foreground">Twitter / X: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.redesSociales?.twitterX}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.redesSociales?.tiktok) && (
+                    <p>
+                      <span className="text-muted-foreground">TikTok: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.redesSociales?.tiktok}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasEconomia && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Situación económica</p>
+                  {hasValue(perfil.financieroAntecedentes?.tieneDeudas) && (
+                    <p>
+                      <span className="text-muted-foreground">¿Tiene deudas?: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.tieneDeudas}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.financieroAntecedentes?.institucionDeuda) && (
+                    <p>
+                      <span className="text-muted-foreground">Institución de deuda: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.institucionDeuda}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.financieroAntecedentes?.buroCreditoDeclarado) && (
+                    <p>
+                      <span className="text-muted-foreground">Buró de crédito (declarado): </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.buroCreditoDeclarado}
+                      </span>
+                    </p>
+                  )}
+                  {(hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) ||
+                    hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado)) && (
+                    <p>
+                      <span className="text-muted-foreground">Sindicalizado / Afianzado: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {[
+                          perfil.financieroAntecedentes?.haSidoSindicalizado,
+                          perfil.financieroAntecedentes?.haEstadoAfianzado,
+                        ]
+                          .filter(Boolean)
+                          .join(" / ")}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Data Consent */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5" />
             Consentimiento de Datos
           </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Estado del Consentimiento</p>
-              {(() => {
-                if (consent?.isGiven) {
-                  return <p className="text-sm text-green-600">Otorgado el {new Date(consent.givenAt!).toLocaleString()}</p>;
-                }
-                if (consent) {
-                  return <p className="text-sm text-yellow-600">Enlace enviado, pendiente de firma.</p>;
-                }
-                return <p className="text-sm text-gray-500">Pendiente de envío.</p>;
-              })()}
-            </div>
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button disabled={sendConsentLink.isPending}>
-                      {sendConsentLink.isPending ? "Generando..." : "Obtener Enlace"}
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Genera o regenera un enlace único para que el candidato lea y firme el aviso de privacidad.
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent>
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={sendConsentLink.isPending}
+                  >
+                    {sendConsentLink.isPending ? "Generando..." : "Obtener enlace"}
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                Genera o regenera un enlace único para que el candidato lea y firme el aviso de privacidad.
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent>
                 <DropdownMenuItem
                   onSelect={() => {
                     setConsentAction("email");
@@ -635,8 +1151,242 @@ export default function CandidatoDetalle() {
                   Copiar Enlace
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+          </DropdownMenu>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <p className="text-sm font-medium">Estado del Consentimiento</p>
+            {(() => {
+              if (consent?.isGiven) {
+                return (
+                  <p className="text-sm text-green-600">
+                    Otorgado el {new Date(consent.givenAt!).toLocaleString()}
+                  </p>
+                );
+              }
+              if (consent) {
+                return (
+                  <p className="text-sm text-yellow-600">
+                    Enlace enviado, pendiente de firma.
+                  </p>
+                );
+              }
+              return (
+                <p className="text-sm text-gray-500">Pendiente de envío.</p>
+              );
+            })()}
+            {consent && (
+              <div className="mt-2 space-y-1 text-xs">
+                {(() => {
+                  const consentUrl = buildConsentUrl(consent.token);
+                  return (
+                    <>
+                      <Label className="text-xs">Último enlace generado</Label>
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          readOnly
+                          value={consentUrl}
+                          className="text-xs font-mono"
+                          title={consentUrl}
+                          onFocus={(e) => e.currentTarget.select()}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!consentUrl}
+                          onClick={() => {
+                            try {
+                              if (!consentUrl) {
+                                toast.error(
+                                  "No hay enlace de consentimiento disponible",
+                                );
+                                return;
+                              }
+                              navigator.clipboard?.writeText(consentUrl);
+                              toast.success("Enlace copiado");
+                            } catch {
+                              toast.error("No se pudo copiar el enlace");
+                            }
+                          }}
+                        >
+                          Copiar
+                        </Button>
+                      </div>
+                    </>
+                  );
+                })()}
+                <p className="text-[11px] text-muted-foreground">
+                  Vigente hasta: {new Date(consent.expiresAt).toLocaleString()}
+                </p>
+              </div>
+            )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Captura inicial self-service */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            Captura inicial del candidato
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] cursor-help">
+                  ?
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                Aquí ves el estado del formulario que llena el candidato. Primero
+                genera el enlace de pre‑registro, después espera a que aparezca
+                como “Captura completada” y finalmente márcalo como revisado cuando
+                hayas validado los datos.
+              </TooltipContent>
+            </Tooltip>
+          </CardTitle>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={createSelfServiceLink.isPending}
+              onClick={() => {
+                setOpenSelfServiceAfterCreate(false);
+                createSelfServiceLink.mutate({
+                  candidateId,
+                  ttlHours: 6,
+                  baseUrl: window.location.origin,
+                });
+              }}
+            >
+              {createSelfServiceLink.isPending
+                ? "Generando..."
+                : "Generar enlace"}
+            </Button>
+
+            {!isClientAuth && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={createSelfServiceLink.isPending}
+                      onClick={() => {
+                        setOpenSelfServiceAfterCreate(true);
+                        createSelfServiceLink.mutate({
+                          candidateId,
+                          ttlHours: 6,
+                          baseUrl: window.location.origin,
+                        });
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {createSelfServiceLink.isPending
+                    ? "Abriendo..."
+                    : "Editar autocaptura"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {!isClientAuth && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={
+                        markSelfReviewed.isPending ||
+                        candidate.selfFilledStatus !== "recibido"
+                      }
+                      onClick={() => markSelfReviewed.mutate({ id: candidateId })}
+                    >
+                      <CheckCircle2
+                        className={
+                          candidate.selfFilledStatus === "revisado"
+                            ? "h-4 w-4 text-emerald-500"
+                            : "h-4 w-4"
+                        }
+                      />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {candidate.selfFilledStatus === "revisado"
+                    ? "Revisado"
+                    : candidate.selfFilledStatus === "recibido"
+                    ? markSelfReviewed.isPending
+                      ? "Marcando..."
+                      : "Marcar como revisada"
+                    : "Aún no hay captura para revisar"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <p className="text-sm font-medium">Estado de la captura</p>
+            <p className="text-sm text-muted-foreground">
+              {candidate.selfFilledStatus === "revisado"
+                ? "Captura completada por el candidato y revisada por el analista."
+                : candidate.selfFilledStatus === "recibido"
+                ? "Captura completada por el candidato. Pendiente de revisión."
+                : "Pendiente de captura por el candidato."}
+            </p>
+            {candidate.selfFilledAt && (
+              <p className="text-xs text-muted-foreground">
+                Enviada por el candidato el{" "}
+                {new Date(candidate.selfFilledAt).toLocaleString()}
+              </p>
+            )}
+            {candidate.selfFilledReviewedAt && (
+              <p className="text-xs text-muted-foreground">
+                Revisada el{" "}
+                {new Date(candidate.selfFilledReviewedAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+
+          {selfServiceUrl && (
+            <div className="space-y-1 text-xs">
+              <Label className="text-xs">Último enlace generado</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  readOnly
+                  value={selfServiceUrl}
+                  className="text-xs font-mono"
+                  title={selfServiceUrl}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    try {
+                      navigator.clipboard?.writeText(selfServiceUrl);
+                      toast.success("Enlace copiado");
+                    } catch {
+                      toast.error("No se pudo copiar el enlace");
+                    }
+                  }}
+                >
+                  Copiar
+                </Button>
+              </div>
+              {selfServiceExpiresAt && (
+                <p className="text-[11px] text-muted-foreground">
+                  Vigente hasta: {selfServiceExpiresAt.toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -679,8 +1429,8 @@ export default function CandidatoDetalle() {
                       <h4 className="font-semibold">{item.empresa}</h4>
                       <p className="text-sm text-muted-foreground">{item.puesto || "-"}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {item.fechaInicio ? new Date(item.fechaInicio).toLocaleDateString() : "-"} -{" "}
-                        {item.fechaFin ? new Date(item.fechaFin).toLocaleDateString() : "Actual"}
+                        {item.fechaInicio ? formatearFecha(item.fechaInicio) : "-"} -{" "}
+                        {item.fechaFin ? formatearFecha(item.fechaFin) : "Actual"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Tiempo trabajado:{" "}
@@ -688,6 +1438,14 @@ export default function CandidatoDetalle() {
                           item.tiempoTrabajado ||
                           calcularTiempoTrabajado(item.fechaInicio, item.fechaFin) ||
                           "-"}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Capturado por{" "}
+                        <span className="font-semibold">
+                          {item.capturadoPor === "candidato"
+                            ? "CANDIDATO"
+                            : "ANALISTA"}
+                        </span>
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Tooltip>
@@ -733,6 +1491,128 @@ export default function CandidatoDetalle() {
                           <span className="text-muted-foreground">Observaciones:</span> {item.observaciones}
                         </p>
                       )}
+                      {item.investigacionDetalle && (
+                        <div className="mt-3 border-t pt-2 text-[11px] text-slate-600 space-y-1">
+                          {(() => {
+                            const inv: any = item.investigacionDetalle || {};
+                            const periodo = inv.periodo || {};
+                            const puestoInv = inv.puesto || {};
+                            const incidencias = inv.incidencias || {};
+                            const ia = inv.iaDictamen || null;
+                            const declaradoFechas =
+                              (item.fechaInicio ? formatearFecha(item.fechaInicio) : "-") +
+                              " - " +
+                              (item.fechaFin ? formatearFecha(item.fechaFin) : "Actual");
+                            const validadoFechas =
+                              (periodo.fechaIngreso || "-") +
+                              " - " +
+                              (periodo.fechaSalida || "Actual");
+                            return (
+                              <>
+                                <p className="font-semibold text-slate-700 flex items-center gap-1">
+                                  Declarado vs validado
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9px] cursor-help">
+                                        ?
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs">
+                                      Comparación entre lo que el candidato declaró
+                                      (fechas, puesto y motivo de salida) y lo que
+                                      confirmó la empresa durante la llamada de
+                                      referencia.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </p>
+                                <p>
+                                  <span className="text-muted-foreground">
+                                    Fechas:
+                                  </span>{" "}
+                                  {declaradoFechas}{" "}
+                                  <span className="text-muted-foreground">
+                                    ⇒
+                                  </span>{" "}
+                                  {validadoFechas}
+                                </p>
+                                <p>
+                                  <span className="text-muted-foreground">
+                                    Puesto:
+                                  </span>{" "}
+                                  {item.puesto || "-"}{" "}
+                                  <span className="text-muted-foreground">
+                                    ⇒
+                                  </span>{" "}
+                                  {puestoInv.puestoFinal ||
+                                    puestoInv.puestoInicial ||
+                                    "-"}
+                                </p>
+                                {incidencias.motivoSeparacionCandidato ||
+                                  incidencias.motivoSeparacionEmpresa ? (
+                                  <p>
+                                    <span className="text-muted-foreground">
+                                      Motivo de salida:
+                                    </span>{" "}
+                                    {incidencias.motivoSeparacionCandidato ||
+                                      "-"}{" "}
+                                    <span className="text-muted-foreground">
+                                      ⇒
+                                    </span>{" "}
+                                      {incidencias.motivoSeparacionEmpresa ||
+                                      "-"}
+                                  </p>
+                                ) : null}
+                                {ia && (
+                                  <div className="mt-3 border-t pt-2 space-y-1">
+                                    <p className="font-semibold text-slate-700 flex items-center gap-1">
+                                      Sugerencia IA (apoyo al analista)
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9px] cursor-help">
+                                            ?
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs text-xs">
+                                          Resumen generado automáticamente a partir de la información
+                                          capturada para este empleo. No sustituye el dictamen humano,
+                                          solo sirve como apoyo interno para el analista.
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </p>
+                                    {ia.resumenCorto && (
+                                      <p>{ia.resumenCorto}</p>
+                                    )}
+                                    {Array.isArray(ia.fortalezas) && ia.fortalezas.length > 0 && (
+                                      <p>
+                                        <span className="text-muted-foreground">
+                                          Fortalezas:&nbsp;
+                                        </span>
+                                        {ia.fortalezas.join("; ")}
+                                      </p>
+                                    )}
+                                    {Array.isArray(ia.riesgos) && ia.riesgos.length > 0 && (
+                                      <p>
+                                        <span className="text-muted-foreground">
+                                          Riesgos:&nbsp;
+                                        </span>
+                                        {ia.riesgos.join("; ")}
+                                      </p>
+                                    )}
+                                    {ia.recomendacionTexto && (
+                                      <p>
+                                        <span className="text-muted-foreground">
+                                          Recomendación:&nbsp;
+                                        </span>
+                                        {ia.recomendacionTexto}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Tooltip>
@@ -772,6 +1652,30 @@ export default function CandidatoDetalle() {
                           Capturar evaluación de desempeño e investigación laboral.
                         </TooltipContent>
                       </Tooltip>
+                      {/* Mini Dictamen IA - OCULTO POR AHORA */}
+                      {false && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              generateIaMini.mutate({ id: item.id })
+                            }
+                            disabled={generateIaMini.isPending || item.estatusInvestigacion !== "terminado"}
+                            title={item.estatusInvestigacion !== "terminado" ? "Marca la investigación como 'Finalizado' para generar el mini dictamen IA" : ""}
+                          >
+                            <Sparkles className="h-4 w-4 text-blue-500" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {item.estatusInvestigacion !== "terminado" 
+                            ? "Marca como 'Finalizado' para generar el mini dictamen IA"
+                            : "Generar o actualizar el mini dictamen IA de este empleo."}
+                        </TooltipContent>
+                      </Tooltip>
+                      )}
+                      {/* Fin Mini Dictamen IA Oculto */}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -920,7 +1824,10 @@ export default function CandidatoDetalle() {
                     const existingPdf = documents.find(
                       (doc: any) => doc.tipoDocumento === "PSICOMETRICO",
                     );
-                    if (existingPdf) {
+                    const existingJson = documents.find(
+                      (doc: any) => doc.tipoDocumento === "PSICOMETRICO_JSON",
+                    );
+                    if (existingPdf && existingJson) {
                       toast.info("El reporte ya está disponible en Documentos.");
                       try {
                         window.open(existingPdf.url, "_blank");
@@ -933,7 +1840,12 @@ export default function CandidatoDetalle() {
                       fileName: `psicometrico-${candidateId}.pdf`,
                     });
                   }}
-                  disabled={!candidate.psicometricos?.clavePsicometricas}
+                  disabled={
+                    !candidate.psicometricos?.clavePsicometricas ||
+                    guardarReportePsico.isPending ||
+                    (documents.some((d: any) => d.tipoDocumento === "PSICOMETRICO") &&
+                      documents.some((d: any) => d.tipoDocumento === "PSICOMETRICO_JSON"))
+                  }
                 >
                   Guardar reporte PDF
                 </Button>
@@ -953,10 +1865,15 @@ export default function CandidatoDetalle() {
                       toast.error("No hay clave de asignación registrada");
                       return;
                     }
+                    if (!candidate.email) {
+                      toast.error("El candidato no tiene email registrado");
+                      return;
+                    }
                     reenviarInvitacion.mutate({ asignacionId: clave });
                   }}
                   disabled={
                     !candidate.psicometricos?.clavePsicometricas ||
+                    !candidate.email ||
                     reenviarInvitacion.isPending
                   }
                 >
@@ -1302,30 +2219,92 @@ export default function CandidatoDetalle() {
                 />
               </div>
               <div>
-                <Label htmlFor="fechaInicio">Fecha de Inicio</Label>
-                <Input
-                  id="fechaInicio"
-                  name="fechaInicio"
-                  type="date"
-                  defaultValue={
-                    editingWorkHistory?.fechaInicio
-                      ? new Date(editingWorkHistory.fechaInicio).toISOString().split("T")[0]
-                      : ""
-                  }
-                />
+                <Label>Fecha de Inicio</Label>
+                <div className="flex gap-2">
+                  <select
+                    name="fechaInicioMes"
+                    defaultValue={
+                      editingWorkHistory?.fechaInicio
+                        ? String(editingWorkHistory.fechaInicio).split("-")[1] ?? ""
+                        : ""
+                    }
+                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                  >
+                    <option value="">Mes (opc)</option>
+                    <option value="01">Enero</option>
+                    <option value="02">Febrero</option>
+                    <option value="03">Marzo</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Mayo</option>
+                    <option value="06">Junio</option>
+                    <option value="07">Julio</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                  </select>
+                  <select
+                    name="fechaInicioAnio"
+                    defaultValue={
+                      editingWorkHistory?.fechaInicio
+                        ? String(editingWorkHistory.fechaInicio).split("-")[0] ?? ""
+                        : ""
+                    }
+                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                  >
+                    <option value="">Año</option>
+                    {Array.from({ length: 60 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <option key={y} value={String(y)}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
-                <Label htmlFor="fechaFin">Fecha de Fin</Label>
-                <Input
-                  id="fechaFin"
-                  name="fechaFin"
-                  type="date"
-                  defaultValue={
-                    editingWorkHistory?.fechaFin
-                      ? new Date(editingWorkHistory.fechaFin).toISOString().split("T")[0]
-                      : ""
-                  }
-                />
+                <Label>Fecha de Fin</Label>
+                <div className="flex gap-2">
+                  <select
+                    name="fechaFinMes"
+                    defaultValue={
+                      editingWorkHistory?.fechaFin
+                        ? String(editingWorkHistory.fechaFin).split("-")[1] ?? ""
+                        : ""
+                    }
+                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                  >
+                    <option value="">Mes (opc)</option>
+                    <option value="01">Enero</option>
+                    <option value="02">Febrero</option>
+                    <option value="03">Marzo</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Mayo</option>
+                    <option value="06">Junio</option>
+                    <option value="07">Julio</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                  </select>
+                  <select
+                    name="fechaFinAnio"
+                    defaultValue={
+                      editingWorkHistory?.fechaFin
+                        ? String(editingWorkHistory.fechaFin).split("-")[0] ?? ""
+                        : ""
+                    }
+                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                  >
+                    <option value="">Año</option>
+                    {Array.from({ length: 60 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <option key={y} value={String(y)}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="col-span-2">
                 <Label htmlFor="tiempoTrabajadoEmpresa">
