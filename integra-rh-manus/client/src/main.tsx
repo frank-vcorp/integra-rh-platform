@@ -52,10 +52,26 @@ queryClient.getMutationCache().subscribe(event => {
 import { AuthProvider } from "./contexts/AuthContext";
 import { getAuth } from "firebase/auth";
 
+// Detectar URL del API según el entorno
+const getApiUrl = () => {
+  // 1. Usar variable de entorno si está definida
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // 2. En producción (Firebase Hosting en integra-rh.web.app), usar Cloud Run
+  if (import.meta.env.PROD && typeof window !== 'undefined' && window.location.hostname.includes('integra-rh.web.app')) {
+    return "https://integra-rh-backend-559788019343.us-central1.run.app/api/trpc";
+  }
+  
+  // 3. En desarrollo, usar localhost
+  return "/api/trpc";
+};
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: import.meta.env.VITE_API_URL || "/api/trpc",
+      url: getApiUrl(),
       transformer: superjson,
       async headers() {
         const headers: Record<string, string> = {};

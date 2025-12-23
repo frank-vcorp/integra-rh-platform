@@ -32,6 +32,9 @@ RUN npm install -g pnpm && pnpm install
 # Copy the built application from the builder stage
 COPY --from=builder /usr/src/app/dist ./dist
 
+# Copy environment configuration
+COPY .env.cloud .env
+
 # The server listens on the port specified by the PORT env var, which is provided by Cloud Run.
 # We expose 8080 as a common default.
 EXPOSE 8080

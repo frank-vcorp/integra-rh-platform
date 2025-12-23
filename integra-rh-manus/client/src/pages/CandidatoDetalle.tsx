@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { CAUSALES_SALIDA, CausalSalidaType, ESTATUS_INVESTIGACION, EstatusInvestigacionType, ESTATUS_INVESTIGACION_LABELS } from "@/lib/constants";
 import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 import { ReviewAndCompleteDialog } from "@/components/ReviewAndCompleteDialog";
+import { AuditTrailViewer } from "@/components/AuditTrailViewer";
 
 const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
   en_revision: "bg-yellow-100 text-yellow-800",
@@ -625,18 +626,25 @@ export default function CandidatoDetalle() {
           <h1 className="text-3xl font-bold">{candidate.nombreCompleto}</h1>
           <div className="flex items-center gap-3 mt-1">
             <p className="text-muted-foreground">Detalle del candidato</p>
-            {/* Badge de consentimiento */}
-            {candidate.aceptoAvisoPrivacidad && candidate.aceptoAvisoPrivacidadAt && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md cursor-help">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                    Aceptó términos ({format(new Date(candidate.aceptoAvisoPrivacidadAt), "dd/MM/yyyy", { locale: es })})
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Consentimiento de privacidad registrado</TooltipContent>
-              </Tooltip>
-            )}
+            {/* Badge de consentimiento - lee desde perfilDetalle.consentimiento JSON */}
+            {(() => {
+              const perfilDetalle = (candidate as any)?.perfilDetalle;
+              const consentimiento = perfilDetalle?.consentimiento;
+              if (consentimiento?.aceptoAvisoPrivacidad && consentimiento?.aceptoAvisoPrivacidadAt) {
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md cursor-help">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                        ✅ Aceptó términos ({new Date(consentimiento.aceptoAvisoPrivacidadAt).toLocaleDateString()})
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Consentimiento de privacidad registrado</TooltipContent>
+                  </Tooltip>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
       </div>
@@ -1028,159 +1036,6 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
-      {/* Data Consent */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" />
-            Consentimiento de Datos
-          </CardTitle>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={sendConsentLink.isPending}
-                  >
-                    {sendConsentLink.isPending ? "Generando..." : "Obtener enlace"}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                Genera o regenera un enlace único para que el candidato lea y firme el aviso de privacidad.
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setConsentAction("email");
-                    if (candidate?.email) {
-                      sendConsentLink.mutate({
-                        candidateId: candidate.id,
-                        candidateEmail: candidate.email,
-                        candidateName: candidate.nombreCompleto,
-                      });
-                    } else {
-                      toast.error("El candidato no tiene un email registrado.");
-                    }
-                  }}
-                >
-                  Enviar por Email
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setConsentAction("whatsapp");
-                    if (candidate?.email) {
-                      sendConsentLink.mutate({
-                        candidateId: candidate.id,
-                        candidateEmail: candidate.email, // email is still needed for the record
-                        candidateName: candidate.nombreCompleto,
-                      });
-                    } else {
-                      toast.error(
-                        "El candidato no tiene un email para registrar el envío."
-                      );
-                    }
-                  }}
-                >
-                  Enviar por WhatsApp
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setConsentAction("copy");
-                    if (candidate?.email) {
-                      sendConsentLink.mutate({
-                        candidateId: candidate.id,
-                        candidateEmail: candidate.email,
-                        candidateName: candidate.nombreCompleto,
-                      });
-                    } else {
-                      toast.error(
-                        "El candidato no tiene un email para registrar el envío."
-                      );
-                    }
-                  }}
-                >
-                  Copiar Enlace
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-          </DropdownMenu>
-        </CardHeader>
-        <CardContent>
-          <div>
-            <p className="text-sm font-medium">Estado del Consentimiento</p>
-            {(() => {
-              if (consent?.isGiven) {
-                return (
-                  <p className="text-sm text-green-600">
-                    Otorgado el {new Date(consent.givenAt!).toLocaleString()}
-                  </p>
-                );
-              }
-              if (consent) {
-                return (
-                  <p className="text-sm text-yellow-600">
-                    Enlace enviado, pendiente de firma.
-                  </p>
-                );
-              }
-              return (
-                <p className="text-sm text-gray-500">Pendiente de envío.</p>
-              );
-            })()}
-            {consent && (
-              <div className="mt-2 space-y-1 text-xs">
-                {(() => {
-                  const consentUrl = buildConsentUrl(consent.token);
-                  return (
-                    <>
-                      <Label className="text-xs">Último enlace generado</Label>
-                      <div className="flex gap-2 items-center">
-                        <Input
-                          readOnly
-                          value={consentUrl}
-                          className="text-xs font-mono"
-                          title={consentUrl}
-                          onFocus={(e) => e.currentTarget.select()}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={!consentUrl}
-                          onClick={() => {
-                            try {
-                              if (!consentUrl) {
-                                toast.error(
-                                  "No hay enlace de consentimiento disponible",
-                                );
-                                return;
-                              }
-                              navigator.clipboard?.writeText(consentUrl);
-                              toast.success("Enlace copiado");
-                            } catch {
-                              toast.error("No se pudo copiar el enlace");
-                            }
-                          }}
-                        >
-                          Copiar
-                        </Button>
-                      </div>
-                    </>
-                  );
-                })()}
-                <p className="text-[11px] text-muted-foreground">
-                  Vigente hasta: {new Date(consent.expiresAt).toLocaleString()}
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Captura inicial self-service */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -1398,10 +1253,15 @@ export default function CandidatoDetalle() {
                       <p className="text-[11px] text-slate-500 mt-1">
                         Capturado por{" "}
                         <span className="font-semibold">
-                          {item.capturadoPor === "candidato"
+                          {(item.capturadoPor === "candidato" || !item.capturadoPor)
                             ? "CANDIDATO"
                             : "ANALISTA"}
                         </span>
+                        {item.capturadoPor === "analista" && (
+                          <span className="text-[10px] text-amber-600 ml-1">
+                            (editado)
+                          </span>
+                        )}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Tooltip>
@@ -1564,6 +1424,30 @@ export default function CandidatoDetalle() {
                                     )}
                                   </div>
                                 )}
+                                {(() => {
+                                  const auditTrail = inv.auditTrail;
+                                  if (auditTrail && Array.isArray(auditTrail) && auditTrail.length > 0) {
+                                    return (
+                                      <div className="mt-3 border-t pt-2 space-y-1">
+                                        <p className="font-semibold text-slate-700 flex items-center gap-1">
+                                          Historial de cambios
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9px] cursor-help">
+                                                ?
+                                              </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-xs text-xs">
+                                              Registro de quién hizo qué cambios y cuándo en esta investigación laboral.
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </p>
+                                        <AuditTrailViewer entries={auditTrail} />
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </>
                             );
                           })()}

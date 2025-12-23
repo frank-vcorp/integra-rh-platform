@@ -290,21 +290,23 @@ export default function CandidatoSelfService() {
   const submitMutation = trpc.candidateSelf.submit.useMutation();
   const uploadDocMutation = trpc.candidateSelf.uploadDocument.useMutation();
 
-  // Inicializar estado al cargar datos SOLO si no hay datos significativos en localStorage
+  // Inicializar estado al cargar datos: CAMBIO 3 mejorado
+  // ESTRATEGIA: localStorage en esta sesión tiene prioridad (cambios no guardados)
+  // Si NO hay localStorage (nueva sesión), cargar todo desde BD
   useEffect(() => {
     if (!data || !hasAttemptedLocalStorage) return;
     
-    // Verificar si ya hay datos en localStorage o en estado
-    const hasLocalData = formCandidate.email || perfil.nss || jobs.some(j => j.empresa.trim());
+    const hasLocalStorage = !!localStorage.getItem(`self-service-${token}`);
     
-    // Si hay datos locales, NO sobrescribir (preservar ediciones del usuario)
-    if (hasLocalData) return;
+    // Si hay localStorage en ESTA sesión, NO sobrescribir (usuario está editando)
+    if (hasLocalStorage) return;
     
-    // Si NO hay datos locales, cargar desde servidor
+    // Si NO hay localStorage (nueva sesión), cargar TODOS los datos desde BD
     setFormCandidate({
       email: data.candidate.email || "",
       telefono: data.candidate.telefono || "",
     });
+    
     const detalle = (data.candidate as any).perfilDetalle || {};
     setPerfil((prev) => ({
       ...prev,
@@ -365,7 +367,10 @@ export default function CandidatoSelfService() {
       contactoNombre: detalle.contactoEmergencia?.nombre || "",
       contactoParentesco: detalle.contactoEmergencia?.parentesco || "",
       contactoTelefono: detalle.contactoEmergencia?.telefono || "",
+      // ✅ Cargar consentimiento desde BD
+      aceptoAviso: detalle.consentimiento?.aceptoAvisoPrivacidad || false,
     }));
+    
     if (data.workHistory.length > 0) {
       setJobs(
         data.workHistory.map((h) => ({
@@ -391,6 +396,7 @@ export default function CandidatoSelfService() {
         },
       ]);
     }
+    
     setDocs(
       (data.documents || []).map((d: any) => ({
         id: d.id,
@@ -399,7 +405,7 @@ export default function CandidatoSelfService() {
         url: d.url,
       })),
     );
-  }, [data, hasAttemptedLocalStorage, formCandidate.email, perfil.nss, jobs]);
+  }, [data, hasAttemptedLocalStorage, token]);
 
   // Cuenta regresiva simple
   const timeLeftLabel = useMemo(() => {
@@ -449,85 +455,80 @@ export default function CandidatoSelfService() {
   }, [formCandidate, perfil, jobs]);
 
   const getDraftPayload = () => {
+    // CAMBIO 1: Enviar TODOS los campos explícitamente (incluyendo vacíos)
+    // para que el merge en servidor preserve toda la estructura
     const payload: any = {
       token,
-      candidate: {},
-      perfil: {},
+      candidate: {
+        email: formCandidate.email || "",
+        telefono: formCandidate.telefono || "",
+      },
+      perfil: {
+        generales: {
+          nss: perfil.nss || "",
+          curp: perfil.curp || "",
+          rfc: perfil.rfc || "",
+          ciudadResidencia: perfil.ciudadResidencia || "",
+          lugarNacimiento: perfil.lugarNacimiento || "",
+          fechaNacimiento: perfil.fechaNacimiento || "",
+          puestoSolicitado: perfil.puestoSolicitado || "",
+          plaza: perfil.plaza || "",
+          telefonoCasa: perfil.telefonoCasa || "",
+          telefonoRecados: perfil.telefonoRecados || "",
+        },
+        domicilio: {
+          calle: perfil.calle || "",
+          numero: perfil.numero || "",
+          interior: perfil.interior || "",
+          colonia: perfil.colonia || "",
+          municipio: perfil.municipio || "",
+          estado: perfil.estado || "",
+          cp: perfil.cp || "",
+          mapLink: perfil.mapLink || "",
+        },
+        redesSociales: {
+          facebook: perfil.facebook || "",
+          instagram: perfil.instagram || "",
+          twitterX: perfil.twitterX || "",
+          tiktok: perfil.tiktok || "",
+        },
+        situacionFamiliar: {
+          estadoCivil: perfil.estadoCivil || "",
+          fechaMatrimonioUnion: perfil.fechaMatrimonioUnion || "",
+          parejaDeAcuerdoConTrabajo: perfil.parejaDeAcuerdoConTrabajo || "",
+          esposaEmbarazada: perfil.esposaEmbarazada || "",
+          hijosDescripcion: perfil.hijosDescripcion || "",
+          quienCuidaHijos: perfil.quienCuidaHijos || "",
+          dondeVivenCuidadores: perfil.dondeVivenCuidadores || "",
+          pensionAlimenticia: perfil.pensionAlimenticia || "",
+          vivienda: perfil.vivienda || "",
+        },
+        parejaNoviazgo: {
+          tieneNovio: perfil.tieneNovio || "",
+          nombreNovio: perfil.nombreNovio || "",
+          ocupacionNovio: perfil.ocupacionNovio || "",
+          domicilioNovio: perfil.domicilioNovio || "",
+          apoyoEconomicoMutuo: perfil.apoyoEconomicoMutuo || "",
+          negocioEnConjunto: perfil.negocioEnConjunto || "",
+        },
+        financieroAntecedentes: {
+          tieneDeudas: perfil.tieneDeudas || "",
+          institucionDeuda: perfil.institucionDeuda || "",
+          buroCreditoDeclarado: perfil.buroCreditoDeclarado || "",
+          haSidoSindicalizado: perfil.haSidoSindicalizado || "",
+          haEstadoAfianzado: perfil.haEstadoAfianzado || "",
+          accidentesVialesPrevios: perfil.accidentesVialesPrevios || "",
+          accidentesTrabajoPrevios: perfil.accidentesTrabajoPrevios || "",
+        },
+        contactoEmergencia: {
+          nombre: perfil.contactoNombre || "",
+          parentesco: perfil.contactoParentesco || "",
+          telefono: perfil.contactoTelefono || "",
+        },
+      },
       workHistory: jobs.filter((j) => j.empresa.trim() !== ""),
+      aceptoAvisoPrivacidad: aceptoAviso,
     };
-
-    // Solo incluir campos con valores
-    if (formCandidate.email) payload.candidate.email = formCandidate.email;
-    if (formCandidate.telefono) payload.candidate.telefono = formCandidate.telefono;
-
-    // Construir perfil con solo campos no vacíos
-    const generales: any = {};
-    if (perfil.puestoSolicitado) generales.puestoSolicitado = perfil.puestoSolicitado;
-    if (perfil.plaza) generales.plaza = perfil.plaza;
-    if (perfil.fechaNacimiento) generales.fechaNacimiento = perfil.fechaNacimiento;
-    if (perfil.nss) generales.nss = perfil.nss;
-    if (perfil.lugarNacimiento) generales.lugarNacimiento = perfil.lugarNacimiento;
-    if (perfil.curp) generales.curp = perfil.curp;
-    if (perfil.rfc) generales.rfc = perfil.rfc;
-    if (perfil.ciudadResidencia) generales.ciudadResidencia = perfil.ciudadResidencia;
-    if (perfil.telefonoCasa) generales.telefonoCasa = perfil.telefonoCasa;
-    if (perfil.telefonoRecados) generales.telefonoRecados = perfil.telefonoRecados;
-    if (Object.keys(generales).length > 0) payload.perfil.generales = generales;
-
-    const domicilio: any = {};
-    if (perfil.calle) domicilio.calle = perfil.calle;
-    if (perfil.numero) domicilio.numero = perfil.numero;
-    if (perfil.interior) domicilio.interior = perfil.interior;
-    if (perfil.colonia) domicilio.colonia = perfil.colonia;
-    if (perfil.municipio) domicilio.municipio = perfil.municipio;
-    if (perfil.estado) domicilio.estado = perfil.estado;
-    if (perfil.cp) domicilio.cp = perfil.cp;
-    if (perfil.mapLink) domicilio.mapLink = perfil.mapLink;
-    if (Object.keys(domicilio).length > 0) payload.perfil.domicilio = domicilio;
-
-    const redesSociales: any = {};
-    if (perfil.facebook) redesSociales.facebook = perfil.facebook;
-    if (perfil.instagram) redesSociales.instagram = perfil.instagram;
-    if (perfil.twitterX) redesSociales.twitterX = perfil.twitterX;
-    if (perfil.tiktok) redesSociales.tiktok = perfil.tiktok;
-    if (Object.keys(redesSociales).length > 0) payload.perfil.redesSociales = redesSociales;
-
-    const situacionFamiliar: any = {};
-    if (perfil.estadoCivil) situacionFamiliar.estadoCivil = perfil.estadoCivil;
-    if (perfil.fechaMatrimonioUnion) situacionFamiliar.fechaMatrimonioUnion = perfil.fechaMatrimonioUnion;
-    if (perfil.parejaDeAcuerdoConTrabajo) situacionFamiliar.parejaDeAcuerdoConTrabajo = perfil.parejaDeAcuerdoConTrabajo;
-    if (perfil.esposaEmbarazada) situacionFamiliar.esposaEmbarazada = perfil.esposaEmbarazada;
-    if (perfil.hijosDescripcion) situacionFamiliar.hijosDescripcion = perfil.hijosDescripcion;
-    if (perfil.quienCuidaHijos) situacionFamiliar.quienCuidaHijos = perfil.quienCuidaHijos;
-    if (perfil.dondeVivenCuidadores) situacionFamiliar.dondeVivenCuidadores = perfil.dondeVivenCuidadores;
-    if (perfil.pensionAlimenticia) situacionFamiliar.pensionAlimenticia = perfil.pensionAlimenticia;
-    if (perfil.vivienda) situacionFamiliar.vivienda = perfil.vivienda;
-    if (Object.keys(situacionFamiliar).length > 0) payload.perfil.situacionFamiliar = situacionFamiliar;
-
-    const parejaNoviazgo: any = {};
-    if (perfil.tieneNovio) parejaNoviazgo.tieneNovio = perfil.tieneNovio;
-    if (perfil.nombreNovio) parejaNoviazgo.nombreNovio = perfil.nombreNovio;
-    if (perfil.ocupacionNovio) parejaNoviazgo.ocupacionNovio = perfil.ocupacionNovio;
-    if (perfil.domicilioNovio) parejaNoviazgo.domicilioNovio = perfil.domicilioNovio;
-    if (perfil.apoyoEconomicoMutuo) parejaNoviazgo.apoyoEconomicoMutuo = perfil.apoyoEconomicoMutuo;
-    if (perfil.negocioEnConjunto) parejaNoviazgo.negocioEnConjunto = perfil.negocioEnConjunto;
-    if (Object.keys(parejaNoviazgo).length > 0) payload.perfil.parejaNoviazgo = parejaNoviazgo;
-
-    const financieroAntecedentes: any = {};
-    if (perfil.tieneDeudas) financieroAntecedentes.tieneDeudas = perfil.tieneDeudas;
-    if (perfil.institucionDeuda) financieroAntecedentes.institucionDeuda = perfil.institucionDeuda;
-    if (perfil.buroCreditoDeclarado) financieroAntecedentes.buroCreditoDeclarado = perfil.buroCreditoDeclarado;
-    if (perfil.haSidoSindicalizado) financieroAntecedentes.haSidoSindicalizado = perfil.haSidoSindicalizado;
-    if (perfil.haEstadoAfianzado) financieroAntecedentes.haEstadoAfianzado = perfil.haEstadoAfianzado;
-    if (perfil.accidentesVialesPrevios) financieroAntecedentes.accidentesVialesPrevios = perfil.accidentesVialesPrevios;
-    if (perfil.accidentesTrabajoPrevios) financieroAntecedentes.accidentesTrabajoPrevios = perfil.accidentesTrabajoPrevios;
-    if (Object.keys(financieroAntecedentes).length > 0) payload.perfil.financieroAntecedentes = financieroAntecedentes;
-
-    const contactoEmergencia: any = {};
-    if (perfil.contactoNombre) contactoEmergencia.nombre = perfil.contactoNombre;
-    if (perfil.contactoParentesco) contactoEmergencia.parentesco = perfil.contactoParentesco;
-    if (perfil.contactoTelefono) contactoEmergencia.telefono = perfil.contactoTelefono;
-    if (Object.keys(contactoEmergencia).length > 0) payload.perfil.contactoEmergencia = contactoEmergencia;
 
     return payload;
   };

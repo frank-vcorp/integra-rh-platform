@@ -68,6 +68,16 @@
  - `[✓]` PVM-WEB-08: Envío de invitaciones (email)
  - `[✓]` PVM-WEB-09: Self-Service — Botón Guardar Borrador y Sticky Header (UX)
 
+### SYNC-SS: Sincronización Self-Service ↔ Panel Analista (23 dic 2025)
+ - `[✓]` SYNC-SS-01: Consentimiento en autosave — guardar aceptoAvisoPrivacidad en perfilDetalle.consentimiento
+ - `[✓]` SYNC-SS-02: Badge de aceptación — mostrar "✅ ACEPTÓ TÉRMINOS (fecha)" en CandidatoDetalle
+ - `[✓]` SYNC-SS-04: Sincronización BD ↔ localStorage — getDraftPayload() envía campos completos
+   - Fix: garantizar que TODOS los campos se envían (incluyendo vacíos) para que merge preserve estructura
+   - Test: script `scripts/test-sync.mjs` valida 7 escenarios críticos (7/7 PASS)
+   - Checkpoint: `CHK_2025-12-23_FASE-4-PROBADA-E2E.md`
+ - `[✓]` SYNC-SS-05: capturadoPor cuando analista edita — registrar "analista" y mostrar badge "(editado)"
+ - `[ ]` SYNC-SS-03: % Completitud en CandidatoDetalle — mostrar progreso por sección (baja prioridad)
+
 ### PVM - Tareas Transversales
  - `[✓]` PVM-OBS-01: Logger estructurado y requestId — SPEC: `context/SPEC-PVM-OBS-01.md`
    - Logger JSON central (`server/_core/logger.ts`) y `requestId` por petición (contexto tRPC + middleware Express).
@@ -128,9 +138,15 @@
 - `server/_core/index.ts`: CORS para `https://integra-rh.web.app`.
 - `server/_core/index.ts`: Propaga `x-request-id` como header de respuesta (correlación navegador ↔ logs Cloud Run).
 - `server/_core/index.ts`: Log estructurado de errores tRPC (incluye `requestId`) para diagnóstico de 500.
+- `server/_core/index.ts`: Endpoint REST `/api/candidate-save-full-draft` para autosave completo con merge inteligente.
+- `server/routers/candidateSelf.ts`: Schema actualizado para `aceptoAvisoPrivacidad` y merge `perfilDetalle.consentimiento` en autosave.
 - `server/routers/workHistory.ts`: Hardening en generación de mini dictamen IA (manejo de errores y logging) para evitar fallas no transformables en el cliente.
-- `integra-rh-manus/client/src/pages/Candidatos.tsx`: Columna “Fecha registro” (campo `createdAt`) y sort en listado.
-- `integra-rh-manus/client/src/pages/CandidatoDetalle.tsx`: Botón “Editar autocaptura” (abre Self-Service) y visibilidad del bloque “Estado de la captura”.
+- `integra-rh-manus/client/src/pages/CandidatoSelfService.tsx`: getDraftPayload() envía TODOS los campos con `|| ""` (nunca null/undefined) para garantizar sync.
+- `integra-rh-manus/client/src/pages/ReviewAndCompleteDialog.tsx`: handleSave() incluye `capturadoPor: "analista"` al editar historial laboral.
+- `integra-rh-manus/client/src/pages/Candidatos.tsx`: Columna "Fecha registro" (campo `createdAt`) y sort en listado.
+- `integra-rh-manus/client/src/pages/CandidatoDetalle.tsx`: Badge "✅ ACEPTÓ TÉRMINOS (fecha)" desde `perfilDetalle.consentimiento`; badge "(editado)" cuando `capturadoPor="analista"`.
+- `integra-rh-manus/client/src/pages/CandidatoDetalle.tsx`: Botón "Editar autocaptura" (abre Self-Service) y visibilidad del bloque "Estado de la captura".
+- `integra-rh-manus/scripts/test-sync.mjs`: Test de integración sintética que valida flujo de sincronización (7/7 PASS).
 - `server/routers/auth.ts`: `logout` no-op para compatibilidad con el hook.
 - `server/db.ts`: detección Cloud Run con pool por socket `/cloudsql/integra-rh:us-central1:integra-rh-v2-db-dev`; TCP local.
 - `firebase.json`: hosting desde `integra-rh-manus/dist/public`.
@@ -164,3 +180,4 @@
 - Checkpoint intermedio: `checkpoint/20251119-1850-auth-cors-cloudrun` (este documento).
 - Checkpoint nuevo: `checkpoint/20251121-1545-client-portal-token` (ver `Checkpoints/CHK_2025-11-21_1545.md`).
 - Checkpoint actual: `checkpoint/20251216-0330-fix-email-waf` (ver `Checkpoints/CHK_2025-12-16_0330-fix-email-waf-diagnosis.md`).
+- **Checkpoint Sincronización (23 dic 2025):** `CHK_2025-12-23_FASE-4-PROBADA-E2E.md` — Validación de flujo bidireccional self-service ↔ panel analista con 7 tests de integración (7/7 PASS).

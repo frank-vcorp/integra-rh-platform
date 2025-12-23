@@ -70,6 +70,7 @@ export function ReviewAndCompleteDialog({
       tiempoTrabajadoEmpresa: formData.tiempoTrabajadoEmpresa,
       estatusInvestigacion: formData.estatusInvestigacion,
       comentarioInvestigacion: formData.comentarioInvestigacion,
+      capturadoPor: "analista", // ← NUEVO: Marcar que analista editó
       investigacionDetalle: {
         ...workHistoryItem?.investigacionDetalle,
         empresa: {

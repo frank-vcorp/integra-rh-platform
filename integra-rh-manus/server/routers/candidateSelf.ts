@@ -120,8 +120,8 @@ export const candidateSelfRouter = router({
     }),
 
   /**
-   * Autosave básico: solo sincroniza email/teléfono del candidato.
-   * El perfil completo se guarda solo en localStorage hasta submit.
+   * Autosave: guarda el perfil completo como borrador (draft).
+   * Solo persiste los datos, sin marcar como completado.
    */
   autosave: publicProcedure
     .input(
@@ -133,6 +133,21 @@ export const candidateSelfRouter = router({
             telefono: z.string().optional(),
           })
           .optional(),
+        perfil: z.any().optional(), // Estructura anidada: { generales, domicilio, etc. }
+        workHistory: z
+          .array(
+            z.object({
+              id: z.number().int().optional(),
+              empresa: z.string().min(1),
+              puesto: z.string().optional(),
+              fechaInicio: z.string().optional(),
+              fechaFin: z.string().optional(),
+              tiempoTrabajado: z.string().optional(),
+              esActual: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+        aceptoAvisoPrivacidad: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -155,17 +170,131 @@ export const candidateSelfRouter = router({
       const database = await getDb();
       if (!database) throw new Error("Database not available");
 
-      // Actualizar solo datos básicos del candidato
-      if (input.candidate && (input.candidate.email || input.candidate.telefono)) {
+      // Leer perfilDetalle existente para preservar datos anteriores
+      const candidate = await db.getCandidateById(tokenRow.candidateId);
+      const existingPerfil = (candidate as any)?.perfilDetalle || {};
+
+      // CAMBIO 2: Construir perfilDetalle como draft, mergeando EXPLÍCITAMENTE
+      // solo las secciones que se envían, para preservar campos vaciados (strings vacíos)
+      const draftPerfil: any = {
+        ...existingPerfil, // Preservar campos no modificados
+      };
+
+      // Mergear secciones enviadas explícitamente
+      if (input.perfil?.generales) {
+        draftPerfil.generales = {
+          ...existingPerfil?.generales,
+          ...input.perfil.generales,
+        };
+      }
+      if (input.perfil?.domicilio) {
+        draftPerfil.domicilio = {
+          ...existingPerfil?.domicilio,
+          ...input.perfil.domicilio,
+        };
+      }
+      if (input.perfil?.redesSociales) {
+        draftPerfil.redesSociales = {
+          ...existingPerfil?.redesSociales,
+          ...input.perfil.redesSociales,
+        };
+      }
+      if (input.perfil?.situacionFamiliar) {
+        draftPerfil.situacionFamiliar = {
+          ...existingPerfil?.situacionFamiliar,
+          ...input.perfil.situacionFamiliar,
+        };
+      }
+      if (input.perfil?.parejaNoviazgo) {
+        draftPerfil.parejaNoviazgo = {
+          ...existingPerfil?.parejaNoviazgo,
+          ...input.perfil.parejaNoviazgo,
+        };
+      }
+      if (input.perfil?.contactoEmergencia) {
+        draftPerfil.contactoEmergencia = {
+          ...existingPerfil?.contactoEmergencia,
+          ...input.perfil.contactoEmergencia,
+        };
+      }
+      if (input.perfil?.financieroAntecedentes) {
+        draftPerfil.financieroAntecedentes = {
+          ...existingPerfil?.financieroAntecedentes,
+          ...input.perfil.financieroAntecedentes,
+        };
+      }
+
+
+      // Agregar consentimiento si se proporciona
+      if (input.aceptoAvisoPrivacidad !== undefined) {
+        draftPerfil.consentimiento = {
+          aceptoAvisoPrivacidad: input.aceptoAvisoPrivacidad,
+          aceptoAvisoPrivacidadAt: input.aceptoAvisoPrivacidad ? new Date().toISOString() : undefined,
+        };
+      }
+
+      // Guardar datos del candidato con perfilDetalle como draft
+      if (input.candidate) {
         await database
           .update(candidates)
           .set({
             email: input.candidate.email,
             telefono: input.candidate.telefono,
-          })
+            perfilDetalle: draftPerfil as any,
+          } as any)
+          .where(eq(candidates.id, tokenRow.candidateId));
+      } else {
+        await database
+          .update(candidates)
+          .set({
+            perfilDetalle: draftPerfil as any,
+          } as any)
           .where(eq(candidates.id, tokenRow.candidateId));
       }
 
+      // Guardar historial laboral
+      if (input.workHistory && input.workHistory.length > 0) {
+        for (const item of input.workHistory) {
+          const fechaInicioValue = normalizeWorkDateInput(item.fechaInicio) ?? "";
+          const fechaFinValueRaw = item.esActual === true ? "" : (item.fechaFin ?? "");
+          const fechaFinValue = fechaFinValueRaw ? (normalizeWorkDateInput(fechaFinValueRaw) ?? "") : "";
+
+          if (item.id) {
+            // Actualizar
+            await database
+              .update(workHistory)
+              .set({
+                empresa: item.empresa,
+                puesto: item.puesto,
+                fechaInicio: fechaInicioValue,
+                fechaFin: fechaFinValue,
+                tiempoTrabajado: item.tiempoTrabajado,
+              })
+              .where(
+                and(
+                  eq(workHistory.id, item.id),
+                  eq(workHistory.candidatoId, tokenRow.candidateId),
+                ),
+              );
+          } else {
+            // Insertar nuevo
+            await database.insert(workHistory).values({
+              candidatoId: tokenRow.candidateId,
+              empresa: item.empresa,
+              puesto: item.puesto,
+              fechaInicio: fechaInicioValue,
+              fechaFin: fechaFinValue,
+              tiempoTrabajado: item.tiempoTrabajado ?? "",
+              tiempoTrabajadoEmpresa: "",
+              estatusInvestigacion: "en_revision",
+              resultadoVerificacion: "pendiente",
+              capturadoPor: "candidato",
+            } as any);
+          }
+        }
+      }
+
+      console.log(`[candidateSelf.autosave] Draft guardado para candidato ${tokenRow.candidateId}`);
       return { ok: true };
     }),
 
@@ -305,6 +434,30 @@ export const candidateSelfRouter = router({
       const database = await getDb();
       if (!database) throw new Error("Database not available");
 
+      // Leer perfilDetalle existente para preservar datos anteriores
+      const candidate = await db.getCandidateById(tokenRow.candidateId);
+      const existingPerfil = (candidate as any)?.perfilDetalle || {};
+
+      // El frontend envía perfil ya estructurado: { generales, domicilio, etc. }
+      // Mergeamos con datos anteriores y agregamos consentimiento actualizado
+      const updatedPerfil: any = {
+        ...existingPerfil, // Preservar datos anteriores
+        generales: { ...existingPerfil.generales, ...(input.perfil?.generales || {}) },
+        domicilio: { ...existingPerfil.domicilio, ...(input.perfil?.domicilio || {}) },
+        redesSociales: { ...existingPerfil.redesSociales, ...(input.perfil?.redesSociales || {}) },
+        situacionFamiliar: { ...existingPerfil.situacionFamiliar, ...(input.perfil?.situacionFamiliar || {}) },
+        parejaNoviazgo: { ...existingPerfil.parejaNoviazgo, ...(input.perfil?.parejaNoviazgo || {}) },
+        contactoEmergencia: { ...existingPerfil.contactoEmergencia, ...(input.perfil?.contactoEmergencia || {}) },
+        financieroAntecedentes: { ...existingPerfil.financieroAntecedentes, ...(input.perfil?.financieroAntecedentes || {}) },
+        consentimiento: {
+          aceptoAvisoPrivacidad: input.aceptoAvisoPrivacidad,
+          aceptoAvisoPrivacidadAt: new Date().toISOString(),
+        },
+      };
+      
+      // Log para debugging
+      console.log(`[candidateSelf.submit] Guardando perfilDetalle para candidato ${tokenRow.candidateId}:`, JSON.stringify(updatedPerfil, null, 2));
+
       // Guardar datos del candidato
       if (input.candidate) {
         await database
@@ -312,24 +465,18 @@ export const candidateSelfRouter = router({
           .set({
             email: input.candidate.email,
             telefono: input.candidate.telefono,
-            perfilDetalle: input.perfil as any,
+            perfilDetalle: updatedPerfil as any,
             selfFilledStatus: "recibido",
             selfFilledAt: new Date(),
-            // Guardar consentimiento
-            aceptoAvisoPrivacidad: input.aceptoAvisoPrivacidad,
-            aceptoAvisoPrivacidadAt: input.aceptoAvisoPrivacidad ? new Date() : null,
           } as any)
           .where(eq(candidates.id, tokenRow.candidateId));
       } else {
         await database
           .update(candidates)
           .set({
-            perfilDetalle: input.perfil as any,
+            perfilDetalle: updatedPerfil as any,
             selfFilledStatus: "recibido",
             selfFilledAt: new Date(),
-            // Guardar consentimiento
-            aceptoAvisoPrivacidad: input.aceptoAvisoPrivacidad,
-            aceptoAvisoPrivacidadAt: input.aceptoAvisoPrivacidad ? new Date() : null,
           } as any)
           .where(eq(candidates.id, tokenRow.candidateId));
       }

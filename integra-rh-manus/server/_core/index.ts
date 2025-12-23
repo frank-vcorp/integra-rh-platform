@@ -184,6 +184,74 @@ async function startServer() {
       const { eq, and } = await import("drizzle-orm");
       const { normalizeWorkDateInput } = await import("../_core/workDate");
 
+      // Transformar perfil plano en estructura anidada para CandidatoDetalle
+      const perfilPlano = perfil || {};
+      const updatedPerfil: any = {
+        generales: {
+          fechaNacimiento: perfilPlano.fechaNacimiento,
+          nss: perfilPlano.nss,
+          curp: perfilPlano.curp,
+          rfc: perfilPlano.rfc,
+          ciudadResidencia: perfilPlano.ciudadResidencia,
+          lugarNacimiento: perfilPlano.lugarNacimiento,
+          puestoSolicitado: perfilPlano.puestoSolicitado,
+          plaza: perfilPlano.plaza,
+          telefonoCasa: perfilPlano.telefonoCasa,
+          telefonoRecados: perfilPlano.telefonoRecados,
+        },
+        domicilio: {
+          calle: perfilPlano.calle,
+          numero: perfilPlano.numero,
+          interior: perfilPlano.interior,
+          colonia: perfilPlano.colonia,
+          municipio: perfilPlano.municipio,
+          estado: perfilPlano.estado,
+          cp: perfilPlano.cp,
+          mapLink: perfilPlano.mapLink,
+        },
+        redesSociales: {
+          facebook: perfilPlano.facebook,
+          instagram: perfilPlano.instagram,
+          twitterX: perfilPlano.twitterX,
+          tiktok: perfilPlano.tiktok,
+        },
+        situacionFamiliar: {
+          estadoCivil: perfilPlano.estadoCivil,
+          fechaMatrimonioUnion: perfilPlano.fechaMatrimonioUnion,
+          parejaDeAcuerdoConTrabajo: perfilPlano.parejaDeAcuerdoConTrabajo,
+          esposaEmbarazada: perfilPlano.esposaEmbarazada,
+          hijosDescripcion: perfilPlano.hijosDescripcion,
+          quienCuidaHijos: perfilPlano.quienCuidaHijos,
+          dondeVivenCuidadores: perfilPlano.dondeVivenCuidadores,
+          pensionAlimenticia: perfilPlano.pensionAlimenticia,
+          vivienda: perfilPlano.vivienda,
+          tieneNovio: perfilPlano.tieneNovio,
+          nombreNovio: perfilPlano.nombreNovio,
+          ocupacionNovio: perfilPlano.ocupacionNovio,
+          domicilioNovio: perfilPlano.domicilioNovio,
+          apoyoEconomicoMutuo: perfilPlano.apoyoEconomicoMutuo,
+          negocioEnConjunto: perfilPlano.negocioEnConjunto,
+        },
+        contactoEmergencia: {
+          nombre: perfilPlano.contactoNombre,
+          parentesco: perfilPlano.contactoParentesco,
+          telefono: perfilPlano.contactoTelefono,
+        },
+        financieroAntecedentes: {
+          tieneDeudas: perfilPlano.tieneDeudas,
+          institucionDeuda: perfilPlano.institucionDeuda,
+          buroCreditoDeclarado: perfilPlano.buroCreditoDeclarado,
+          haSidoSindicalizado: perfilPlano.haSidoSindicalizado,
+          haEstadoAfianzado: perfilPlano.haEstadoAfianzado,
+          accidentesVialesPrevios: perfilPlano.accidentesVialesPrevios,
+          accidentesTrabajoPrevios: perfilPlano.accidentesTrabajoPrevios,
+        },
+        consentimiento: {
+          aceptoAvisoPrivacidad: aceptoAvisoPrivacidad,
+          aceptoAvisoPrivacidadAt: new Date().toISOString(),
+        },
+      };
+
       // Guardar datos del candidato
       if (candidate) {
         await database
@@ -191,12 +259,14 @@ async function startServer() {
           .set({
             email: candidate.email || undefined,
             telefono: candidate.telefono || undefined,
-            perfilDetalle: perfil || undefined,
-            // Guardar consentimiento si se proporciona
-            ...(aceptoAvisoPrivacidad && { 
-              aceptoAvisoPrivacidad: true,
-              aceptoAvisoPrivacidadAt: new Date(),
-            }),
+            perfilDetalle: updatedPerfil || undefined,
+          } as any)
+          .where(eq(candidates.id, tokenRow.candidateId));
+      } else {
+        await database
+          .update(candidates)
+          .set({
+            perfilDetalle: updatedPerfil || undefined,
           } as any)
           .where(eq(candidates.id, tokenRow.candidateId));
       }

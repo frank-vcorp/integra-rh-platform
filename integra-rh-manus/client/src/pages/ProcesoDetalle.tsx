@@ -659,6 +659,42 @@ export default function ProcesoDetalle() {
         </CardContent>
       </Card>
 
+      {/* Guía de pasos para la analista */}
+      {!isClientAuth && canEditProcess && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-blue-600" />
+              📋 Guía rápida: Qué hacer después de agregar datos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-2 text-sm">
+              <li className="flex gap-2">
+                <span className="font-semibold text-blue-600">1.</span>
+                <span>Completa los <strong>campos de datos</strong> en los apartados de abajo (Investigación Laboral, Investigación Legal, Buró de Crédito, etc.)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-blue-600">2.</span>
+                <span>Sube <strong>documentos</strong> (PDF, imágenes) en la sección de "Documentos" con su tipo correspondiente</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-blue-600">3.</span>
+                <span>Une vez hayas terminado, haz clic en <strong>"Guardar bloques"</strong> (botón arriba a la derecha)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-blue-600">4.</span>
+                <span>Verás una notificación <strong>"Bloques actualizados"</strong> cuando se guarde correctamente</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-blue-600">5.</span>
+                <span>Los datos se guardan automáticamente en la base de datos y el cliente podrá verlos en su panel</span>
+              </li>
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bloques panel cliente (captura interna) */}
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
@@ -666,7 +702,7 @@ export default function ProcesoDetalle() {
             <Shield className="h-5 w-5" /> Bloques de detalle (panel cliente)
           </CardTitle>
           {!isClientAuth && canEditProcess && (
-            <Button size="sm" onClick={handleSavePanel} disabled={updatePanelDetail.isPending}>
+            <Button size="sm" onClick={handleSavePanel} disabled={updatePanelDetail.isPending} className="bg-green-600 hover:bg-green-700">
               <Save className="h-4 w-4 mr-2" /> Guardar bloques
             </Button>
           )}
@@ -800,6 +836,45 @@ export default function ProcesoDetalle() {
                 />
                 <Label htmlFor="invLegalRiesgo">Con riesgo</Label>
               </div>
+
+              {/* Antecedentes Penales - Carga de archivos */}
+              <div className="mt-4 pt-3 border-t">
+                <Label className="text-xs font-semibold">Archivos - Antecedentes Penales</Label>
+                <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={async (e) => {
+                      const files = e.currentTarget.files;
+                      if (files && !isClientAuth && canEditProcess) {
+                        for (let i = 0; i < files.length; i++) {
+                          const file = files[i];
+                          const arrayBuf = await file.arrayBuffer();
+                          let binary = '';
+                          const bytes = new Uint8Array(arrayBuf);
+                          const len = bytes.byteLength;
+                          for (let j = 0; j < len; j++) {
+                            binary += String.fromCharCode(bytes[j]);
+                          }
+                          const base64 = btoa(binary);
+                          uploadProcessDoc.mutate({ 
+                            procesoId: processId, 
+                            tipoDocumento: 'ANTECEDENTES_PENALES', 
+                            fileName: file.name, 
+                            contentType: file.type || 'application/octet-stream', 
+                            base64 
+                          } as any);
+                        }
+                      }
+                      (e.currentTarget as HTMLInputElement).value = '';
+                    }}
+                    disabled={isClientAuth || !canEditProcess}
+                    className="block w-full text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
+                </div>
+              </div>
             </div>
 
             <div className="border rounded p-3 bg-white shadow-sm">
@@ -834,6 +909,45 @@ export default function ProcesoDetalle() {
                   <option value="1">Aprobado</option>
                   <option value="0">No aprobado</option>
                 </select>
+              </div>
+
+              {/* Buró de Crédito - Carga de archivos */}
+              <div className="mt-4 pt-3 border-t">
+                <Label className="text-xs font-semibold">Archivos - Buró de Crédito</Label>
+                <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={async (e) => {
+                      const files = e.currentTarget.files;
+                      if (files && !isClientAuth && canEditProcess) {
+                        for (let i = 0; i < files.length; i++) {
+                          const file = files[i];
+                          const arrayBuf = await file.arrayBuffer();
+                          let binary = '';
+                          const bytes = new Uint8Array(arrayBuf);
+                          const len = bytes.byteLength;
+                          for (let j = 0; j < len; j++) {
+                            binary += String.fromCharCode(bytes[j]);
+                          }
+                          const base64 = btoa(binary);
+                          uploadProcessDoc.mutate({ 
+                            procesoId: processId, 
+                            tipoDocumento: 'BURO_CREDITO', 
+                            fileName: file.name, 
+                            contentType: file.type || 'application/octet-stream', 
+                            base64 
+                          } as any);
+                        }
+                      }
+                      (e.currentTarget as HTMLInputElement).value = '';
+                    }}
+                    disabled={isClientAuth || !canEditProcess}
+                    className="block w-full text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
+                </div>
               </div>
             </div>
 
@@ -1135,6 +1249,8 @@ export default function ProcesoDetalle() {
                   <option value="DICTAMEN">Dictamen</option>
                   <option value="VISITA_EVIDENCIA">Evidencia de visita</option>
                   <option value="SEMANAS_COTIZADAS">Cotejo semanas IMSS</option>
+                  <option value="BURO_CREDITO">Buró de Crédito</option>
+                  <option value="ANTECEDENTES_PENALES">Antecedentes Penales</option>
                   <option value="OTRO">Otro</option>
                 </select>
               </div>

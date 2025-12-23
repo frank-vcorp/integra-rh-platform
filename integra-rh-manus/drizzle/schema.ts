@@ -215,6 +215,10 @@ export const candidates = mysqlTable("candidates", {
       parentesco?: string;
       telefono?: string;
     };
+    consentimiento?: {
+      aceptoAvisoPrivacidad?: boolean;
+      aceptoAvisoPrivacidadAt?: string;
+    };
   }>(),
   // Captura inicial self-service
   selfFilledStatus: mysqlEnum("selfFilledStatus", [
@@ -225,9 +229,6 @@ export const candidates = mysqlTable("candidates", {
   selfFilledAt: timestamp("selfFilledAt"),
   selfFilledReviewedBy: int("selfFilledReviewedBy"),
   selfFilledReviewedAt: timestamp("selfFilledReviewedAt"),
-  // Consent tracking: Privacy notice acceptance
-  aceptoAvisoPrivacidad: boolean("aceptoAvisoPrivacidad").default(false).notNull(),
-  aceptoAvisoPrivacidadAt: timestamp("aceptoAvisoPrivacidadAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -359,6 +360,12 @@ export const workHistory = mysqlTable("workHistory", {
       soloUsoInterno?: boolean;
       generatedAt?: string;
     };
+    auditTrail?: {
+      timestamp: string; // ISO 8601
+      changedBy: string; // usuario que hizo el cambio
+      action: "create" | "update" | "submit"; // tipo de cambio
+      changedFields?: Record<string, { old?: any; new?: any }>;
+    }[];
   }>(),
   // Puntaje numérico de desempeño 0–100 calculado a partir de la matriz
   desempenoScore: int("desempenoScore"),

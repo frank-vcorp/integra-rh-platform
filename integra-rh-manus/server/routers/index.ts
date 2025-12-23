@@ -21,6 +21,7 @@ import { candidateConsentRouter } from './candidateConsent';
 import { candidateSelfRouter } from "./candidateSelf";
 import { rolesRouter } from './roles';
 import { clientSitesRouter } from "./clientSites";
+import { geolocationRouter } from './geolocation';
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -70,6 +71,7 @@ export const appRouter = router({
   surveyorMessages: surveyorMessagesRouter,
   audit: auditRouter,
   roles: rolesRouter,
+  geolocation: geolocationRouter,
 });
 
 // Exportamos el tipo del router. El cliente lo usará para tener autocompletado y tipado.

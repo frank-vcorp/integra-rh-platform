@@ -354,6 +354,7 @@ export const workHistoryRouter = router({
           observaciones: z.string().optional(),
           estatusInvestigacion: z.enum(ESTATUS_INVESTIGACION).optional(),
           comentarioInvestigacion: z.string().optional(),
+          capturadoPor: z.enum(["candidato", "analista"]).optional(),
         }),
       })
     )
@@ -530,8 +531,27 @@ export const workHistoryRouter = router({
         resultadoVerificacion = mapping[conclusion.esRecomendable];
       }
 
+      // Registrar cambio en audit trail
+      const auditEntry = {
+        timestamp: new Date().toISOString(),
+        changedBy: "unknown", // En contexto protegido, debería ser ctx.user.name
+        action: "update" as const,
+        changedFields: details as Record<string, any>,
+      };
+
+      const existingDetail = await db.getWorkHistoryById(id);
+      const existingAuditTrail = (existingDetail as any)?.investigacionDetalle?.auditTrail ?? [];
+      const updatedAuditTrail = [...existingAuditTrail, auditEntry];
+
+      // Preservar campos existentes, agregar nuevos
+      const mergedDetails = {
+        ...(existingDetail as any)?.investigacionDetalle ?? {},
+        ...details,
+        auditTrail: updatedAuditTrail,
+      };
+
       await db.updateWorkHistory(id, {
-        investigacionDetalle: Object.keys(details).length > 0 ? (details as any) : undefined,
+        investigacionDetalle: Object.keys(details).length > 0 ? (mergedDetails as any) : undefined,
         desempenoScore: score ?? undefined,
         resultadoVerificacion: resultadoVerificacion ?? undefined,
       } as any);
