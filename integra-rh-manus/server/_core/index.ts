@@ -158,25 +158,45 @@ async function startServer() {
   app.post("/api/candidate-save-full-draft", async (req, res) => {
     try {
       const { token, candidate, perfil, workHistory, aceptoAvisoPrivacidad } = req.body;
+      const requestId = (req as any).requestId || 'unknown';
+      
+      console.log(`🔵 [SERVER] /api/candidate-save-full-draft iniciado`, {
+        requestId,
+        token: token?.substring(0, 8) + '...',
+        hasCandidate: !!candidate,
+        hasPerfil: !!perfil,
+        workHistoryCount: workHistory?.length || 0,
+        aceptoAvisoPrivacidad,
+      });
       
       if (!token || typeof token !== "string") {
+        console.error(`❌ [SERVER] Token inválido:`, requestId);
         return res.status(400).json({ error: "Invalid token" });
       }
 
       const db = await import("../db");
       const tokenRow = await db.getCandidateSelfToken(token);
       if (!tokenRow || tokenRow.revoked) {
+        console.error(`❌ [SERVER] Token revoked or not found:`, { requestId, token: token.substring(0, 8) });
         return res.status(403).json({ error: "Invalid token" });
       }
 
       const now = new Date();
       if (tokenRow.expiresAt <= now) {
+        console.error(`❌ [SERVER] Token expired:`, { requestId });
         return res.status(403).json({ error: "Token expired" });
       }
+
+      console.log(`🟢 [SERVER] Token validado`, {
+        requestId,
+        candidateId: tokenRow.candidateId,
+        email: tokenRow.email,
+      });
 
       const { getDb } = await import("../db");
       const database = await getDb();
       if (!database) {
+        console.error(`❌ [SERVER] Database unavailable:`, requestId);
         return res.status(500).json({ error: "Database unavailable" });
       }
 
@@ -252,8 +272,21 @@ async function startServer() {
         },
       };
 
+      console.log(`📦 [SERVER] updatedPerfil construido`, {
+        requestId,
+        generalesKeys: Object.keys(updatedPerfil.generales),
+        domicilioKeys: Object.keys(updatedPerfil.domicilio),
+        consentimiento: updatedPerfil.consentimiento,
+      });
+
       // Guardar datos del candidato
       if (candidate) {
+        console.log(`🟡 [SERVER] Actualizando candidato`, {
+          requestId,
+          candidateId: tokenRow.candidateId,
+          email: candidate.email,
+          telefono: candidate.telefono,
+        });
         await database
           .update(candidates)
           .set({
@@ -262,17 +295,33 @@ async function startServer() {
             perfilDetalle: updatedPerfil || undefined,
           } as any)
           .where(eq(candidates.id, tokenRow.candidateId));
+        console.log(`✅ [SERVER] Candidato actualizado (con email/telefono)`, {
+          requestId,
+          candidateId: tokenRow.candidateId,
+        });
       } else {
+        console.log(`🟡 [SERVER] Actualizando solo perfilDetalle`, {
+          requestId,
+          candidateId: tokenRow.candidateId,
+        });
         await database
           .update(candidates)
           .set({
             perfilDetalle: updatedPerfil || undefined,
           } as any)
           .where(eq(candidates.id, tokenRow.candidateId));
+        console.log(`✅ [SERVER] perfilDetalle actualizado`, {
+          requestId,
+          candidateId: tokenRow.candidateId,
+        });
       }
 
       // Guardar historial laboral (SOLO campos que captura el candidato)
       if (workHistory && Array.isArray(workHistory)) {
+        console.log(`📝 [SERVER] Procesando ${workHistory.length} registros de historial laboral`, {
+          requestId,
+          candidateId: tokenRow.candidateId,
+        });
         for (const item of workHistory) {
           const fechaInicioValue = normalizeWorkDateInput(item.fechaInicio) ?? "";
           const fechaFinValueRaw = item.esActual === true ? "" : (item.fechaFin ?? "");
@@ -280,6 +329,12 @@ async function startServer() {
 
           if (item.id && item.id > 0) {
             // Actualizar (solo campos del candidato)
+            console.log(`🔄 [SERVER] Actualizando trabajo existente`, {
+              requestId,
+              workHistoryId: item.id,
+              empresa: item.empresa,
+              puesto: item.puesto,
+            });
             await database
               .update(workHistoryTable)
               .set({
@@ -295,8 +350,17 @@ async function startServer() {
                   eq(workHistoryTable.candidatoId, tokenRow.candidateId),
                 ),
               );
+            console.log(`✅ [SERVER] Trabajo actualizado`, {
+              requestId,
+              workHistoryId: item.id,
+            });
           } else if (item.empresa && item.empresa.trim()) {
             // Insertar nuevo (solo campos del candidato, sin causales)
+            console.log(`➕ [SERVER] Insertando nuevo trabajo`, {
+              requestId,
+              empresa: item.empresa,
+              puesto: item.puesto,
+            });
             await database.insert(workHistoryTable).values({
               candidatoId: tokenRow.candidateId,
               empresa: item.empresa,
@@ -309,13 +373,27 @@ async function startServer() {
               resultadoVerificacion: "pendiente",
               capturadoPor: "candidato",
             } as any);
+            console.log(`✅ [SERVER] Nuevo trabajo insertado`, {
+              requestId,
+              empresa: item.empresa,
+            });
           }
         }
       }
 
+      console.log(`✅ [SERVER] Respuesta exitosa`, {
+        requestId,
+        candidateId: tokenRow.candidateId,
+        status: 200,
+      });
       res.status(200).json({ ok: true });
     } catch (error: any) {
-      console.error("save-full-draft error:", error);
+      console.error("❌ [SERVER] save-full-draft error:", error);
+      console.error('❌ [SERVER] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+      });
       res.status(500).json({ error: error.message || "Internal error" });
     }
   });
