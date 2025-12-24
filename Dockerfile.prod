@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar el dist ya compilado (asumimos que fue compilado localmente)
+COPY integra-rh-manus/dist ./dist
+
+# Copiar package.json para dependencias de runtime
+COPY integra-rh-manus/package.json ./
+
+# Instalar solo dependencias de producción
+RUN npm ci --omit=dev
+
+ENV NODE_ENV=production
+ENV PORT=8080
+
+EXPOSE 8080
+
+CMD ["node", "dist/index.js"]

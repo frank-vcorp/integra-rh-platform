@@ -541,33 +541,60 @@ export default function CandidatoDetalle() {
   const contactoEmergencia = perfil.contactoEmergencia || {};
 
   const perfilFields = [
+    // Generales
     generales.puestoSolicitado,
     generales.plaza,
     generales.ciudadResidencia,
     generales.rfc,
     generales.telefonoCasa,
     generales.telefonoRecados,
+    generales.fechaNacimiento,
+    generales.lugarNacimiento,
+    generales.nss,
+    generales.curp,
+    // Domicilio
     domicilio.calle,
+    domicilio.numero,
+    domicilio.interior,
     domicilio.colonia,
     domicilio.municipio,
     domicilio.estado,
     domicilio.cp,
     domicilio.mapLink,
+    // Contacto emergencia
     contactoEmergencia.nombre,
     contactoEmergencia.parentesco,
     contactoEmergencia.telefono,
+    // Situación familiar
     perfil.situacionFamiliar?.estadoCivil,
+    perfil.situacionFamiliar?.fechaMatrimonioUnion,
+    perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo,
+    perfil.situacionFamiliar?.esposaEmbarazada,
     perfil.situacionFamiliar?.hijosDescripcion,
+    perfil.situacionFamiliar?.quienCuidaHijos,
+    perfil.situacionFamiliar?.dondeVivenCuidadores,
+    perfil.situacionFamiliar?.pensionAlimenticia,
     perfil.situacionFamiliar?.vivienda,
+    // Redes sociales
     perfil.redesSociales?.facebook,
     perfil.redesSociales?.instagram,
     perfil.redesSociales?.twitterX,
     perfil.redesSociales?.tiktok,
+    // Pareja / Noviazgo
+    perfil.parejaNoviazgo?.tieneNovio,
+    perfil.parejaNoviazgo?.nombreNovio,
+    perfil.parejaNoviazgo?.ocupacionNovio,
+    perfil.parejaNoviazgo?.domicilioNovio,
+    perfil.parejaNoviazgo?.apoyoEconomicoMutuo,
+    perfil.parejaNoviazgo?.negocioEnConjunto,
+    // Financiero / Antecedentes
     perfil.financieroAntecedentes?.tieneDeudas,
     perfil.financieroAntecedentes?.institucionDeuda,
     perfil.financieroAntecedentes?.buroCreditoDeclarado,
     perfil.financieroAntecedentes?.haSidoSindicalizado,
     perfil.financieroAntecedentes?.haEstadoAfianzado,
+    perfil.financieroAntecedentes?.accidentesVialesPrevios,
+    perfil.financieroAntecedentes?.accidentesTrabajoPrevios,
   ];
 
   const perfilFilledCount = perfilFields.filter(hasValue).length;
@@ -580,9 +607,13 @@ export default function CandidatoDetalle() {
     hasValue(generales.ciudadResidencia) ||
     hasValue(generales.rfc) ||
     hasValue(generales.telefonoCasa) ||
-    hasValue(generales.telefonoRecados);
+    hasValue(generales.telefonoRecados) ||
+    hasValue(generales.fechaNacimiento) ||
+    hasValue(generales.lugarNacimiento);
   const hasDomicilio =
     hasValue(domicilio.calle) ||
+    hasValue(domicilio.numero) ||
+    hasValue(domicilio.interior) ||
     hasValue(domicilio.colonia) ||
     hasValue(domicilio.municipio) ||
     hasValue(domicilio.estado) ||
@@ -595,18 +626,43 @@ export default function CandidatoDetalle() {
   const hasEntornoFamiliar =
     hasValue(perfil.situacionFamiliar?.estadoCivil) ||
     hasValue(perfil.situacionFamiliar?.hijosDescripcion) ||
-    hasValue(perfil.situacionFamiliar?.vivienda);
+    hasValue(perfil.situacionFamiliar?.vivienda) ||
+    hasValue(perfil.situacionFamiliar?.fechaMatrimonioUnion) ||
+    hasValue(perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo) ||
+    hasValue(perfil.situacionFamiliar?.esposaEmbarazada) ||
+    hasValue(perfil.situacionFamiliar?.quienCuidaHijos) ||
+    hasValue(perfil.situacionFamiliar?.dondeVivenCuidadores) ||
+    hasValue(perfil.situacionFamiliar?.pensionAlimenticia);
   const hasRedes =
     hasValue(perfil.redesSociales?.facebook) ||
     hasValue(perfil.redesSociales?.instagram) ||
     hasValue(perfil.redesSociales?.twitterX) ||
     hasValue(perfil.redesSociales?.tiktok);
+  const hasParejaNoviazgo =
+    hasValue(perfil.parejaNoviazgo?.tieneNovio) ||
+    hasValue(perfil.parejaNoviazgo?.nombreNovio) ||
+    hasValue(perfil.parejaNoviazgo?.ocupacionNovio) ||
+    hasValue(perfil.parejaNoviazgo?.domicilioNovio) ||
+    hasValue(perfil.parejaNoviazgo?.apoyoEconomicoMutuo) ||
+    hasValue(perfil.parejaNoviazgo?.negocioEnConjunto);
+  const hasEstudios =
+    hasValue(perfil.estudios?.nivelEstudios) ||
+    hasValue(perfil.estudios?.carrera) ||
+    hasValue(perfil.estudios?.estadoCarrera) ||
+    hasValue(perfil.estudios?.esEstudiante) ||
+    hasValue(perfil.estudios?.modalidadEstudios);
+  const hasVehiculo =
+    hasValue(perfil.vehiculo?.licenciaConducir) ||
+    hasValue(perfil.vehiculo?.claseLicencia) ||
+    hasValue(perfil.vehiculo?.tieneVehiculo);
   const hasEconomia =
     hasValue(perfil.financieroAntecedentes?.tieneDeudas) ||
     hasValue(perfil.financieroAntecedentes?.institucionDeuda) ||
     hasValue(perfil.financieroAntecedentes?.buroCreditoDeclarado) ||
     hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) ||
-    hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado);
+    hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado) ||
+    hasValue(perfil.financieroAntecedentes?.accidentesVialesPrevios) ||
+    hasValue(perfil.financieroAntecedentes?.accidentesTrabajoPrevios);
 
   return (
     <div className="space-y-6">
@@ -840,6 +896,24 @@ export default function CandidatoDetalle() {
                       </span>
                     </p>
                   )}
+                  {hasValue(generales.fechaNacimiento) && (
+                    <p>
+                      <span className="text-muted-foreground">Fecha de nacimiento: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {generales.fechaNacimiento}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(generales.lugarNacimiento) && (
+                    <p>
+                      <span className="text-muted-foreground">Lugar de nacimiento: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {generales.lugarNacimiento}
+                      </span>
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -847,6 +921,8 @@ export default function CandidatoDetalle() {
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-700">Domicilio</p>
                   {(hasValue(domicilio.calle) ||
+                    hasValue(domicilio.numero) ||
+                    hasValue(domicilio.interior) ||
                     hasValue(domicilio.colonia) ||
                     hasValue(domicilio.municipio) ||
                     hasValue(domicilio.estado) ||
@@ -855,7 +931,7 @@ export default function CandidatoDetalle() {
                       <span className="text-muted-foreground">Dirección: </span>
                       <span className="inline-flex items-center gap-1">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {[domicilio.calle, domicilio.colonia, domicilio.municipio, domicilio.estado, domicilio.cp]
+                        {[domicilio.calle, domicilio.numero, domicilio.interior, domicilio.colonia, domicilio.municipio, domicilio.estado, domicilio.cp]
                           .filter(Boolean)
                           .join(", ")}
                       </span>
@@ -939,6 +1015,60 @@ export default function CandidatoDetalle() {
                       </span>
                     </p>
                   )}
+                  {hasValue(perfil.situacionFamiliar?.fechaMatrimonioUnion) && (
+                    <p>
+                      <span className="text-muted-foreground">Fecha matrimonio/unión: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.fechaMatrimonioUnion}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo) && (
+                    <p>
+                      <span className="text-muted-foreground">Pareja de acuerdo con trabajo: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.esposaEmbarazada) && (
+                    <p>
+                      <span className="text-muted-foreground">Esposa embarazada: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.esposaEmbarazada}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.quienCuidaHijos) && (
+                    <p>
+                      <span className="text-muted-foreground">Quién cuida a los hijos: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.quienCuidaHijos}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.dondeVivenCuidadores) && (
+                    <p>
+                      <span className="text-muted-foreground">Dónde viven los cuidadores: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.dondeVivenCuidadores}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.pensionAlimenticia) && (
+                    <p>
+                      <span className="text-muted-foreground">Pensión alimenticia: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.pensionAlimenticia}
+                      </span>
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -978,6 +1108,150 @@ export default function CandidatoDetalle() {
                       <span className="inline-flex items-center gap-1">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         {perfil.redesSociales?.tiktok}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasParejaNoviazgo && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Pareja / Noviazgo</p>
+                  {hasValue(perfil.parejaNoviazgo?.tieneNovio) && (
+                    <p>
+                      <span className="text-muted-foreground">¿Tiene novio/a?: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.parejaNoviazgo?.tieneNovio}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.parejaNoviazgo?.nombreNovio) && (
+                    <p>
+                      <span className="text-muted-foreground">Nombre: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.parejaNoviazgo?.nombreNovio}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.parejaNoviazgo?.ocupacionNovio) && (
+                    <p>
+                      <span className="text-muted-foreground">Ocupación: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.parejaNoviazgo?.ocupacionNovio}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.parejaNoviazgo?.domicilioNovio) && (
+                    <p>
+                      <span className="text-muted-foreground">Domicilio: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.parejaNoviazgo?.domicilioNovio}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.parejaNoviazgo?.apoyoEconomicoMutuo) && (
+                    <p>
+                      <span className="text-muted-foreground">Apoyo económico mutuo: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.parejaNoviazgo?.apoyoEconomicoMutuo}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.parejaNoviazgo?.negocioEnConjunto) && (
+                    <p>
+                      <span className="text-muted-foreground">Negocio en conjunto: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.parejaNoviazgo?.negocioEnConjunto}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasEstudios && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Estudios</p>
+                  {hasValue(perfil.estudios?.nivelEstudios) && (
+                    <p>
+                      <span className="text-muted-foreground">Nivel de estudios: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.estudios?.nivelEstudios}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.estudios?.carrera) && (
+                    <p>
+                      <span className="text-muted-foreground">Carrera: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.estudios?.carrera}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.estudios?.estadoCarrera) && (
+                    <p>
+                      <span className="text-muted-foreground">Estado de carrera: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.estudios?.estadoCarrera}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.estudios?.esEstudiante) && (
+                    <p>
+                      <span className="text-muted-foreground">¿Es estudiante?: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.estudios?.esEstudiante}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.estudios?.modalidadEstudios) && (
+                    <p>
+                      <span className="text-muted-foreground">Modalidad: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.estudios?.modalidadEstudios}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {hasVehiculo && (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-700">Vehículo / Licencia</p>
+                  {hasValue(perfil.vehiculo?.licenciaConducir) && (
+                    <p>
+                      <span className="text-muted-foreground">Licencia de conducir: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.vehiculo?.licenciaConducir}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.vehiculo?.claseLicencia) && (
+                    <p>
+                      <span className="text-muted-foreground">Clase de licencia: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.vehiculo?.claseLicencia}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.vehiculo?.tieneVehiculo) && (
+                    <p>
+                      <span className="text-muted-foreground">¿Tiene vehículo?: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.vehiculo?.tieneVehiculo}
                       </span>
                     </p>
                   )}
@@ -1026,6 +1300,24 @@ export default function CandidatoDetalle() {
                         ]
                           .filter(Boolean)
                           .join(" / ")}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.financieroAntecedentes?.accidentesVialesPrevios) && (
+                    <p>
+                      <span className="text-muted-foreground">Accidentes viales previos: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.accidentesVialesPrevios}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.financieroAntecedentes?.accidentesTrabajoPrevios) && (
+                    <p>
+                      <span className="text-muted-foreground">Accidentes de trabajo previos: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.accidentesTrabajoPrevios}
                       </span>
                     </p>
                   )}
@@ -2037,7 +2329,19 @@ export default function CandidatoDetalle() {
         workHistoryItem={editingWorkHistory}
         onSave={async (data) => {
           if (editingWorkHistory?.id) {
-            await updateWorkHistoryMutation.mutateAsync(data);
+            // Formato esperado por el router: { id, data }
+            const { id, candidatoId, createdAt, updatedAt, ...restData } = data;
+            // Limpiar valores null → undefined para que zod los acepte como opcional
+            const cleanedData = Object.fromEntries(
+              Object.entries(restData).map(([k, v]) => [k, v === null ? undefined : v])
+            );
+            // Eliminar causalSalidaRH y causalSalidaJefeInmediato si están vacíos
+            if (!cleanedData.causalSalidaRH) delete cleanedData.causalSalidaRH;
+            if (!cleanedData.causalSalidaJefeInmediato) delete cleanedData.causalSalidaJefeInmediato;
+            await updateWorkHistoryMutation.mutateAsync({
+              id: editingWorkHistory.id,
+              data: cleanedData,
+            });
           } else {
             await createWorkHistoryMutation.mutateAsync(data);
           }

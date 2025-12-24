@@ -1,0 +1,39 @@
+steps:
+  # Build del cliente (Vite)
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+    dir: 'integra-rh-manus'
+
+  # Compilar el proyecto
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'build']
+    dir: 'integra-rh-manus'
+    env:
+      - 'NODE_ENV=production'
+
+  # Construir imagen Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+      - '-f'
+      - 'Dockerfile.prod'
+      - '.'
+
+  # Push a Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+
+  # Deploy a Cloud Run
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args:
+      - run
+      - --deploy
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+
+timeout: '3600s'

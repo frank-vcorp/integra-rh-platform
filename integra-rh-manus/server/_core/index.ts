@@ -204,73 +204,96 @@ async function startServer() {
       const { eq, and } = await import("drizzle-orm");
       const { normalizeWorkDateInput } = await import("../_core/workDate");
 
-      // Transformar perfil plano en estructura anidada para CandidatoDetalle
-      const perfilPlano = perfil || {};
-      const updatedPerfil: any = {
-        generales: {
-          fechaNacimiento: perfilPlano.fechaNacimiento,
-          nss: perfilPlano.nss,
-          curp: perfilPlano.curp,
-          rfc: perfilPlano.rfc,
-          ciudadResidencia: perfilPlano.ciudadResidencia,
-          lugarNacimiento: perfilPlano.lugarNacimiento,
-          puestoSolicitado: perfilPlano.puestoSolicitado,
-          plaza: perfilPlano.plaza,
-          telefonoCasa: perfilPlano.telefonoCasa,
-          telefonoRecados: perfilPlano.telefonoRecados,
-        },
-        domicilio: {
-          calle: perfilPlano.calle,
-          numero: perfilPlano.numero,
-          interior: perfilPlano.interior,
-          colonia: perfilPlano.colonia,
-          municipio: perfilPlano.municipio,
-          estado: perfilPlano.estado,
-          cp: perfilPlano.cp,
-          mapLink: perfilPlano.mapLink,
-        },
-        redesSociales: {
-          facebook: perfilPlano.facebook,
-          instagram: perfilPlano.instagram,
-          twitterX: perfilPlano.twitterX,
-          tiktok: perfilPlano.tiktok,
-        },
-        situacionFamiliar: {
-          estadoCivil: perfilPlano.estadoCivil,
-          fechaMatrimonioUnion: perfilPlano.fechaMatrimonioUnion,
-          parejaDeAcuerdoConTrabajo: perfilPlano.parejaDeAcuerdoConTrabajo,
-          esposaEmbarazada: perfilPlano.esposaEmbarazada,
-          hijosDescripcion: perfilPlano.hijosDescripcion,
-          quienCuidaHijos: perfilPlano.quienCuidaHijos,
-          dondeVivenCuidadores: perfilPlano.dondeVivenCuidadores,
-          pensionAlimenticia: perfilPlano.pensionAlimenticia,
-          vivienda: perfilPlano.vivienda,
-          tieneNovio: perfilPlano.tieneNovio,
-          nombreNovio: perfilPlano.nombreNovio,
-          ocupacionNovio: perfilPlano.ocupacionNovio,
-          domicilioNovio: perfilPlano.domicilioNovio,
-          apoyoEconomicoMutuo: perfilPlano.apoyoEconomicoMutuo,
-          negocioEnConjunto: perfilPlano.negocioEnConjunto,
-        },
-        contactoEmergencia: {
-          nombre: perfilPlano.contactoNombre,
-          parentesco: perfilPlano.contactoParentesco,
-          telefono: perfilPlano.contactoTelefono,
-        },
-        financieroAntecedentes: {
-          tieneDeudas: perfilPlano.tieneDeudas,
-          institucionDeuda: perfilPlano.institucionDeuda,
-          buroCreditoDeclarado: perfilPlano.buroCreditoDeclarado,
-          haSidoSindicalizado: perfilPlano.haSidoSindicalizado,
-          haEstadoAfianzado: perfilPlano.haEstadoAfianzado,
-          accidentesVialesPrevios: perfilPlano.accidentesVialesPrevios,
-          accidentesTrabajoPrevios: perfilPlano.accidentesTrabajoPrevios,
-        },
-        consentimiento: {
-          aceptoAvisoPrivacidad: aceptoAvisoPrivacidad,
-          aceptoAvisoPrivacidadAt: new Date().toISOString(),
-        },
-      };
+      // El cliente puede enviar perfil plano O anidado. Detectar y normalizar.
+      const perfilInput = perfil || {};
+      // Si viene anidado (tiene .generales), usar directo. Si viene plano, usar plano.
+      const isNested = perfilInput.generales || perfilInput.domicilio || perfilInput.redesSociales;
+      
+      let updatedPerfil: any;
+      if (isNested) {
+        // Cliente envía estructura anidada - usar directamente
+        updatedPerfil = {
+          generales: perfilInput.generales || {},
+          domicilio: perfilInput.domicilio || {},
+          redesSociales: perfilInput.redesSociales || {},
+          situacionFamiliar: perfilInput.situacionFamiliar || {},
+          parejaNoviazgo: perfilInput.parejaNoviazgo || {},
+          contactoEmergencia: perfilInput.contactoEmergencia || {},
+          financieroAntecedentes: perfilInput.financieroAntecedentes || {},
+          consentimiento: {
+            aceptoAvisoPrivacidad: aceptoAvisoPrivacidad,
+            aceptoAvisoPrivacidadAt: new Date().toISOString(),
+          },
+        };
+      } else {
+        // Cliente envía estructura plana - transformar
+        const perfilPlano = perfilInput;
+        updatedPerfil = {
+          generales: {
+            fechaNacimiento: perfilPlano.fechaNacimiento,
+            nss: perfilPlano.nss,
+            curp: perfilPlano.curp,
+            rfc: perfilPlano.rfc,
+            ciudadResidencia: perfilPlano.ciudadResidencia,
+            lugarNacimiento: perfilPlano.lugarNacimiento,
+            puestoSolicitado: perfilPlano.puestoSolicitado,
+            plaza: perfilPlano.plaza,
+            telefonoCasa: perfilPlano.telefonoCasa,
+            telefonoRecados: perfilPlano.telefonoRecados,
+          },
+          domicilio: {
+            calle: perfilPlano.calle,
+            numero: perfilPlano.numero,
+            interior: perfilPlano.interior,
+            colonia: perfilPlano.colonia,
+            municipio: perfilPlano.municipio,
+            estado: perfilPlano.estado,
+            cp: perfilPlano.cp,
+            mapLink: perfilPlano.mapLink,
+          },
+          redesSociales: {
+            facebook: perfilPlano.facebook,
+            instagram: perfilPlano.instagram,
+            twitterX: perfilPlano.twitterX,
+            tiktok: perfilPlano.tiktok,
+          },
+          situacionFamiliar: {
+            estadoCivil: perfilPlano.estadoCivil,
+            fechaMatrimonioUnion: perfilPlano.fechaMatrimonioUnion,
+            parejaDeAcuerdoConTrabajo: perfilPlano.parejaDeAcuerdoConTrabajo,
+            esposaEmbarazada: perfilPlano.esposaEmbarazada,
+            hijosDescripcion: perfilPlano.hijosDescripcion,
+            quienCuidaHijos: perfilPlano.quienCuidaHijos,
+            dondeVivenCuidadores: perfilPlano.dondeVivenCuidadores,
+            pensionAlimenticia: perfilPlano.pensionAlimenticia,
+            vivienda: perfilPlano.vivienda,
+            tieneNovio: perfilPlano.tieneNovio,
+            nombreNovio: perfilPlano.nombreNovio,
+            ocupacionNovio: perfilPlano.ocupacionNovio,
+            domicilioNovio: perfilPlano.domicilioNovio,
+            apoyoEconomicoMutuo: perfilPlano.apoyoEconomicoMutuo,
+            negocioEnConjunto: perfilPlano.negocioEnConjunto,
+          },
+          contactoEmergencia: {
+            nombre: perfilPlano.contactoNombre,
+            parentesco: perfilPlano.contactoParentesco,
+            telefono: perfilPlano.contactoTelefono,
+          },
+          financieroAntecedentes: {
+            tieneDeudas: perfilPlano.tieneDeudas,
+            institucionDeuda: perfilPlano.institucionDeuda,
+            buroCreditoDeclarado: perfilPlano.buroCreditoDeclarado,
+            haSidoSindicalizado: perfilPlano.haSidoSindicalizado,
+            haEstadoAfianzado: perfilPlano.haEstadoAfianzado,
+            accidentesVialesPrevios: perfilPlano.accidentesVialesPrevios,
+            accidentesTrabajoPrevios: perfilPlano.accidentesTrabajoPrevios,
+          },
+          consentimiento: {
+            aceptoAvisoPrivacidad: aceptoAvisoPrivacidad,
+            aceptoAvisoPrivacidadAt: new Date().toISOString(),
+          },
+        };
+      }
 
       console.log(`📦 [SERVER] updatedPerfil construido`, {
         requestId,
@@ -355,28 +378,57 @@ async function startServer() {
               workHistoryId: item.id,
             });
           } else if (item.empresa && item.empresa.trim()) {
-            // Insertar nuevo (solo campos del candidato, sin causales)
-            console.log(`➕ [SERVER] Insertando nuevo trabajo`, {
-              requestId,
-              empresa: item.empresa,
-              puesto: item.puesto,
-            });
-            await database.insert(workHistoryTable).values({
-              candidatoId: tokenRow.candidateId,
-              empresa: item.empresa,
-              puesto: item.puesto || "",
-              fechaInicio: fechaInicioValue,
-              fechaFin: fechaFinValue,
-              tiempoTrabajado: item.tiempoTrabajado ?? "",
-              tiempoTrabajadoEmpresa: "",
-              estatusInvestigacion: "en_revision",
-              resultadoVerificacion: "pendiente",
-              capturadoPor: "candidato",
-            } as any);
-            console.log(`✅ [SERVER] Nuevo trabajo insertado`, {
-              requestId,
-              empresa: item.empresa,
-            });
+            // Verificar si ya existe un registro con la misma empresa y fechas (prevenir duplicados)
+            const existingWork = await database.select()
+              .from(workHistoryTable)
+              .where(
+                and(
+                  eq(workHistoryTable.candidatoId, tokenRow.candidateId),
+                  eq(workHistoryTable.empresa, item.empresa.trim()),
+                  eq(workHistoryTable.fechaInicio, fechaInicioValue),
+                  eq(workHistoryTable.fechaFin, fechaFinValue),
+                )
+              )
+              .limit(1);
+            
+            if (existingWork.length > 0) {
+              // Ya existe, actualizar en lugar de insertar
+              console.log(`🔄 [SERVER] Trabajo duplicado detectado, actualizando existente`, {
+                requestId,
+                existingId: existingWork[0].id,
+                empresa: item.empresa,
+              });
+              await database
+                .update(workHistoryTable)
+                .set({
+                  puesto: item.puesto || "",
+                  tiempoTrabajado: item.tiempoTrabajado ?? "",
+                })
+                .where(eq(workHistoryTable.id, existingWork[0].id));
+            } else {
+              // Insertar nuevo (solo campos del candidato, sin causales)
+              console.log(`➕ [SERVER] Insertando nuevo trabajo`, {
+                requestId,
+                empresa: item.empresa,
+                puesto: item.puesto,
+              });
+              await database.insert(workHistoryTable).values({
+                candidatoId: tokenRow.candidateId,
+                empresa: item.empresa,
+                puesto: item.puesto || "",
+                fechaInicio: fechaInicioValue,
+                fechaFin: fechaFinValue,
+                tiempoTrabajado: item.tiempoTrabajado ?? "",
+                tiempoTrabajadoEmpresa: "",
+                estatusInvestigacion: "en_revision",
+                resultadoVerificacion: "pendiente",
+                capturadoPor: "candidato",
+              } as any);
+              console.log(`✅ [SERVER] Nuevo trabajo insertado`, {
+                requestId,
+                empresa: item.empresa,
+              });
+            }
           }
         }
       }

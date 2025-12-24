@@ -26,7 +26,7 @@
 - `[✓]` PVM-DB-01: Drizzle — Esquema y migraciones iniciales
   - *Configurar Drizzle + mysql2. Definir tablas base: users, clients, posts, candidates. Generar migraciones iniciales.*
 - `[✓]` PVM-DB-02: Ejecutar migraciones y CI (drift check)
-- `[✓]` PVM-DB-03: Conexión Cloud SQL (integra_rh_v2) y migraciones aplicadas
+- `[✓]` PVM-DB-03: Conexión Railway (integra_rh_v2) y migraciones aplicadas
 
 ### PVM - API (tRPC)
 - `[✓]` PVM-API-01: Scaffold API tRPC + Zod
@@ -181,3 +181,7 @@
 - Checkpoint nuevo: `checkpoint/20251121-1545-client-portal-token` (ver `Checkpoints/CHK_2025-11-21_1545.md`).
 - Checkpoint actual: `checkpoint/20251216-0330-fix-email-waf` (ver `Checkpoints/CHK_2025-12-16_0330-fix-email-waf-diagnosis.md`).
 - **Checkpoint Sincronización (23 dic 2025):** `CHK_2025-12-23_FASE-4-PROBADA-E2E.md` — Validación de flujo bidireccional self-service ↔ panel analista con 7 tests de integración (7/7 PASS).
+
+### Mejoras de DX (Developer Experience)
+- `[ ]` DX-AG-01: Validar agente DEBY (Deep Debugging) con un caso real de error.
+

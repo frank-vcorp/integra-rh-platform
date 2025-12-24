@@ -198,8 +198,8 @@ export default function Candidatos() {
 
   const [candidateSortKey, setCandidateSortKey] = useState<
     "nombre" | "cliente" | "progreso" | "fechaRegistro"
-  >("nombre");
-  const [candidateSortDir, setCandidateSortDir] = useState<"asc" | "desc">("asc");
+  >("fechaRegistro");
+  const [candidateSortDir, setCandidateSortDir] = useState<"asc" | "desc">("desc");
 
   const candidates = useMemo(() => {
     const list = [...candidatesBase];

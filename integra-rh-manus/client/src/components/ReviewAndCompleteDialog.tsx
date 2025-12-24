@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +56,27 @@ export function ReviewAndCompleteDialog({
     comentarioInvestigacion: workHistoryItem?.comentarioInvestigacion || "",
   });
 
+  // Actualizar formData cuando cambia workHistoryItem
+  useEffect(() => {
+    if (workHistoryItem) {
+      setFormData({
+        empresa: workHistoryItem.empresa || "",
+        puesto: workHistoryItem.puesto || "",
+        fechaInicio: workHistoryItem.fechaInicio || "",
+        fechaFin: workHistoryItem.fechaFin || "",
+        tiempoTrabajado: workHistoryItem.tiempoTrabajado || "",
+        empresaVerificada: workHistoryItem.investigacionDetalle?.empresa?.nombreComercial || "",
+        puestoVerificado: workHistoryItem.investigacionDetalle?.puesto?.puestoFinal || "",
+        causalSalidaRH: workHistoryItem.causalSalidaRH || "",
+        causalSalidaJefeInmediato: workHistoryItem.causalSalidaJefeInmediato || "",
+        observaciones: workHistoryItem.observaciones || "",
+        tiempoTrabajadoEmpresa: workHistoryItem.tiempoTrabajadoEmpresa || "",
+        estatusInvestigacion: workHistoryItem.estatusInvestigacion || "en_revision",
+        comentarioInvestigacion: workHistoryItem.comentarioInvestigacion || "",
+      });
+    }
+  }, [workHistoryItem]);
+
   const handleSave = async () => {
     const payload = {
       ...workHistoryItem,
@@ -90,16 +111,36 @@ export function ReviewAndCompleteDialog({
 
   const CAUSALES_SALIDA = [
     "RENUNCIA VOLUNTARIA",
+    "VIGENTE",
+    "RECORTE DE PERSONAL",
     "TÉRMINO DE CONTRATO",
-    "CIERRE DE LA EMPRESA",
-    "JUVILACIÓN",
-    "ABANDONO DE TRABAJO",
-    "ACUMULACIÓN DE FALTAS",
+    "TERMINACIÓN DE PROYECTO",
+    "TÉRMINO DE PERIODO DE PRUEBA",
+    "REESTRUCTURACIÓN",
+    "CAMBIO DE ADMINISTRACIÓN",
+    "CIERRE DE EMPRESA",
+    "POR ANTIGÜEDAD NO HAY INFORMACIÓN EN SISTEMA",
+    "POR POLÍTICAS DE PRIVACIDAD NO DAN REFERENCIAS LABORALES",
     "BAJO DESEMPEÑO",
+    "AUSENTISMO",
+    "ABANDONO DE EMPLEO",
+    "ACUMULACIÓN DE FALTAS INJUSTIFICADAS",
+    "INCUMPLIMIENTO DE POLÍTICAS INTERNAS",
+    "NO APEGO A POLÍTICAS Y PROCESOS",
+    "CONDUCTA INADECUADA",
+    "CONFLICTIVO",
+    "VIOLACIÓN AL CODIGO DE CONDUCTA Y ÉTICA (DESHONESTIDAD)",
     "FALTA DE PROBIDAD",
-    "VIOLACIÓN AL CÓDIGO DE CONDUCTA",
+    "PERDIDA DE CONFIANZA",
+    "NO RENOVACIÓN DE CONTRATO",
+    "BAJA CON CAUSAL",
+    "BAJA ADMINISTRATIVA",
     "ABUSO DE CONFIANZA",
-    "INCUMPLIMIENTO A POLÍTICAS Y PROCESOS",
+    "FALSIFICACIÓN DE DOCUMENTOS",
+    "SUSTRACCIÓN DE COMBUSTIBLE",
+    "ALCOHOLISMO",
+    "PERDIDA DE RECURSOS / MATERIAL DE LA EMPRESA",
+    "DAÑO A UNIDAD VEHICULAR",
   ];
 
   const ESTATUS_INVESTIGACION = ["en_revision", "revisado", "terminado"];
