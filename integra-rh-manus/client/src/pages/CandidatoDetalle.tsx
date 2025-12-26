@@ -7,6 +7,8 @@ import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, E
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Dialog,
   DialogContent,
@@ -937,17 +939,20 @@ export default function CandidatoDetalle() {
                       </span>
                     </p>
                   )}
-                  {hasValue(domicilio.mapLink) && (
-                    <p>
-                      <a
-                        href={domicilio.mapLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-blue-600 underline"
+                  {domicilio.mapLink && typeof domicilio.mapLink === 'object' && 'lat' in domicilio.mapLink && 'lng' in domicilio.mapLink && (
+                    <div className="mt-4 rounded-lg overflow-hidden border border-slate-200" style={{ height: "300px" }}>
+                      <MapContainer
+                        center={[domicilio.mapLink.lat, domicilio.mapLink.lng]}
+                        zoom={16}
+                        className="h-full w-full"
                       >
-                        Ver ubicación en mapa
-                      </a>
-                    </p>
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          attribution='&copy; OpenStreetMap contributors'
+                        />
+                        <Marker position={[domicilio.mapLink.lat, domicilio.mapLink.lng]} />
+                      </MapContainer>
+                    </div>
                   )}
                 </div>
               )}

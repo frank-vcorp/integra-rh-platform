@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, AlertTriangle, Save } from "lucide-react";
+import { MapPicker } from "@/components/MapPicker";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -132,7 +133,7 @@ export default function CandidatoSelfService() {
     municipio: string;
     estado: string;
     cp: string;
-    mapLink: string;
+    mapLink: { lat: number; lng: number } | null;
     // Redes sociales
     facebook: string;
     instagram: string;
@@ -185,7 +186,7 @@ export default function CandidatoSelfService() {
     municipio: "",
     estado: "",
     cp: "",
-    mapLink: "",
+    mapLink: null,
     facebook: "",
     instagram: "",
     twitterX: "",
@@ -327,7 +328,9 @@ export default function CandidatoSelfService() {
       municipio: detalle.domicilio?.municipio || "",
       estado: detalle.domicilio?.estado || "",
       cp: detalle.domicilio?.cp || "",
-      mapLink: detalle.domicilio?.mapLink || "",
+      mapLink: typeof detalle.domicilio?.mapLink === 'string' 
+        ? null 
+        : (detalle.domicilio?.mapLink || null),
       facebook: detalle.redesSociales?.facebook || "",
       instagram: detalle.redesSociales?.instagram || "",
       twitterX: detalle.redesSociales?.twitterX || "",
@@ -484,7 +487,7 @@ export default function CandidatoSelfService() {
           municipio: perfil.municipio || "",
           estado: perfil.estado || "",
           cp: perfil.cp || "",
-          mapLink: perfil.mapLink || "",
+          mapLink: perfil.mapLink ? JSON.stringify(perfil.mapLink) : "",
         },
         redesSociales: {
           facebook: perfil.facebook || "",
@@ -977,43 +980,15 @@ export default function CandidatoSelfService() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="mapLink">
-                    Enlace de ubicación en mapa (Google Maps)
-                  </Label>
-                  <Input
-                    id="mapLink"
+                  <MapPicker
                     value={perfil.mapLink}
-                    onChange={(e) =>
-                      setPerfil((p) => ({ ...p, mapLink: e.target.value }))
+                    onChange={(coords) =>
+                      setPerfil((p) => ({ ...p, mapLink: coords }))
                     }
-                    placeholder="Pega aquí el enlace de Google Maps de tu domicilio"
+                    address={[perfil.calle, perfil.numero, perfil.interior, perfil.colonia, perfil.municipio, perfil.estado, perfil.cp]
+                      .filter(Boolean)
+                      .join(", ")}
                   />
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Puedes usar el botón “Abrir mapa” para buscar tu dirección y luego
-                    copiar el enlace completo de Google Maps.
-                  </p>
-                  <div className="mt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const query = [perfil.calle, perfil.colonia, perfil.municipio, perfil.estado, perfil.cp]
-                          .filter(Boolean)
-                          .join(", ");
-                        const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                          query || data?.candidate.nombreCompleto || "",
-                        )}`;
-                        try {
-                          window.open(url, "_blank");
-                        } catch {
-                          // ignorar errores de ventana bloqueada
-                        }
-                      }}
-                    >
-                      Abrir mapa para localizar mi domicilio
-                    </Button>
-                  </div>
                 </div>
               </div>
             </section>
