@@ -355,6 +355,38 @@ export const workHistoryRouter = router({
           estatusInvestigacion: z.enum(ESTATUS_INVESTIGACION).optional(),
           comentarioInvestigacion: z.string().optional(),
           capturadoPor: z.enum(["candidato", "analista"]).optional(),
+          // [FIX] Agregar investigacionDetalle para guardar datos de verificación
+          investigacionDetalle: z.object({
+            empresa: z.object({
+              nombreComercial: z.string().optional(),
+              giro: z.string().optional(),
+              direccion: z.string().optional(),
+              telefono: z.string().optional(),
+            }).optional(),
+            puesto: z.object({
+              puestoInicial: z.string().optional(),
+              puestoFinal: z.string().optional(),
+              jefeInmediato: z.string().optional(),
+              principalesActividades: z.string().optional(),
+              recursosAsignados: z.string().optional(),
+              horarioTrabajo: z.string().optional(),
+            }).optional(),
+            periodo: z.object({
+              fechaIngreso: z.string().optional(),
+              fechaSalida: z.string().optional(),
+              antiguedadTexto: z.string().optional(),
+              sueldoInicial: z.string().optional(),
+              sueldoFinal: z.string().optional(),
+            }).optional(),
+            incidencias: z.object({
+              motivoSeparacionCandidato: z.string().optional(),
+              motivoSeparacionEmpresa: z.string().optional(),
+              incapacidadesCandidato: z.string().optional(),
+              incapacidadesJefe: z.string().optional(),
+              inasistencias: z.string().optional(),
+              antecedentesLegales: z.string().optional(),
+            }).optional(),
+          }).optional(),
         }),
       })
     )

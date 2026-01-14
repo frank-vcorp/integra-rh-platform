@@ -24,6 +24,7 @@ import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Link } from "wouter";
 import { Loader2 } from "lucide-react";
 import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
+import { getServiciosIncluidos } from "@/lib/procesoTipo";
 
 /**
  * Dashboard para clientes empresariales
@@ -281,6 +282,13 @@ export default function ClienteDashboard() {
                   const laboral = latestProcess?.investigacionLaboral;
                   const legal = latestProcess?.investigacionLegal;
                   const buro = latestProcess?.buroCredito;
+                  
+                  // Determinar qué servicios incluye el tipo de proceso contratado
+                  // La visita es opcional, se muestra solo si hay datos registrados
+                  const servicios = getServiciosIncluidos(latestProcess?.tipoProducto, {
+                    visitStatus: latestProcess?.visitStatus,
+                    visitaDetalle: latestProcess?.visitaDetalle,
+                  });
 
                   return (
                     <AccordionItem key={candidate.id} value={`candidate-${candidate.id}`} className="border rounded-lg px-3">
@@ -294,40 +302,51 @@ export default function ClienteDashboard() {
                           )}
                         </div>
                         <div className="text-sm text-gray-500 flex flex-wrap gap-3">
-                          {laboral && (
+                          {/* Solo mostrar investigaciones que aplican al tipo de proceso */}
+                          {servicios.laboral && laboral && (
                             <span>Investigación laboral: <strong>{laboral?.resultado || getInvestigacionLabel(laboral?.estatus)}</strong></span>
                           )}
-                          {legal && (
+                          {servicios.legal && legal && (
                             <span>Investigación legal: <strong>{legal?.antecedentes || "Sin antecedentes"}</strong></span>
                           )}
-                          {buro && (
+                          {servicios.buro && buro && (
                             <span>Buró de crédito: <strong>{buro?.estatus || "Por revisar"}</strong></span>
                           )}
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pb-4 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Card>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-semibold">Investigaciones</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 text-sm text-gray-600">
-                              <div>
-                                <p className="font-semibold text-gray-800">Laboral</p>
-                                <p>{laboral?.detalles || "En investigación"}</p>
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-800">Legal</p>
-                                <p>{legal?.antecedentes || "Sin antecedentes reportados"}</p>
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-800">Buró de crédito</p>
-                                <p>{buro?.estatus || "Pendiente"}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
+                          {/* Solo mostrar card de investigaciones si hay al menos un servicio contratado */}
+                          {(servicios.laboral || servicios.legal || servicios.buro) && (
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-semibold">Investigaciones</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 text-sm text-gray-600">
+                                {servicios.laboral && (
+                                  <div>
+                                    <p className="font-semibold text-gray-800">Laboral</p>
+                                    <p>{laboral?.detalles || "En investigación"}</p>
+                                  </div>
+                                )}
+                                {servicios.legal && (
+                                  <div>
+                                    <p className="font-semibold text-gray-800">Legal</p>
+                                    <p>{legal?.antecedentes || "Sin antecedentes reportados"}</p>
+                                  </div>
+                                )}
+                                {servicios.buro && (
+                                  <div>
+                                    <p className="font-semibold text-gray-800">Buró de crédito</p>
+                                    <p>{buro?.estatus || "Pendiente"}</p>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
 
-                          <WorkHistoryPreview candidatoId={candidate.id} />
+                          {/* El historial laboral siempre se muestra si es ILA o ESE */}
+                          {servicios.laboral && <WorkHistoryPreview candidatoId={candidate.id} />}
                         </div>
 
                         <div className="flex flex-wrap gap-3">

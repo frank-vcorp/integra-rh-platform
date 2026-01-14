@@ -6,6 +6,7 @@ import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
 import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
+import { getServiciosIncluidos } from "@/lib/procesoTipo";
 
 /**
  * Vista de detalle de proceso para clientes
@@ -58,7 +59,15 @@ export default function ClienteProcesoDetalle() {
     entregado: "Entregado",
   };
 
-  const blocks = [
+  // Determinar qué servicios incluye este tipo de proceso
+  // La visita es opcional, se muestra solo si hay datos de visita registrados
+  const servicios = getServiciosIncluidos(process?.tipoProducto, {
+    visitStatus: (process as any)?.visitStatus,
+    visitaDetalle: (process as any)?.visitaDetalle,
+  });
+
+  // Definir todos los bloques posibles
+  const allBlocks = [
     {
       key: "investigacionLaboral",
       label: "Investigación Laboral",
@@ -69,6 +78,7 @@ export default function ClienteProcesoDetalle() {
         detalle: d?.detalles,
         flag: d?.completado ? "completo" : "pendiente",
       }),
+      visible: servicios.laboral,
     },
     {
       key: "investigacionLegal",
@@ -84,6 +94,7 @@ export default function ClienteProcesoDetalle() {
         link: d?.archivoAdjuntoUrl,
         flag: d ? "en curso" : "pendiente",
       }),
+      visible: servicios.legal,
     },
     {
       key: "buroCredito",
@@ -95,6 +106,7 @@ export default function ClienteProcesoDetalle() {
         detalle: d?.score ? `Score: ${d.score}` : undefined,
         flag: d?.aprobado === true ? "aprobado" : d?.aprobado === false ? "rechazado" : "pendiente",
       }),
+      visible: servicios.buro,
     },
     {
       key: "visitaDetalle",
@@ -107,8 +119,12 @@ export default function ClienteProcesoDetalle() {
         fecha: d?.fechaRealizacion || d?.scheduledDateTime,
         link: d?.enlaceReporteUrl,
       }),
+      visible: servicios.visita,
     },
   ];
+
+  // Filtrar solo los bloques que aplican al tipo de proceso contratado
+  const blocks = allBlocks.filter(b => b.visible);
 
   const calcAvance = () => {
     const considered = blocks.length;

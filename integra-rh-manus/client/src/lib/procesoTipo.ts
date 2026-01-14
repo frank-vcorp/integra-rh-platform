@@ -127,3 +127,79 @@ export function formatTipoProductoDisplay(value?: string | null): string {
   return normalized;
 }
 
+/**
+ * Determina qué servicios/bloques están incluidos en un tipo de proceso.
+ * Esto es útil para mostrar solo los bloques relevantes en el portal de cliente.
+ * 
+ * La visita es OPCIONAL para todos los tipos de proceso (ILA, ESE, etc.)
+ * Por eso se requiere pasar los datos de visita para determinar si mostrarla.
+ */
+export interface ServiciosIncluidos {
+  laboral: boolean;
+  legal: boolean;
+  buro: boolean;
+  visita: boolean;
+  semanas: boolean;
+}
+
+export interface DatosVisita {
+  visitStatus?: {
+    status?: string;
+    scheduledDateTime?: string;
+    encuestadorId?: number;
+    direccion?: string;
+    observaciones?: string;
+  } | null;
+  visitaDetalle?: {
+    tipo?: string;
+    comentarios?: string;
+    fechaRealizacion?: string;
+    enlaceReporteUrl?: string;
+  } | null;
+}
+
+export function getServiciosIncluidos(
+  tipoProducto?: string | null,
+  datosVisita?: DatosVisita
+): ServiciosIncluidos {
+  if (!tipoProducto) {
+    return { laboral: false, legal: false, buro: false, visita: false, semanas: false };
+  }
+
+  const tipo = tipoProducto.toUpperCase();
+
+  // Determinar si hay visita contratada/registrada:
+  // 1. Si el tipo de proceso es específicamente "VISITA LOCAL" o "VISITA FORANEA"
+  // 2. O si hay datos en visitStatus (status, scheduledDateTime, encuestadorId)
+  // 3. O si hay datos en visitaDetalle (tipo, fechaRealizacion)
+  const esProcesoSoloVisita = tipo === "VISITA LOCAL" || tipo === "VISITA FORANEA";
+  const tieneVisitStatus = !!(
+    datosVisita?.visitStatus?.status ||
+    datosVisita?.visitStatus?.scheduledDateTime ||
+    datosVisita?.visitStatus?.encuestadorId
+  );
+  const tieneVisitaDetalle = !!(
+    datosVisita?.visitaDetalle?.tipo ||
+    datosVisita?.visitaDetalle?.fechaRealizacion
+  );
+  const tieneVisita = esProcesoSoloVisita || tieneVisitStatus || tieneVisitaDetalle;
+
+  // Mapeo basado en el tipo de proceso
+  return {
+    // Laboral: ILA y ESE siempre incluyen investigación laboral
+    laboral: tipo.includes("ILA") || tipo.includes("ESE"),
+    
+    // Legal: solo si explícitamente dice "LEGAL" o "INVESTIGACIÓN LEGAL"
+    legal: tipo.includes("LEGAL"),
+    
+    // Buró: solo si explícitamente dice "BURÓ" o "BURO"
+    buro: tipo.includes("BUR"),
+    
+    // Visita: OPCIONAL - solo si hay datos registrados o es tipo VISITA específico
+    visita: tieneVisita,
+    
+    // Semanas cotizadas
+    semanas: tipo.includes("SEMANAS"),
+  };
+}
+

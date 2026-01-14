@@ -97,7 +97,22 @@
  - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
  - `[✓]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Incluye portal de cliente por enlace con branding Sinergia RH.
 
-**Estado Actual (18/12/2025)**
+**Estado Actual (14/01/2026)**
+
+- **Portal de Cliente - Servicios Dinámicos (14 ene 2026):** Se implementó visualización dinámica en el portal de cliente:
+  - El cliente ahora **solo ve los servicios que contrató** (ILA, Legal, Buró, Visita).
+  - La visita es **opcional para todos los tipos** (ILA, ESE, etc.) y solo se muestra cuando hay datos registrados (encuestador asignado, fecha programada, etc.).
+  - Nueva función `getServiciosIncluidos()` en `procesoTipo.ts` determina qué bloques mostrar según el tipo de proceso.
+  - Evita confusión cuando aparecían opciones "Pendiente" de servicios no solicitados.
+  - Checkpoint: `CHK_2026-01-14_PORTAL-CLIENTE-SERVICIOS-DINAMICOS.md`
+
+- **Homogeneización de Flujos (13 ene 2026):** Se corrigieron inconsistencias entre los flujos de creación de procesos:
+  - Flujo Completo (`ClienteFormularioIntegrado.tsx`): Agregado campo `reclutador`, selector de Plaza/CEDI y envío de `clientSiteId`.
+  - PuestoProcesoFlow: Agregado selector de Plaza/CEDI, reemplazado select simple por config builder (`ProcesoConfig`).
+  - Ahora todos los flujos guardan los mismos datos en los mismos lugares.
+  - Checkpoint: `CHK_2026-01-13_HOMOGENEIZACION-FLUJOS.md`
+
+**Estado Anterior (18/12/2025)**
 
 - **Incidente Resuelto:** El bloqueo de WAF (Cloudflare) en integración con Psicométricas fue temporal y se ha restablecido el servicio.
   - Solucionado error 500 "Candidato sin email" (normalización DB).

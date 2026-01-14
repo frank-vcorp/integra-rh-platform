@@ -1,3 +1,25 @@
+/**
+ * =============================================================================
+ * PuestoProcesoFlow.tsx - Flujo: Puesto → Proceso (desde Candidatos)
+ * =============================================================================
+ * 
+ * HOMOGENEIZACIÓN DE FLUJOS (13 ene 2026)
+ * ----------------------------------------
+ * Este archivo fue modificado para garantizar consistencia de datos con los
+ * demás flujos de creación de procesos:
+ * - ClienteFormularioIntegrado.tsx (Flujo Completo)
+ * - CandidatoFormularioIntegrado.tsx (Flujo Rápido)
+ * - Procesos.tsx (Módulo Normal)
+ * 
+ * Cambios aplicados:
+ * 1. Se agregó selector de Plaza/CEDI (opcional)
+ * 2. Se cambió select simple de TIPOS_PROCESO por el config builder (ProcesoConfig)
+ * 3. Se pasa `clientSiteId` al crear proceso (antes era NULL)
+ * 
+ * Referencia: CHK_2025-01-13_HOMOGENEIZACION-FLUJOS.md
+ * =============================================================================
+ */
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +32,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { Briefcase, FileText, ChevronRight } from "lucide-react";
+import { Briefcase, FileText, ChevronRight, MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TIPOS_PROCESO, TipoProcesoType } from "@/lib/constants";
+import { TipoProcesoType } from "@/lib/constants";
+// [HOMOGENEIZACIÓN] Importar el config builder igual que otros flujos
+import {
+  AmbitoType,
+  IlaModoType,
+  PROCESO_BASE_OPTIONS,
+  ProcesoBaseType,
+  ProcesoConfig,
+  mapProcesoConfigToTipoProducto,
+} from "@/lib/procesoTipo";
 import { useLocation } from "wouter";
 import { Separator } from "@/components/ui/separator";
 
@@ -27,8 +58,24 @@ export default function PuestoProcesoFlow() {
   const clienteId = urlParams.get('clienteId');
   
   const [puestoId, setPuestoId] = useState<number | null>(null);
+  
+  // [HOMOGENEIZACIÓN] Estado para Plaza/CEDI - consistente con otros flujos
+  const [selectedSite, setSelectedSite] = useState<string>("");
+  
+  // [HOMOGENEIZACIÓN] Estado para config builder - igual que Flujo Completo y Flujo Rápido
+  const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
+  const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
+  const [eseAmbito, setEseAmbito] = useState<AmbitoType>("LOCAL");
+  const [eseExtra, setEseExtra] = useState<"NINGUNO" | "BURO" | "LEGAL">("NINGUNO");
+  const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
 
   const utils = trpc.useUtils();
+  
+  // [HOMOGENEIZACIÓN] Query para obtener plazas del cliente
+  const { data: clientSites = [] } = trpc.clientSites.listByClient.useQuery(
+    { clientId: clienteId ? parseInt(clienteId) : 0 },
+    { enabled: !!clienteId }
+  );
 
   // Mutations
   const createPostMutation = trpc.posts.create.useMutation({
@@ -76,12 +123,38 @@ export default function PuestoProcesoFlow() {
       toast.error("Error: Faltan datos del cliente o candidato");
       return;
     }
+    
+    // [HOMOGENEIZACIÓN] Usar config builder igual que otros flujos
+    const config: ProcesoConfig =
+      baseTipo === "ILA"
+        ? { base: "ILA", modo: ilaModo }
+        : baseTipo === "ESE"
+        ? { base: "ESE", ambito: eseAmbito, extra: eseExtra }
+        : baseTipo === "VISITA"
+        ? { base: "VISITA", ambito: visitaAmbito }
+        : baseTipo === "BURO"
+        ? { base: "BURO" }
+        : baseTipo === "LEGAL"
+        ? { base: "LEGAL" }
+        : { base: "SEMANAS" };
+
+    const tipoProducto: TipoProcesoType = mapProcesoConfigToTipoProducto(config);
+    
     createProcessMutation.mutate({
-      tipoProducto: formData.get("tipoProducto") as TipoProcesoType,
+      tipoProducto,
       clienteId: parseInt(clienteId),
       candidatoId: parseInt(candidatoId),
       puestoId: puestoId!,
+      // [HOMOGENEIZACIÓN] Ahora pasamos clientSiteId - antes era NULL
+      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
     });
+  };
+  
+  // Helper para mostrar nombre de plaza en resumen
+  const getSiteName = () => {
+    if (!selectedSite) return "No seleccionada";
+    const site = clientSites.find((s: any) => s.id === parseInt(selectedSite));
+    return site?.nombrePlaza || `ID: ${selectedSite}`;
   };
 
   return (
@@ -158,18 +231,136 @@ export default function PuestoProcesoFlow() {
           <CardContent>
             <form onSubmit={handleProcessSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                {/* [HOMOGENEIZACIÓN] Selector de Plaza/CEDI agregado */}
+                {clientSites.length > 0 && (
+                  <div className="col-span-2">
+                    <Label className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      Plaza / CEDI
+                    </Label>
+                    <Select
+                      value={selectedSite}
+                      onValueChange={setSelectedSite}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una plaza (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientSites.map((site: any) => (
+                          <SelectItem key={site.id} value={site.id.toString()}>
+                            {site.nombrePlaza}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* [HOMOGENEIZACIÓN] Config builder igual que otros flujos - antes era select simple */}
                 <div className="col-span-2">
                   <Label>Proceso a Realizar *</Label>
-                  <Select name="tipoProducto" defaultValue="ILA" required>
+                  <Select
+                    value={baseTipo}
+                    onValueChange={(v) => setBaseTipo(v as ProcesoBaseType)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_PROCESO.map((tipo) => (
-                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                      {PROCESO_BASE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {baseTipo === "ILA" && (
+                    <div className="mt-3 space-y-1">
+                      <Label className="text-xs">Modalidad ILA</Label>
+                      <Select
+                        value={ilaModo}
+                        onValueChange={(v) => setIlaModo(v as IlaModoType)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NORMAL">
+                            Normal (sin buró ni legal)
+                          </SelectItem>
+                          <SelectItem value="BURO">
+                            Con buró de crédito
+                          </SelectItem>
+                          <SelectItem value="LEGAL">
+                            Con investigación legal
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {baseTipo === "ESE" && (
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ámbito</Label>
+                        <Select
+                          value={eseAmbito}
+                          onValueChange={(v) => setEseAmbito(v as AmbitoType)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOCAL">Local</SelectItem>
+                            <SelectItem value="FORANEO">Foráneo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Complemento</Label>
+                        <Select
+                          value={eseExtra}
+                          onValueChange={(v) =>
+                            setEseExtra(v as "NINGUNO" | "BURO" | "LEGAL")
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NINGUNO">
+                              Sin complemento
+                            </SelectItem>
+                            <SelectItem value="BURO">
+                              Con buró de crédito
+                            </SelectItem>
+                            <SelectItem value="LEGAL">
+                              Con investigación legal
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  {baseTipo === "VISITA" && (
+                    <div className="mt-3 space-y-1">
+                      <Label className="text-xs">Ámbito de visita</Label>
+                      <Select
+                        value={visitaAmbito}
+                        onValueChange={(v) => setVisitaAmbito(v as AmbitoType)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOCAL">Local</SelectItem>
+                          <SelectItem value="FORANEO">Foránea</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg space-y-2">
@@ -177,6 +368,8 @@ export default function PuestoProcesoFlow() {
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>✓ Cliente (ID: {clienteId})</li>
                   <li>✓ Candidato (ID: {candidatoId})</li>
+                  {/* [HOMOGENEIZACIÓN] Mostrar plaza en resumen */}
+                  <li>✓ Plaza: {getSiteName()}</li>
                   <li>✓ Puesto creado (ID: {puestoId})</li>
                   <li>→ Proceso por crear</li>
                 </ul>

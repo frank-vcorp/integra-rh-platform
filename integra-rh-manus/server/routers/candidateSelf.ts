@@ -277,19 +277,44 @@ export const candidateSelfRouter = router({
                 ),
               );
           } else {
-            // Insertar nuevo
-            await database.insert(workHistory).values({
-              candidatoId: tokenRow.candidateId,
-              empresa: item.empresa,
-              puesto: item.puesto,
-              fechaInicio: fechaInicioValue,
-              fechaFin: fechaFinValue,
-              tiempoTrabajado: item.tiempoTrabajado ?? "",
-              tiempoTrabajadoEmpresa: "",
-              estatusInvestigacion: "en_revision",
-              resultadoVerificacion: "pendiente",
-              capturadoPor: "candidato",
-            } as any);
+            // [FIX] Buscar si ya existe un registro con misma empresa+fechaInicio para evitar duplicados
+            const existing = await database
+              .select({ id: workHistory.id })
+              .from(workHistory)
+              .where(
+                and(
+                  eq(workHistory.candidatoId, tokenRow.candidateId),
+                  eq(workHistory.empresa, item.empresa),
+                  eq(workHistory.fechaInicio, fechaInicioValue),
+                ),
+              )
+              .limit(1);
+
+            if (existing.length > 0) {
+              // Actualizar el existente
+              await database
+                .update(workHistory)
+                .set({
+                  puesto: item.puesto,
+                  fechaFin: fechaFinValue,
+                  tiempoTrabajado: item.tiempoTrabajado,
+                })
+                .where(eq(workHistory.id, existing[0].id));
+            } else {
+              // Insertar nuevo
+              await database.insert(workHistory).values({
+                candidatoId: tokenRow.candidateId,
+                empresa: item.empresa,
+                puesto: item.puesto,
+                fechaInicio: fechaInicioValue,
+                fechaFin: fechaFinValue,
+                tiempoTrabajado: item.tiempoTrabajado ?? "",
+                tiempoTrabajadoEmpresa: "",
+                estatusInvestigacion: "en_revision",
+                resultadoVerificacion: "pendiente",
+                capturadoPor: "candidato",
+              } as any);
+            }
           }
         }
       }
@@ -506,19 +531,44 @@ export const candidateSelfRouter = router({
                 ),
               );
           } else {
-            // Insertar nuevo
-            await database.insert(workHistory).values({
-              candidatoId: tokenRow.candidateId,
-              empresa: item.empresa,
-              puesto: item.puesto,
-              fechaInicio: fechaInicioValue,
-              fechaFin: fechaFinValue,
-              tiempoTrabajado: item.tiempoTrabajado ?? "",
-              tiempoTrabajadoEmpresa: "",
-              estatusInvestigacion: "en_revision",
-              resultadoVerificacion: "pendiente",
-              capturadoPor: "candidato",
-            } as any);
+            // [FIX] Buscar si ya existe un registro con misma empresa+fechaInicio para evitar duplicados
+            const existing = await database
+              .select({ id: workHistory.id })
+              .from(workHistory)
+              .where(
+                and(
+                  eq(workHistory.candidatoId, tokenRow.candidateId),
+                  eq(workHistory.empresa, item.empresa),
+                  eq(workHistory.fechaInicio, fechaInicioValue),
+                ),
+              )
+              .limit(1);
+
+            if (existing.length > 0) {
+              // Actualizar el existente
+              await database
+                .update(workHistory)
+                .set({
+                  puesto: item.puesto,
+                  fechaFin: fechaFinValue,
+                  tiempoTrabajado: item.tiempoTrabajado,
+                })
+                .where(eq(workHistory.id, existing[0].id));
+            } else {
+              // Insertar nuevo
+              await database.insert(workHistory).values({
+                candidatoId: tokenRow.candidateId,
+                empresa: item.empresa,
+                puesto: item.puesto,
+                fechaInicio: fechaInicioValue,
+                fechaFin: fechaFinValue,
+                tiempoTrabajado: item.tiempoTrabajado ?? "",
+                tiempoTrabajadoEmpresa: "",
+                estatusInvestigacion: "en_revision",
+                resultadoVerificacion: "pendiente",
+                capturadoPor: "candidato",
+              } as any);
+            }
           }
         }
       }

@@ -1,3 +1,25 @@
+/**
+ * =============================================================================
+ * ClienteFormularioIntegrado.tsx - Flujo Completo: Cliente → Proceso
+ * =============================================================================
+ * 
+ * HOMOGENEIZACIÓN DE FLUJOS (13 ene 2026)
+ * ----------------------------------------
+ * Este archivo fue modificado para garantizar consistencia de datos con los
+ * demás flujos de creación de procesos:
+ * - CandidatoFormularioIntegrado.tsx (Flujo Rápido)
+ * - PuestoProcesoFlow.tsx
+ * - Procesos.tsx (Módulo Normal)
+ * 
+ * Cambios aplicados:
+ * 1. Se agregó campo `reclutador` en paso Cliente (antes no se pedía)
+ * 2. Se agregó selector de Plaza/CEDI con opción de crear inline
+ * 3. Se pasa `clientSiteId` a candidato y proceso (antes era NULL)
+ * 
+ * Referencia: CHK_2025-01-13_HOMOGENEIZACION-FLUJOS.md
+ * =============================================================================
+ */
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,8 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Building2, Users, Briefcase, FileText, ChevronRight } from "lucide-react";
+import { Building2, Users, Briefcase, FileText, ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TipoProcesoType } from "@/lib/constants";
@@ -31,6 +59,12 @@ export default function ClienteFormularioIntegrado() {
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [candidatoId, setCandidatoId] = useState<number | null>(null);
   const [puestoId, setPuestoId] = useState<number | null>(null);
+  
+  // [HOMOGENEIZACIÓN] Estado para Plaza/CEDI - consistente con otros flujos
+  const [selectedSite, setSelectedSite] = useState<string>("");
+  const [createSiteDialogOpen, setCreateSiteDialogOpen] = useState(false);
+  const [newSiteName, setNewSiteName] = useState("");
+  
   const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
   const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
   const [eseAmbito, setEseAmbito] = useState<AmbitoType>("LOCAL");
@@ -40,6 +74,12 @@ export default function ClienteFormularioIntegrado() {
   const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
 
   const utils = trpc.useUtils();
+  
+  // [HOMOGENEIZACIÓN] Query para obtener plazas del cliente creado
+  const { data: clientSites = [] } = trpc.clientSites.listByClient.useQuery(
+    { clientId: clienteId ?? 0 },
+    { enabled: !!clienteId }
+  );
 
   // Mutations
   const createClientMutation = trpc.clients.create.useMutation({
@@ -50,6 +90,22 @@ export default function ClienteFormularioIntegrado() {
     },
     onError: (error) => {
       toast.error("Error al crear cliente: " + error.message);
+    },
+  });
+  
+  // [HOMOGENEIZACIÓN] Mutation para crear plaza inline - igual que Flujo Rápido
+  const createSiteMutation = trpc.clientSites.create.useMutation({
+    onSuccess: async (data) => {
+      if (clienteId) {
+        await utils.clientSites.listByClient.invalidate({ clientId: clienteId });
+      }
+      setSelectedSite(String(data.id));
+      setCreateSiteDialogOpen(false);
+      setNewSiteName("");
+      toast.success("Plaza creada correctamente");
+    },
+    onError: (error) => {
+      toast.error("No se pudo crear la plaza: " + error.message);
     },
   });
 
@@ -98,6 +154,8 @@ export default function ClienteFormularioIntegrado() {
       contacto: formData.get("contacto") as string || undefined,
       email: formData.get("email") as string || undefined,
       telefono: formData.get("telefono") as string || undefined,
+      // [HOMOGENEIZACIÓN] Ahora también pedimos reclutador como en Flujo Rápido
+      reclutador: formData.get("reclutador") as string || undefined,
     });
   };
 
@@ -110,6 +168,8 @@ export default function ClienteFormularioIntegrado() {
       telefono: formData.get("telefono") as string || undefined,
       medioDeRecepcion: formData.get("medioDeRecepcion") as string || undefined,
       clienteId: clienteId!,
+      // [HOMOGENEIZACIÓN] Ahora pasamos clientSiteId - antes era NULL
+      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
     });
   };
 
@@ -145,7 +205,28 @@ export default function ClienteFormularioIntegrado() {
       clienteId: clienteId!,
       candidatoId: candidatoId!,
       puestoId: puestoId!,
+      // [HOMOGENEIZACIÓN] Ahora pasamos clientSiteId - antes era NULL
+      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
     });
+  };
+  
+  // [HOMOGENEIZACIÓN] Handler para crear plaza inline
+  const handleCreateSite = () => {
+    if (!clienteId || !newSiteName.trim()) {
+      toast.error("Ingresa un nombre para la plaza");
+      return;
+    }
+    createSiteMutation.mutate({
+      clientId: clienteId,
+      nombrePlaza: newSiteName.trim(),
+    });
+  };
+  
+  // Helper para mostrar nombre de plaza en resumen
+  const getSiteName = () => {
+    if (!selectedSite) return "No seleccionada";
+    const site = clientSites.find((s: any) => s.id === parseInt(selectedSite));
+    return site?.nombrePlaza || `ID: ${selectedSite}`;
   };
 
   return (
@@ -218,6 +299,15 @@ export default function ClienteFormularioIntegrado() {
                     id="contacto"
                     name="contacto"
                     placeholder="Ej: Juan Pérez"
+                  />
+                </div>
+                {/* [HOMOGENEIZACIÓN] Campo reclutador agregado - antes no existía */}
+                <div>
+                  <Label htmlFor="reclutador">Reclutador</Label>
+                  <Input
+                    id="reclutador"
+                    name="reclutador"
+                    placeholder="Nombre del reclutador"
                   />
                 </div>
                 <div>
@@ -294,6 +384,42 @@ export default function ClienteFormularioIntegrado() {
                     name="medioDeRecepcion"
                     placeholder="Ej: Correo, WhatsApp, Presencial"
                   />
+                </div>
+                
+                {/* [HOMOGENEIZACIÓN] Selector de Plaza/CEDI agregado - antes no existía */}
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <Label htmlFor="clientSiteId">Plaza / CEDI (opcional)</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCreateSiteDialogOpen(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Nueva
+                    </Button>
+                  </div>
+                  <Select
+                    value={selectedSite}
+                    onValueChange={setSelectedSite}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una plaza (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientSites.map((site: any) => (
+                        <SelectItem key={site.id} value={site.id.toString()}>
+                          {site.nombrePlaza}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {clientSites.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No hay plazas registradas. Puedes crear una o continuar sin ella.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex justify-between">
@@ -471,6 +597,8 @@ export default function ClienteFormularioIntegrado() {
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>✓ Cliente creado (ID: {clienteId})</li>
                   <li>✓ Candidato creado (ID: {candidatoId})</li>
+                  {/* [HOMOGENEIZACIÓN] Mostrar plaza en resumen */}
+                  <li>✓ Plaza: {getSiteName()}</li>
                   <li>✓ Puesto creado (ID: {puestoId})</li>
                   <li>→ Proceso por crear</li>
                 </ul>
@@ -487,6 +615,42 @@ export default function ClienteFormularioIntegrado() {
           </CardContent>
         </Card>
       )}
+      
+      {/* [HOMOGENEIZACIÓN] Dialog para crear plaza inline - igual que otros flujos */}
+      <Dialog open={createSiteDialogOpen} onOpenChange={setCreateSiteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nueva Plaza / CEDI</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newSiteName">Nombre de la Plaza *</Label>
+              <Input
+                id="newSiteName"
+                value={newSiteName}
+                onChange={(e) => setNewSiteName(e.target.value)}
+                placeholder="Ej: Sucursal Norte, CEDI Guadalajara"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateSiteDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCreateSite}
+                disabled={createSiteMutation.isPending}
+              >
+                Crear Plaza
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

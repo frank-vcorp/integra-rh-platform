@@ -93,7 +93,19 @@ export default function CandidatoDetalle() {
   const [selfServiceExpiresAt, setSelfServiceExpiresAt] = useState<Date | null>(null);
 
   const { data: candidate, isLoading } = trpc.candidates.getById.useQuery({ id: candidateId });
-  const { data: workHistory = [] } = trpc.workHistory.getByCandidate.useQuery({ candidatoId: candidateId });
+  const { data: workHistoryRaw = [] } = trpc.workHistory.getByCandidate.useQuery({ candidatoId: candidateId });
+  
+  // Ordenar historial laboral: más reciente primero (por fechaInicio descendente)
+  const workHistory = [...workHistoryRaw].sort((a, b) => {
+    // Empleos actuales (sin fechaFin) van primero
+    if (!a.fechaFin && b.fechaFin) return -1;
+    if (a.fechaFin && !b.fechaFin) return 1;
+    // Luego ordenar por fechaInicio descendente
+    const dateA = a.fechaInicio || "";
+    const dateB = b.fechaInicio || "";
+    return dateB.localeCompare(dateA);
+  });
+  
   const { data: comments = [] } = trpc.candidateComments.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: documents = [] } = trpc.documents.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: procesos = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId: candidateId });
@@ -2332,10 +2344,11 @@ export default function CandidatoDetalle() {
         open={reviewDialogOpen}
         onOpenChange={setReviewDialogOpen}
         workHistoryItem={editingWorkHistory}
+        candidatoId={candidateId}
         onSave={async (data) => {
           if (editingWorkHistory?.id) {
-            // Formato esperado por el router: { id, data }
-            const { id, candidatoId, createdAt, updatedAt, ...restData } = data;
+            // MODO EDITAR: Formato esperado por el router: { id, data }
+            const { id, candidatoId: cId, createdAt, updatedAt, ...restData } = data;
             // Limpiar valores null → undefined para que zod los acepte como opcional
             const cleanedData = Object.fromEntries(
               Object.entries(restData).map(([k, v]) => [k, v === null ? undefined : v])
@@ -2343,11 +2356,15 @@ export default function CandidatoDetalle() {
             // Eliminar causalSalidaRH y causalSalidaJefeInmediato si están vacíos
             if (!cleanedData.causalSalidaRH) delete cleanedData.causalSalidaRH;
             if (!cleanedData.causalSalidaJefeInmediato) delete cleanedData.causalSalidaJefeInmediato;
+            // [FIX] Eliminar fechaInicio y fechaFin si están vacíos (regex no acepta "")
+            if (!cleanedData.fechaInicio) delete cleanedData.fechaInicio;
+            if (!cleanedData.fechaFin) delete cleanedData.fechaFin;
             await updateWorkHistoryMutation.mutateAsync({
               id: editingWorkHistory.id,
               data: cleanedData,
             });
           } else {
+            // MODO CREAR: data ya viene con candidatoId del dialog
             await createWorkHistoryMutation.mutateAsync(data);
           }
         }}
