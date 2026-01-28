@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
@@ -73,6 +73,82 @@ const INVESTIGATION_BLOCKS = [
   },
 ] as const;
 
+/** ARCH-20260128-09 | Doc: context/SPEC-INVESTIGACION-LOCALSTORAGE.md */
+const getInvestigationDraftKey = (candidateId: number, workHistoryId?: number | null) => {
+  if (!candidateId || !workHistoryId) return null;
+  return `investigationDraft:v1:${candidateId}:${workHistoryId}`;
+};
+
+/** ARCH-20260128-09 | Doc: context/SPEC-INVESTIGACION-LOCALSTORAGE.md */
+const loadInvestigationDraft = (key: string): Record<string, string> | null => {
+  if (typeof window === "undefined" || !window.localStorage) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/** ARCH-20260128-09 | Doc: context/SPEC-INVESTIGACION-LOCALSTORAGE.md */
+const hasInvestigationDraft = (key?: string | null) => {
+  if (!key || typeof window === "undefined" || !window.localStorage) return false;
+  try {
+    return window.localStorage.getItem(key) !== null;
+  } catch {
+    return false;
+  }
+};
+
+/** ARCH-20260128-09 | Doc: context/SPEC-INVESTIGACION-LOCALSTORAGE.md */
+const saveInvestigationDraftField = (key: string, name: string, value: string) => {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const current = loadInvestigationDraft(key) || {};
+    current[name] = value;
+    window.localStorage.setItem(key, JSON.stringify(current));
+  } catch {
+    // silent
+  }
+};
+
+/** ARCH-20260128-09 | Doc: context/SPEC-INVESTIGACION-LOCALSTORAGE.md */
+const clearInvestigationDraft = (key?: string | null) => {
+  if (!key || typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // silent
+  }
+};
+
+/** ARCH-20260128-09 | Doc: context/SPEC-INVESTIGACION-LOCALSTORAGE.md */
+const applyInvestigationDraftToForm = (
+  form: HTMLFormElement | null,
+  draft: Record<string, string>,
+) => {
+  if (!form) return;
+  Object.entries(draft).forEach(([name, value]) => {
+    const field = form.elements.namedItem(name) as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | HTMLSelectElement
+      | null;
+    if (!field) return;
+    if (field instanceof HTMLInputElement && field.type === "checkbox") {
+      field.checked = value === "on" || value === "true";
+      return;
+    }
+    if (field instanceof HTMLInputElement && field.type === "radio") {
+      field.checked = field.value === value;
+      return;
+    }
+    field.value = value ?? "";
+  });
+};
+
 export default function CandidatoDetalle() {
   const params = useParams();
   const candidateId = parseInt(params.id || "0");
@@ -86,6 +162,9 @@ export default function CandidatoDetalle() {
   const [investigationStep, setInvestigationStep] = useState(1);
   const [investigationTarget, setInvestigationTarget] = useState<any | null>(null);
   const [periodRowCount, setPeriodRowCount] = useState(1);
+  const [investigationDraftSnapshot, setInvestigationDraftSnapshot] = useState<Record<string, string> | null>(null);
+  const investigationFormRef = useRef<HTMLFormElement | null>(null);
+  const investigationDraftKeyRef = useRef<string | null>(null);
   
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [consentAction, setConsentAction] = useState<'email' | 'whatsapp' | 'copy' | null>(null);
@@ -295,6 +374,8 @@ export default function CandidatoDetalle() {
   const saveInvestigationMutation = trpc.workHistory.saveInvestigation.useMutation({
     onSuccess: (res) => {
       utils.workHistory.getByCandidate.invalidate({ candidatoId: candidateId });
+      clearInvestigationDraft(investigationDraftKeyRef.current);
+      setInvestigationDraftSnapshot(null);
       setInvestigationDialogOpen(false);
       setInvestigationTarget(null);
       setInvestigationStep(1);
@@ -526,6 +607,57 @@ export default function CandidatoDetalle() {
       conclusion: hasConclusion ? conclusion : undefined,
     });
   };
+
+  const handleInvestigationDraftChange = (event: React.FormEvent<HTMLFormElement>) => {
+    const key = investigationDraftKeyRef.current;
+    if (!key) return;
+    const target = event.target as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | HTMLSelectElement
+      | null;
+    if (!target || !target.name) return;
+    if (target instanceof HTMLInputElement && (target.type === "button" || target.type === "submit")) return;
+    if (target instanceof HTMLInputElement && target.type === "checkbox") {
+      saveInvestigationDraftField(key, target.name, target.checked ? "on" : "");
+      return;
+    }
+    saveInvestigationDraftField(key, target.name, target.value ?? "");
+  };
+
+  useEffect(() => {
+    if (!investigationDialogOpen) {
+      setInvestigationDraftSnapshot(null);
+      return;
+    }
+    if (!investigationTarget?.id) return;
+    const key = getInvestigationDraftKey(candidateId, investigationTarget.id);
+    investigationDraftKeyRef.current = key;
+    if (!key) return;
+    const draft = loadInvestigationDraft(key);
+    if (!draft) return;
+    const periodIndexes = Object.keys(draft)
+      .map((name) => {
+        const match = name.match(/^periodo(?:Empresa|Candidato)_(\d+)$/);
+        return match ? parseInt(match[1], 10) : -1;
+      })
+      .filter((idx) => idx >= 0);
+    const draftRowCount = periodIndexes.length > 0 ? Math.max(...periodIndexes) + 1 : 0;
+    const existingPeriodCount =
+      investigationTarget?.investigacionDetalle?.periodo?.periodos?.length || 0;
+    const neededRows = Math.max(1, draftRowCount, existingPeriodCount);
+    setPeriodRowCount((prev) => Math.max(prev, neededRows));
+    setInvestigationDraftSnapshot(draft);
+  }, [investigationDialogOpen, investigationTarget?.id, candidateId, investigationTarget?.investigacionDetalle?.periodo?.periodos?.length]);
+
+  useEffect(() => {
+    if (!investigationDialogOpen || !investigationDraftSnapshot) return;
+    if (typeof window === "undefined") return;
+    const timer = window.setTimeout(() => {
+      applyInvestigationDraftToForm(investigationFormRef.current, investigationDraftSnapshot);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [investigationDialogOpen, investigationDraftSnapshot, periodRowCount]);
 
   if (isLoading) {
     return (
@@ -2375,12 +2507,24 @@ export default function CandidatoDetalle() {
       <Dialog
         open={investigationDialogOpen}
         onOpenChange={(open) => {
-          setInvestigationDialogOpen(open);
           if (!open) {
+            const key = investigationDraftKeyRef.current;
+            if (hasInvestigationDraft(key)) {
+              const confirmClose = window.confirm(
+                "Tienes cambios sin guardar en la investigación laboral. ¿Deseas cerrar de todos modos?",
+              );
+              if (!confirmClose) {
+                setInvestigationDialogOpen(true);
+                return;
+              }
+            }
+            setInvestigationDialogOpen(false);
             setInvestigationTarget(null);
             setInvestigationStep(1);
             setPeriodRowCount(1);
+            return;
           }
+          setInvestigationDialogOpen(true);
         }}
       >
         <DialogContent
@@ -2396,7 +2540,13 @@ export default function CandidatoDetalle() {
           <p id="investigacion-desc" className="sr-only">
             Formulario para capturar la evaluación de desempeño de este empleo.
           </p>
-          <form onSubmit={handleInvestigationSubmit} className="space-y-4">
+          <form
+            ref={investigationFormRef}
+            onSubmit={handleInvestigationSubmit}
+            onInput={handleInvestigationDraftChange}
+            onChange={handleInvestigationDraftChange}
+            className="space-y-4"
+          >
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
                 Elige el bloque que quieras capturar. Puedes ir y venir entre tarjetas; todo se guardará junto al final.
