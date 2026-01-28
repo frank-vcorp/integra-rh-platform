@@ -117,6 +117,7 @@ async function maybeGenerateIaDictamen(params: {
             .join("\n")
         : "-";
 
+    /** ARCH-20260128-20 | Doc: context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md */
     const prompt =
       `Genera un mini-dictamen interno para el siguiente empleo investigado de la historia laboral de un candidato.\n\n` +
       `Contexto del empleo:\n` +
@@ -143,9 +144,17 @@ async function maybeGenerateIaDictamen(params: {
         incidencias.motivoSeparacionEmpresa || work.causalSalidaJefeInmediato
       )}\n` +
       `- Incapacidades declaradas por el candidato: ${safe(incidencias.incapacidadesCandidato)}\n` +
-      `- Incapacidades mencionadas por el jefe: ${safe(incidencias.incapacidadesJefe)}\n` +
-      `- Inasistencias / faltas: ${safe(incidencias.inasistencias)}\n` +
-      `- Antecedentes legales: ${safe(incidencias.antecedentesLegales)}\n\n` +
+      `- Incapacidades reportadas por la empresa: ${safe(
+        incidencias.incapacidadesEmpresa || incidencias.incapacidadesJefe
+      )}\n` +
+      `- Inasistencias / faltas (candidato): ${safe(
+        incidencias.inasistenciasCandidato || incidencias.inasistencias
+      )}\n` +
+      `- Inasistencias / faltas (empresa): ${safe(incidencias.inasistenciasEmpresa)}\n` +
+      `- Antecedentes legales (candidato): ${safe(
+        incidencias.antecedentesLegalesCandidato || incidencias.antecedentesLegales
+      )}\n` +
+      `- Antecedentes legales (empresa): ${safe(incidencias.antecedentesLegalesEmpresa)}\n\n` +
       `Matriz de desempeño (EXCELENTE/BUENO/REGULAR/MALO):\n` +
       `- Evaluación general: ${safe(desempeno.evaluacionGeneral)}\n` +
       `- Puntualidad: ${safe(desempeno.puntualidad)}\n` +
@@ -378,10 +387,17 @@ export const workHistoryRouter = router({
               sueldoInicial: z.string().optional(),
               sueldoFinal: z.string().optional(),
             }).optional(),
+            /** ARCH-20260128-20 | Doc: context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md */
             incidencias: z.object({
               motivoSeparacionCandidato: z.string().optional(),
               motivoSeparacionEmpresa: z.string().optional(),
               incapacidadesCandidato: z.string().optional(),
+              incapacidadesEmpresa: z.string().optional(),
+              inasistenciasCandidato: z.string().optional(),
+              inasistenciasEmpresa: z.string().optional(),
+              antecedentesLegalesCandidato: z.string().optional(),
+              antecedentesLegalesEmpresa: z.string().optional(),
+              // legacy
               incapacidadesJefe: z.string().optional(),
               inasistencias: z.string().optional(),
               antecedentesLegales: z.string().optional(),
@@ -460,6 +476,12 @@ export const workHistoryRouter = router({
             motivoSeparacionCandidato: z.string().optional(),
             motivoSeparacionEmpresa: z.string().optional(),
             incapacidadesCandidato: z.string().optional(),
+            incapacidadesEmpresa: z.string().optional(),
+            inasistenciasCandidato: z.string().optional(),
+            inasistenciasEmpresa: z.string().optional(),
+            antecedentesLegalesCandidato: z.string().optional(),
+            antecedentesLegalesEmpresa: z.string().optional(),
+            // legacy
             incapacidadesJefe: z.string().optional(),
             inasistencias: z.string().optional(),
             antecedentesLegales: z.string().optional(),

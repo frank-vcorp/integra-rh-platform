@@ -92,12 +92,26 @@
  - `[✓]` UI-REF-01: Implementar Sistema de Diseño (shadcn/ui + Tremor) — SPEC: `context/SPEC-UI-REF-01.md`
  - `[✓]` UI-REF-02: Normalización visual a MAYÚSCULAS (global)
  - `[✓]` UI-REF-03: Ajuste etiqueta ILA → “INVESTIGACIÓN LABORAL”
+ - `[X]` UI-REF-04: Borrador local en Investigación Laboral (localStorage) — SPEC: `context/SPEC-INVESTIGACION-LOCALSTORAGE.md`
+ - `[X]` UI-REF-05: Incidencias duplicadas (candidato/empresa) — SPEC: `context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md`
 
 ### PVM - Dashboard Clientes (Nuevo)
  - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
  - `[✓]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Incluye portal de cliente por enlace con branding Sinergia RH.
 
-**Estado Actual (14/01/2026)**
+**Estado Actual (28/01/2026)**
+
+- **Investigación Laboral - Borrador local (28 ene 2026):**
+  - Se implementó persistencia local (localStorage) para el modal de Investigación Laboral en CandidatoDetalle, por candidato y empleo (`candidateId` + `workHistoryId`).
+  - Al reabrir el modal se restauran los campos desde el borrador; al guardar exitosamente se limpia el borrador correspondiente en localStorage.
+  - Se añadió confirmación al cerrar el modal cuando existe información sin guardar para evitar pérdidas accidentales.
+  - Checkpoint: `CHK_2026-01-28_INVESTIGACION-LOCALSTORAGE.md` (incluye detalle de pruebas y alcance).
+  - Deploy: cambios desplegados a hosting con `firebase deploy --only hosting` (https://integra-rh.web.app).
+
+- **Investigación Laboral - Incidencias duplicadas (28 ene 2026):**
+  - Se separaron campos de incidencias en candidato vs empresa (incapacidades, inasistencias/faltas y antecedentes legales).
+  - Compatibilidad con datos legacy en backend.
+  - SPEC: `context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md`.
 
 - **Portal de Cliente - Servicios Dinámicos (14 ene 2026):** Se implementó visualización dinámica en el portal de cliente:
   - El cliente ahora **solo ve los servicios que contrató** (ILA, Legal, Buró, Visita).
@@ -196,6 +210,8 @@
 - Checkpoint nuevo: `checkpoint/20251121-1545-client-portal-token` (ver `Checkpoints/CHK_2025-11-21_1545.md`).
 - Checkpoint actual: `checkpoint/20251216-0330-fix-email-waf` (ver `Checkpoints/CHK_2025-12-16_0330-fix-email-waf-diagnosis.md`).
 - **Checkpoint Sincronización (23 dic 2025):** `CHK_2025-12-23_FASE-4-PROBADA-E2E.md` — Validación de flujo bidireccional self-service ↔ panel analista con 7 tests de integración (7/7 PASS).
+
+- Checkpoint nuevo (28 ene 2026): `CHK_2026-01-28_INVESTIGACION-LOCALSTORAGE.md`.
 
 ### Mejoras de DX (Developer Experience)
 - `[ ]` DX-AG-01: Validar agente DEBY (Deep Debugging) con un caso real de error.

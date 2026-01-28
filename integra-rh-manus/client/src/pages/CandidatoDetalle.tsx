@@ -537,13 +537,16 @@ export default function CandidatoDetalle() {
       sueldoFinal: getString("sueldoFinal"),
       periodos: periodos.length > 0 ? periodos : undefined,
     };
+    /** ARCH-20260128-20 | Doc: context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md */
     const incidencias = {
       motivoSeparacionCandidato: getString("motivoSeparacionCandidato"),
       motivoSeparacionEmpresa: getString("motivoSeparacionEmpresa"),
       incapacidadesCandidato: getString("incapacidadesCandidato"),
-      incapacidadesJefe: getString("incapacidadesJefe"),
-      inasistencias: getString("inasistencias"),
-      antecedentesLegales: getString("antecedentesLegales"),
+      incapacidadesEmpresa: getString("incapacidadesEmpresa"),
+      inasistenciasCandidato: getString("inasistenciasCandidato"),
+      inasistenciasEmpresa: getString("inasistenciasEmpresa"),
+      antecedentesLegalesCandidato: getString("antecedentesLegalesCandidato"),
+      antecedentesLegalesEmpresa: getString("antecedentesLegalesEmpresa"),
     };
 
     const getRating = (name: string) => {
@@ -2838,50 +2841,88 @@ export default function CandidatoDetalle() {
                     rows={2}
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
-                        ?.incapacidadesCandidato ||
+                        ?.incapacidadesCandidato || ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="incapacidadesEmpresa">
+                    Incapacidades reportadas por la empresa (cantidad y causa)
+                  </Label>
+                  <Textarea
+                    id="incapacidadesEmpresa"
+                    name="incapacidadesEmpresa"
+                    rows={2}
+                    defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
-                        ?.incapacidades ||
+                        ?.incapacidadesEmpresa ||
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.incapacidadesJefe ||
                       ""
                     }
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="incapacidadesJefe">
-                    Incapacidades reportadas por el jefe (cantidad y causa)
+                  <Label htmlFor="inasistenciasCandidato">
+                    Inasistencias/Faltas (candidato)
                   </Label>
                   <Textarea
-                    id="incapacidadesJefe"
-                    name="incapacidadesJefe"
+                    id="inasistenciasCandidato"
+                    name="inasistenciasCandidato"
                     rows={2}
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
-                        ?.incapacidadesJefe || ""
-                    }
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="inasistencias">Inasistencias/Faltas</Label>
-                  <Textarea
-                    id="inasistencias"
-                    name="inasistencias"
-                    rows={2}
-                    defaultValue={
-                      investigationTarget?.investigacionDetalle?.incidencias?.inasistencias ||
+                        ?.inasistenciasCandidato ||
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.inasistencias ||
                       ""
                     }
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="antecedentesLegales">
-                    Antecedentes legales (demandas, conflictos)
+                  <Label htmlFor="inasistenciasEmpresa">
+                    Inasistencias/Faltas (empresa)
                   </Label>
                   <Textarea
-                    id="antecedentesLegales"
-                    name="antecedentesLegales"
+                    id="inasistenciasEmpresa"
+                    name="inasistenciasEmpresa"
                     rows={2}
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
-                        ?.antecedentesLegales || ""
+                        ?.inasistenciasEmpresa ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="antecedentesLegalesCandidato">
+                    Antecedentes legales (demandas, conflictos) — candidato
+                  </Label>
+                  <Textarea
+                    id="antecedentesLegalesCandidato"
+                    name="antecedentesLegalesCandidato"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.antecedentesLegalesCandidato ||
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.antecedentesLegales ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="antecedentesLegalesEmpresa">
+                    Antecedentes legales (demandas, conflictos) — empresa
+                  </Label>
+                  <Textarea
+                    id="antecedentesLegalesEmpresa"
+                    name="antecedentesLegalesEmpresa"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.incidencias
+                        ?.antecedentesLegalesEmpresa ||
+                      ""
                     }
                   />
                 </div>
