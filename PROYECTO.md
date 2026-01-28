@@ -94,6 +94,7 @@
  - `[✓]` UI-REF-03: Ajuste etiqueta ILA → “INVESTIGACIÓN LABORAL”
  - `[X]` UI-REF-04: Borrador local en Investigación Laboral (localStorage) — SPEC: `context/SPEC-INVESTIGACION-LOCALSTORAGE.md`
  - `[X]` UI-REF-05: Incidencias duplicadas (candidato/empresa) — SPEC: `context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md`
+ - `[X]` UI-REF-06: Semanas Cotizadas (Bloque 2 Investigación Laboral) — SPEC: `context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md`
 
 ### PVM - Dashboard Clientes (Nuevo)
  - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
@@ -112,6 +113,11 @@
   - Se separaron campos de incidencias en candidato vs empresa (incapacidades, inasistencias/faltas y antecedentes legales).
   - Compatibilidad con datos legacy en backend.
   - SPEC: `context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md`.
+
+- **Investigación Laboral - Semanas Cotizadas (28 ene 2026):**
+  - Se agregó el bloque “Semanas Cotizadas” en el Bloque 2 con tres campos de texto libre.
+  - Persistencia en backend incluida en `periodo`.
+  - SPEC: `context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md`.
 
 - **Portal de Cliente - Servicios Dinámicos (14 ene 2026):** Se implementó visualización dinámica en el portal de cliente:
   - El cliente ahora **solo ve los servicios que contrató** (ILA, Legal, Buró, Visita).

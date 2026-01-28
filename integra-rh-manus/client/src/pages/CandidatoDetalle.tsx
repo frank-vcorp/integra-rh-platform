@@ -530,11 +530,15 @@ export default function CandidatoDetalle() {
         periodos.push({ periodoEmpresa, periodoCandidato });
       }
     }
+    /** ARCH-20260128-23 | Doc: context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md */
     const periodo = {
       // antiguedadTexto se mantiene por compatibilidad aunque ya no se captura
       antiguedadTexto: getString("antiguedadTexto"),
       sueldoInicial: getString("sueldoInicial"),
       sueldoFinal: getString("sueldoFinal"),
+      semanasCotizadas: getString("semanasCotizadas"),
+      disposicionSemanasCotizadas: getString("disposicionSemanasCotizadas"),
+      motivoDisposicion: getString("motivoDisposicion"),
       periodos: periodos.length > 0 ? periodos : undefined,
     };
     /** ARCH-20260128-20 | Doc: context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md */
@@ -2792,6 +2796,50 @@ export default function CandidatoDetalle() {
                     name="sueldoFinal"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.periodo?.sueldoFinal ||
+                      ""
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Semanas cotizadas */}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="text-sm font-semibold">Semanas cotizadas</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="semanasCotizadas">Semanas cotizadas</Label>
+                  <Input
+                    id="semanasCotizadas"
+                    name="semanasCotizadas"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.periodo?.semanasCotizadas ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="disposicionSemanasCotizadas">
+                    Disposición de semanas cotizadas
+                  </Label>
+                  <Input
+                    id="disposicionSemanasCotizadas"
+                    name="disposicionSemanasCotizadas"
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.periodo
+                        ?.disposicionSemanasCotizadas ||
+                      ""
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="motivoDisposicion">Motivo de disposición</Label>
+                  <Textarea
+                    id="motivoDisposicion"
+                    name="motivoDisposicion"
+                    rows={2}
+                    defaultValue={
+                      investigationTarget?.investigacionDetalle?.periodo?.motivoDisposicion ||
                       ""
                     }
                   />

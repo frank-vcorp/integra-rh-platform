@@ -135,7 +135,10 @@ async function maybeGenerateIaDictamen(params: {
       `- Tiempo trabajado según empresa: ${safe(work.tiempoTrabajadoEmpresa)}\n` +
       `- Periodos declarados:\n${periodosTexto}\n` +
       `- Sueldo inicial: ${safe(periodo.sueldoInicial)}\n` +
-      `- Sueldo final: ${safe(periodo.sueldoFinal)}\n\n` +
+      `- Sueldo final: ${safe(periodo.sueldoFinal)}\n` +
+      `- Semanas cotizadas: ${safe(periodo.semanasCotizadas)}\n` +
+      `- Disposición semanas cotizadas: ${safe(periodo.disposicionSemanasCotizadas)}\n` +
+      `- Motivo de disposición: ${safe(periodo.motivoDisposicion)}\n\n` +
       `Motivos de separación e incidencias:\n` +
       `- Motivo de separación (candidato): ${safe(
         incidencias.motivoSeparacionCandidato || work.causalSalidaRH
@@ -380,12 +383,16 @@ export const workHistoryRouter = router({
               recursosAsignados: z.string().optional(),
               horarioTrabajo: z.string().optional(),
             }).optional(),
+            /** ARCH-20260128-23 | Doc: context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md */
             periodo: z.object({
               fechaIngreso: z.string().optional(),
               fechaSalida: z.string().optional(),
               antiguedadTexto: z.string().optional(),
               sueldoInicial: z.string().optional(),
               sueldoFinal: z.string().optional(),
+              semanasCotizadas: z.string().optional(),
+              disposicionSemanasCotizadas: z.string().optional(),
+              motivoDisposicion: z.string().optional(),
             }).optional(),
             /** ARCH-20260128-20 | Doc: context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md */
             incidencias: z.object({
@@ -456,11 +463,15 @@ export const workHistoryRouter = router({
             horarioTrabajo: z.string().optional(),
           })
           .optional(),
+        /** ARCH-20260128-23 | Doc: context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md */
         periodo: z
           .object({
             antiguedadTexto: z.string().optional(),
             sueldoInicial: z.string().optional(),
             sueldoFinal: z.string().optional(),
+            semanasCotizadas: z.string().optional(),
+            disposicionSemanasCotizadas: z.string().optional(),
+            motivoDisposicion: z.string().optional(),
             periodos: z
               .array(
                 z.object({
