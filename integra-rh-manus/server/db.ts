@@ -652,19 +652,19 @@ export async function createCandidateComment(data: InsertCandidateComment) {
 export async function getAllProcesses() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(processes).orderBy(desc(processes.createdAt));
+  return db.select().from(processes).orderBy(desc(processes.fechaRecepcion));
 }
 
 export async function getProcessesByClient(clienteId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(processes).where(eq(processes.clienteId, clienteId)).orderBy(desc(processes.createdAt));
+  return db.select().from(processes).where(eq(processes.clienteId, clienteId)).orderBy(desc(processes.fechaRecepcion));
 }
 
 export async function getProcessesByCandidate(candidatoId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(processes).where(eq(processes.candidatoId, candidatoId)).orderBy(desc(processes.createdAt));
+  return db.select().from(processes).where(eq(processes.candidatoId, candidatoId)).orderBy(desc(processes.fechaRecepcion));
 }
 
 export async function getProcessById(id: number) {
