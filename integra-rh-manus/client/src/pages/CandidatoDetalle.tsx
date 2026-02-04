@@ -522,12 +522,13 @@ export default function CandidatoDetalle() {
       recursosAsignados: getString("recursosAsignados"),
       horarioTrabajo: getString("horarioTrabajo"),
     };
-    const periodos: { periodoEmpresa?: string; periodoCandidato?: string }[] = [];
+    const periodos: { periodoEmpresa?: string; periodoCandidato?: string; puesto?: string }[] = [];
     for (let idx = 0; idx < periodRowCount; idx++) {
       const periodoEmpresa = getString(`periodoEmpresa_${idx}`);
       const periodoCandidato = getString(`periodoCandidato_${idx}`);
-      if (periodoEmpresa || periodoCandidato) {
-        periodos.push({ periodoEmpresa, periodoCandidato });
+      const puesto = getString(`puesto_${idx}`);
+      if (periodoEmpresa || periodoCandidato || puesto) {
+        periodos.push({ periodoEmpresa, periodoCandidato, puesto });
       }
     }
     /** ARCH-20260128-23 | Doc: context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md */
@@ -645,7 +646,7 @@ export default function CandidatoDetalle() {
     if (!draft) return;
     const periodIndexes = Object.keys(draft)
       .map((name) => {
-        const match = name.match(/^periodo(?:Empresa|Candidato)_(\d+)$/);
+        const match = name.match(/^(?:periodo(?:Empresa|Candidato)|puesto)_(\d+)$/);
         return match ? parseInt(match[1], 10) : -1;
       })
       .filter((idx) => idx >= 0);
@@ -1767,10 +1768,11 @@ export default function CandidatoDetalle() {
                               (item.fechaInicio ? formatearFecha(item.fechaInicio) : "-") +
                               " - " +
                               (item.fechaFin ? formatearFecha(item.fechaFin) : "Actual");
-                            const validadoFechas =
-                              (periodo.fechaIngreso || "-") +
-                              " - " +
-                              (periodo.fechaSalida || "Actual");
+                            const validadoFechas = Array.isArray(periodo.periodos) && periodo.periodos.length > 0
+                              ? periodo.periodos.map((p: any) => 
+                                  (p.periodoEmpresa || "") + (p.puesto ? ` [${p.puesto}]` : "")
+                                ).join(" + ")
+                              : (periodo.antiguedadTexto || (periodo.fechaIngreso ? `${periodo.fechaIngreso} - ${periodo.fechaSalida || "Actual"}` : "-"));
                             return (
                               <>
                                 <p className="font-semibold text-slate-700 flex items-center gap-1">
@@ -2758,6 +2760,17 @@ export default function CandidatoDetalle() {
                                   id={`periodoCandidato_${index}`}
                                   name={`periodoCandidato_${index}`}
                                   defaultValue={periodo.periodoCandidato || ""}
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <Label htmlFor={`puesto_${index}`}>
+                                  Puesto en el periodo {index + 1}
+                                </Label>
+                                <Input
+                                  id={`puesto_${index}`}
+                                  name={`puesto_${index}`}
+                                  defaultValue={periodo.puesto || ""}
+                                  placeholder="Ej. Cajero (si fue reingreso en otro puesto)"
                                 />
                               </div>
                             </div>

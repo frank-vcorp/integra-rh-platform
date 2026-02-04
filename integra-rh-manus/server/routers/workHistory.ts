@@ -112,7 +112,7 @@ async function maybeGenerateIaDictamen(params: {
               (p: any, idx: number) =>
                 `Periodo ${idx + 1}: empresa=${safe(p.periodoEmpresa)} / candidato=${safe(
                   p.periodoCandidato
-                )}`
+                )} / puesto=${safe(p.puesto)}`
             )
             .join("\n")
         : "-";
@@ -477,6 +477,7 @@ export const workHistoryRouter = router({
                 z.object({
                   periodoEmpresa: z.string().optional(),
                   periodoCandidato: z.string().optional(),
+                  puesto: z.string().optional(), // Soportar puesto por periodo en reingresos
                 }),
               )
               .optional(),
