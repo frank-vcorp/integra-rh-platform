@@ -130,6 +130,14 @@
   - Flujo Completo (`ClienteFormularioIntegrado.tsx`): Agregado campo `reclutador`, selector de Plaza/CEDI y envío de `clientSiteId`.
   - PuestoProcesoFlow: Agregado selector de Plaza/CEDI, reemplazado select simple por config builder (`ProcesoConfig`).
   - Ahora todos los flujos guardan los mismos datos en los mismos lugares.
+
+**Actualización Rápida de UX (04/02/2026)**
+
+- **Ordenamiento por defecto de Procesos en Web:**
+  - Se corrigió el ordenamiento por defecto del listado de Procesos en la aplicación web para que refleje correctamente la prioridad/fecha esperada por el usuario (centrado en Fecha de Recepción).
+  - Se realizó un deploy rápido **solo de Frontend** mediante `firebase deploy --only hosting`, aplicando la mejora de UX sin depender del pipeline de backend.
+  - El pipeline de Backend (Cloud Build → Cloud Run) sigue marcado como bloqueado/roto y pendiente de corrección, pero no impidió este ajuste visual.
+  - Checkpoints asociados: [Checkpoints/CHK_2026-02-03_PROCESOS-ORDEN-FECHA-RECEPCION.md](Checkpoints/CHK_2026-02-03_PROCESOS-ORDEN-FECHA-RECEPCION.md), [Checkpoints/CHK_2026-02-03_FRONTEND-SORT-FIX.md](Checkpoints/CHK_2026-02-03_FRONTEND-SORT-FIX.md), [Checkpoints/CHK_2026-02-04_FIX-sorting-deploy.md](Checkpoints/CHK_2026-02-04_FIX-sorting-deploy.md).
   - Checkpoint: `CHK_2026-01-13_HOMOGENEIZACION-FLUJOS.md`
 
 **Estado Anterior (18/12/2025)**

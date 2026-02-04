@@ -9,7 +9,7 @@ COPY integra-rh-manus/dist ./dist
 COPY integra-rh-manus/package.json ./
 
 # Instalar solo dependencias de producción
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 
 ENV NODE_ENV=production
 ENV PORT=8080
