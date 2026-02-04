@@ -219,8 +219,8 @@ export default function Procesos() {
 
   const [processSortKey, setProcessSortKey] = useState<
     "clave" | "tipo" | "estatus" | "fechaRecepcion"
-  >("clave");
-  const [processSortDir, setProcessSortDir] = useState<"asc" | "desc">("asc");
+  >("fechaRecepcion");
+  const [processSortDir, setProcessSortDir] = useState<"asc" | "desc">("desc");
 
   const processes = useMemo(() => {
     const list = [...processesBase];
