@@ -235,6 +235,8 @@ export const candidates = mysqlTable("candidates", {
   selfFilledAt: timestamp("selfFilledAt"),
   selfFilledReviewedBy: int("selfFilledReviewedBy"),
   selfFilledReviewedAt: timestamp("selfFilledReviewedAt"),
+  // Analista asignado responsable del candidato (hereda a nuevos procesos)
+  analistaAsignadoId: int("analistaAsignadoId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -413,6 +415,8 @@ export const processes = mysqlTable("processes", {
   // Especialista de atracción que gestiona el proceso (FK opcional o nombre libre)
   especialistaAtraccionId: int("especialistaAtraccionId"),
   especialistaAtraccionNombre: varchar("especialistaAtraccionNombre", { length: 255 }),
+  // Analista asignado responsable del proceso (hereda del candidato)
+  analistaAsignadoId: int("analistaAsignadoId"),
   // Clave única del proceso (ej: ILA-2025-001, ESE-2025-015)
   clave: varchar("clave", { length: 50 }).notNull().unique(),
   // Proceso a realizar (anteriormente "Tipo de Producto")

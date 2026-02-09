@@ -93,6 +93,8 @@ export const candidatesRouter = router({
         clienteId: z.number().optional(),
         clientSiteId: z.number().optional(),
         puestoId: z.number().optional(),
+        // Analista responsable del candidato (OBLIGATORIO)
+        analistaAsignadoId: z.number().int().positive(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -106,6 +108,7 @@ export const candidatesRouter = router({
           nombreCompleto: input.nombreCompleto,
           clienteId: input.clienteId,
           puestoId: input.puestoId,
+          analistaAsignadoId: input.analistaAsignadoId,
         },
       });
 
@@ -126,6 +129,8 @@ export const candidatesRouter = router({
           clientSiteId: z.number().optional(),
           puestoId: z.number().optional(),
           psicometricos: z.any().optional(),
+          // Permitir cambio de analista asignado en cualquier momento
+          analistaAsignadoId: z.number().int().positive().optional(),
         }),
       })
     )

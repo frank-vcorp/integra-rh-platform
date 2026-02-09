@@ -141,6 +141,15 @@ export const processesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
+      // Obtener candidato para heredar analistaAsignadoId
+      const candidate = await db.getCandidateById(input.candidatoId);
+      if (!candidate) {
+        throw new TRPCError({ 
+          code: "NOT_FOUND", 
+          message: "Candidato no encontrado" 
+        });
+      }
+
       // Determinar fecha y año
       const fechaRecepcion = input.fechaRecepcion ?? new Date();
       const year = fechaRecepcion.getFullYear();
@@ -172,6 +181,8 @@ export const processesRouter = router({
         fechaRecepcion,
         consecutivo,
         clave,
+        // Heredar analistaAsignadoId del candidato
+        analistaAsignadoId: candidate.analistaAsignadoId,
       } as any);
 
       await logAuditEvent(ctx, {
@@ -184,6 +195,7 @@ export const processesRouter = router({
           puestoId: input.puestoId,
           tipoProducto: input.tipoProducto,
           clave,
+          analistaAsignadoId: candidate.analistaAsignadoId,
         },
       });
 

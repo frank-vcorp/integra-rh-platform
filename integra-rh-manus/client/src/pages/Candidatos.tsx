@@ -38,6 +38,7 @@ export default function Candidatos() {
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [selectedPost, setSelectedPost] = useState<string>("");
+  const [selectedAnalyst, setSelectedAnalyst] = useState<string>("");
   const [showContinueFlow, setShowContinueFlow] = useState(false);
   const [createdCandidateData, setCreatedCandidateData] = useState<any>(null);
 
@@ -46,6 +47,7 @@ export default function Candidatos() {
 
   const { data: allCandidates = [], isLoading } = trpc.candidates.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
+  const { data: analysts = [] } = trpc.users.list.useQuery();
   
   /**
    * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
@@ -173,8 +175,15 @@ export default function Candidatos() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Validar que analista esté seleccionado en mode create
+    if (!editingCandidate && !selectedAnalyst) {
+      toast.error("Debes seleccionar un analista responsable");
+      return;
+    }
+    
     const formData = new FormData(e.currentTarget);
-    const data = {
+    const data: any = {
       nombreCompleto: formData.get("nombreCompleto") as string,
       email: formData.get("email") as string || undefined,
       telefono: formData.get("telefono") as string || undefined,
@@ -183,6 +192,11 @@ export default function Candidatos() {
       clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
       puestoId: selectedPost ? parseInt(selectedPost) : undefined,
     };
+    
+    // Agregar analista asignado (obligatorio en create)
+    if (!editingCandidate) {
+      data.analistaAsignadoId = parseInt(selectedAnalyst);
+    }
 
     if (editingCandidate) {
       updateMutation.mutate({ id: editingCandidate.id, data });
@@ -196,6 +210,7 @@ export default function Candidatos() {
     setSelectedClient(candidate.clienteId?.toString() || "");
     setSelectedSite(candidate.clientSiteId?.toString() || "");
     setSelectedPost(candidate.puestoId?.toString() || "");
+    setSelectedAnalyst(candidate.analistaAsignadoId?.toString() || "");
     setDialogOpen(true);
   };
 
@@ -210,6 +225,7 @@ export default function Candidatos() {
     setSelectedClient("");
     setSelectedSite("");
     setSelectedPost("");
+    setSelectedAnalyst("");
     setDialogOpen(true);
   };
 
@@ -409,6 +425,7 @@ export default function Candidatos() {
                       <TableHead>Plaza</TableHead>
                       <TableHead>Puesto</TableHead>
                       <TableHead>Medio de Recepción</TableHead>
+                      <TableHead>Analista Responsable</TableHead>
                       <TableHead>
                         <button
                           type="button"
@@ -433,6 +450,13 @@ export default function Candidatos() {
                         <TableCell>{getSiteName(candidate.clientSiteId)}</TableCell>
                         <TableCell>{getPostName(candidate.puestoId)}</TableCell>
                         <TableCell>{candidate.medioDeRecepcion || "-"}</TableCell>
+                        <TableCell>
+                          {candidate.analistaAsignadoId 
+                            ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
+                              analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
+                              "-"
+                            : "-"}
+                        </TableCell>
                         <TableCell>
                           {candidate.createdAt
                             ? new Date(candidate.createdAt).toLocaleDateString()
@@ -696,6 +720,25 @@ export default function Candidatos() {
                     {availablePosts.map((post) => (
                       <SelectItem key={post.id} value={post.id.toString()}>
                         {post.nombreDelPuesto}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="analistaAsignadoId">Analista Responsable {!editingCandidate && "*"}</Label>
+                <Select
+                  value={selectedAnalyst}
+                  onValueChange={setSelectedAnalyst}
+                  disabled={editingCandidate && !editingCandidate.analistaAsignadoId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un analista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {analysts.map((analyst) => (
+                      <SelectItem key={analyst.id} value={analyst.id.toString()}>
+                        {analyst.name || analyst.email}
                       </SelectItem>
                     ))}
                   </SelectContent>

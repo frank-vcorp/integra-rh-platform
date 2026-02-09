@@ -189,6 +189,7 @@ export default function CandidatoDetalle() {
   const { data: documents = [] } = trpc.documents.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: procesos = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: consent, refetch: refetchConsent } = trpc.candidateConsent.getConsentByCandidateId.useQuery({ candidateId: candidateId });
+  const { data: analysts = [] } = trpc.users.list.useQuery();
   const createSelfServiceLink = trpc.candidateSelf.createToken.useMutation({
     onSuccess: (res) => {
       setSelfServiceUrl(res.url);
@@ -900,6 +901,16 @@ export default function CandidatoDetalle() {
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 )}
                 {generales.curp || "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Analista Responsable</p>
+              <p className="font-medium">
+                {candidate?.analistaAsignadoId 
+                  ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
+                    analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
+                    "-"
+                  : "-"}
               </p>
             </div>
           </div>
