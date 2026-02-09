@@ -163,7 +163,10 @@ export default function CandidatoSelfService() {
     tieneDeudas: string;
     institucionDeuda: string;
     buroCreditoDeclarado: string;
+    historialburoCredito: string;
     haSidoSindicalizado: string;
+    sindicatoEmpresa: string;
+    puestoSindicato: string;
     haEstadoAfianzado: string;
     accidentesVialesPrevios: string;
     accidentesTrabajoPrevios: string;
@@ -215,7 +218,10 @@ export default function CandidatoSelfService() {
     tieneDeudas: "",
     institucionDeuda: "",
     buroCreditoDeclarado: "",
+    historialburoCredito: "",
     haSidoSindicalizado: "",
+    sindicatoEmpresa: "",
+    puestoSindicato: "",
     haEstadoAfianzado: "",
     accidentesVialesPrevios: "",
     accidentesTrabajoPrevios: "",
@@ -365,8 +371,14 @@ export default function CandidatoSelfService() {
         detalle.financieroAntecedentes?.institucionDeuda || "",
       buroCreditoDeclarado:
         detalle.financieroAntecedentes?.buroCreditoDeclarado || "",
+      historialburoCredito:
+        detalle.financieroAntecedentes?.historialburoCredito || "",
       haSidoSindicalizado:
         detalle.financieroAntecedentes?.haSidoSindicalizado || "",
+      sindicatoEmpresa:
+        detalle.financieroAntecedentes?.sindicatoEmpresa || "",
+      puestoSindicato:
+        detalle.financieroAntecedentes?.puestoSindicato || "",
       haEstadoAfianzado:
         detalle.financieroAntecedentes?.haEstadoAfianzado || "",
       accidentesVialesPrevios:
@@ -524,7 +536,10 @@ export default function CandidatoSelfService() {
           tieneDeudas: perfil.tieneDeudas || "",
           institucionDeuda: perfil.institucionDeuda || "",
           buroCreditoDeclarado: perfil.buroCreditoDeclarado || "",
+          historialburoCredito: perfil.historialburoCredito || "",
           haSidoSindicalizado: perfil.haSidoSindicalizado || "",
+          sindicatoEmpresa: perfil.sindicatoEmpresa || "",
+          puestoSindicato: perfil.puestoSindicato || "",
           haEstadoAfianzado: perfil.haEstadoAfianzado || "",
           accidentesVialesPrevios: perfil.accidentesVialesPrevios || "",
           accidentesTrabajoPrevios: perfil.accidentesTrabajoPrevios || "",
@@ -1244,6 +1259,9 @@ export default function CandidatoSelfService() {
               <h2 className="text-sm font-semibold">
                 5. Pareja / noviazgo
               </h2>
+              <p className="text-xs text-amber-600 font-semibold italic">
+                (SOLO LLENAR SI ERES SOLTERO / SOLTERA)
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="tieneNovio">¿Tienes novio(a)?</Label>
@@ -1387,6 +1405,22 @@ export default function CandidatoSelfService() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="historialburoCredito">
+                    ¿Cómo es tu historial en buró de crédito?
+                  </Label>
+                  <Input
+                    id="historialburoCredito"
+                    value={perfil.historialburoCredito}
+                    onChange={(e) =>
+                      setPerfil((p) => ({
+                        ...p,
+                        historialburoCredito: e.target.value,
+                      }))
+                    }
+                    placeholder="Bueno / Malo"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="haSidoSindicalizado">
                     ¿Has sido sindicalizado?
                   </Label>
@@ -1399,6 +1433,39 @@ export default function CandidatoSelfService() {
                         haSidoSindicalizado: e.target.value,
                       }))
                     }
+                    placeholder="Sí / No"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sindicatoEmpresa">
+                    ¿Sindicato / Empresa?
+                  </Label>
+                  <Input
+                    id="sindicatoEmpresa"
+                    value={perfil.sindicatoEmpresa}
+                    onChange={(e) =>
+                      setPerfil((p) => ({
+                        ...p,
+                        sindicatoEmpresa: e.target.value,
+                      }))
+                    }
+                    placeholder="Nombre del sindicato o empresa"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="puestoSindicato">
+                    ¿Puesto en sindicato?
+                  </Label>
+                  <Input
+                    id="puestoSindicato"
+                    value={perfil.puestoSindicato}
+                    onChange={(e) =>
+                      setPerfil((p) => ({
+                        ...p,
+                        puestoSindicato: e.target.value,
+                      }))
+                    }
+                    placeholder="Ej. Delegado, Secretario"
                   />
                 </div>
                 <div>

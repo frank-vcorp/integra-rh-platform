@@ -208,7 +208,10 @@ export const candidates = mysqlTable("candidates", {
       tieneDeudas?: string;
       institucionDeuda?: string;
       buroCreditoDeclarado?: string;
+      historialburoCredito?: string;
       haSidoSindicalizado?: string;
+      sindicatoEmpresa?: string;
+      puestoSindicato?: string;
       haEstadoAfianzado?: string;
       accidentesVialesPrevios?: string;
       accidentesTrabajoPrevios?: string;
