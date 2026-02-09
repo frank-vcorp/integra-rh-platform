@@ -46,22 +46,40 @@ export default function Candidatos() {
 
   const { data: allCandidates = [], isLoading } = trpc.candidates.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
-  const { data: clientSitesByClient = [] } = trpc.clientSites.listByClient.useQuery(
-    selectedClient ? { clientId: parseInt(selectedClient) } : { clientId: 0 },
-    { enabled: !!selectedClient } as any
-  );
+  
+  /**
+   * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
+   * Consolidar fuentes de datos: usar única query para todas las plazas
+   * - Admins: cargan TODAS las plazas (staleTime 5 min para evitar refetch innecesarios)
+   * - Clientes: cargan solo sus plazas vía listByClient
+   */
   const { data: allClientSites = [] } = trpc.clientSites.listAll.useQuery(undefined, {
     enabled: !isClient,
+    staleTime: 5 * 60 * 1000,  // 5 minutos: evita truncamiento por refetch durante edición
+    gcTime: 10 * 60 * 1000,    // Mantener en caché 10 minutos
   });
   const { data: clientSitesForClient = [] } = trpc.clientSites.listByClient.useQuery(
     isClient && user?.clientId ? { clientId: user.clientId } : { clientId: 0 },
     { enabled: isClient && !!user?.clientId } as any
   );
+  
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
   const utils = trpc.useUtils();
 
   /**
-   * INTEGRA: FIX-20260209-01 | Respaldo: context/interconsultas/DICTAMEN_FIX-20260204-01.md
+   * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
+   * Calcular clientSitesByClient IN-MEMORY (no query separada)
+   * Esto evita que se invalide durante navegación de candidatos
+   */
+  const clientSitesByClient = useMemo(() => {
+    if (!selectedClient) return [];
+    const clientId = parseInt(selectedClient);
+    return allClientSites.filter((s: any) => s.clientId === clientId);
+  }, [selectedClient, allClientSites]);
+
+  /**
+   * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
+   * Construcción del mapa: única fuente de verdad
    */
   const clientSiteMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -75,6 +93,14 @@ export default function Candidatos() {
   const createMutation = trpc.candidates.create.useMutation({
     onSuccess: (data) => {
       utils.candidates.list.invalidate();
+      /**
+       * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
+       * Invalidar plazas también para sincronizar cambios
+       */
+      utils.clientSites.listAll.invalidate();
+      utils.clientSites.listByClient.invalidate();
+      utils.posts.list.invalidate();
+      
       setCreatedCandidateData({ ...data, clienteId: selectedClient });
       setShowContinueFlow(true);
       toast.success("Candidato creado exitosamente");
@@ -87,6 +113,14 @@ export default function Candidatos() {
   const updateMutation = trpc.candidates.update.useMutation({
     onSuccess: () => {
       utils.candidates.list.invalidate();
+      /**
+       * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
+       * Invalidar plazas también para sincronizar cambios
+       */
+      utils.clientSites.listAll.invalidate();
+      utils.clientSites.listByClient.invalidate();
+      utils.posts.list.invalidate();
+      
       setDialogOpen(false);
       setEditingCandidate(null);
       toast.success("Candidato actualizado exitosamente");
@@ -99,6 +133,13 @@ export default function Candidatos() {
   const deleteMutation = trpc.candidates.delete.useMutation({
     onSuccess: () => {
       utils.candidates.list.invalidate();
+      /**
+       * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
+       * Invalidar plazas también para sincronizar cambios
+       */
+      utils.clientSites.listAll.invalidate();
+      utils.clientSites.listByClient.invalidate();
+      
       toast.success("Candidato eliminado exitosamente");
     },
     onError: (error) => {
