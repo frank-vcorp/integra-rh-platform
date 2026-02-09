@@ -600,7 +600,7 @@ export const workHistoryRouter = router({
       // Registrar cambio en audit trail
       const auditEntry = {
         timestamp: new Date().toISOString(),
-        changedBy: "unknown", // En contexto protegido, debería ser ctx.user.name
+        changedBy: ctx.user?.name || "desconocido",
         action: "update" as const,
         changedFields: details as Record<string, any>,
       };
