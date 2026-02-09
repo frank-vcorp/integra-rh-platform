@@ -2,11 +2,21 @@ import { z } from "zod";
 import { router, protectedProcedure, requirePermission } from "../_core/trpc";
 import {
   createClientSite,
+  getAllClientSites,
   getClientSitesByClient,
 } from "../db";
 import { TRPCError } from "@trpc/server";
 
 export const clientSitesRouter = router({
+  /**
+   * INTEGRA: FIX-20260209-01 | Respaldo: context/interconsultas/DICTAMEN_FIX-20260204-01.md
+   */
+  listAll: protectedProcedure
+    .use(requirePermission("clientes", "view"))
+    .query(async () => {
+      return getAllClientSites();
+    }),
+
   /** Lista plazas activas de un cliente */
   listByClient: protectedProcedure
     .use(requirePermission("clientes", "view"))

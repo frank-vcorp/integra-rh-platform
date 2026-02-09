@@ -374,6 +374,19 @@ export async function getClientSitesByClient(clientId: number) {
     .orderBy(asc(clientSites.nombrePlaza));
 }
 
+/**
+ * INTEGRA: FIX-20260209-01 | Respaldo: context/interconsultas/DICTAMEN_FIX-20260204-01.md
+ */
+export async function getAllClientSites() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(clientSites)
+    .where(eq(clientSites.activo, true))
+    .orderBy(asc(clientSites.nombrePlaza));
+}
+
 export async function createClientSite(data: InsertClientSite) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

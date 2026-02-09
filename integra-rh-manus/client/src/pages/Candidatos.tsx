@@ -50,8 +50,27 @@ export default function Candidatos() {
     selectedClient ? { clientId: parseInt(selectedClient) } : { clientId: 0 },
     { enabled: !!selectedClient } as any
   );
+  const { data: allClientSites = [] } = trpc.clientSites.listAll.useQuery(undefined, {
+    enabled: !isClient,
+  });
+  const { data: clientSitesForClient = [] } = trpc.clientSites.listByClient.useQuery(
+    isClient && user?.clientId ? { clientId: user.clientId } : { clientId: 0 },
+    { enabled: isClient && !!user?.clientId } as any
+  );
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
   const utils = trpc.useUtils();
+
+  /**
+   * INTEGRA: FIX-20260209-01 | Respaldo: context/interconsultas/DICTAMEN_FIX-20260204-01.md
+   */
+  const clientSiteMap = useMemo(() => {
+    const map = new Map<number, string>();
+    const sites = isClient ? clientSitesForClient : allClientSites;
+    sites.forEach((site: any) => {
+      if (site?.id) map.set(site.id, site.nombrePlaza || "-");
+    });
+    return map;
+  }, [isClient, clientSitesForClient, allClientSites]);
 
   const createMutation = trpc.candidates.create.useMutation({
     onSuccess: (data) => {
@@ -159,9 +178,8 @@ export default function Candidatos() {
   };
 
   const getSiteName = (siteId: number | null | undefined) => {
-    if (!siteId || !Array.isArray(clientSitesByClient)) return "-";
-    const site = clientSitesByClient.find((s: any) => s.id === siteId);
-    return site?.nombrePlaza || "-";
+    if (!siteId) return "-";
+    return clientSiteMap.get(siteId) || "-";
   };
 
   // Filtrar puestos por cliente seleccionado
