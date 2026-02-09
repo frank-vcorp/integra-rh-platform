@@ -144,6 +144,9 @@ export default function CandidatoSelfService() {
     fechaMatrimonioUnion: string;
     parejaDeAcuerdoConTrabajo: string;
     esposaEmbarazada: string;
+    tieneHijos: string;
+    cantidadHijos: string;
+    edadesHijos: string;
     hijosDescripcion: string;
     quienCuidaHijos: string;
     dondeVivenCuidadores: string;
@@ -195,6 +198,9 @@ export default function CandidatoSelfService() {
     fechaMatrimonioUnion: "",
     parejaDeAcuerdoConTrabajo: "",
     esposaEmbarazada: "",
+    tieneHijos: "",
+    cantidadHijos: "",
+    edadesHijos: "",
     hijosDescripcion: "",
     quienCuidaHijos: "",
     dondeVivenCuidadores: "",
@@ -1123,19 +1129,53 @@ export default function CandidatoSelfService() {
                     placeholder="Sí / No / No aplica"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="hijosDescripcion">
-                    Hijos (edades o comentario)
+                <div>
+                  <Label htmlFor="tieneHijos">
+                    ¿Tienes hijos?
                   </Label>
-                  <Textarea
-                    id="hijosDescripcion"
-                    value={perfil.hijosDescripcion}
+                  <Input
+                    id="tieneHijos"
+                    value={perfil.tieneHijos}
                     onChange={(e) =>
                       setPerfil((p) => ({
                         ...p,
-                        hijosDescripcion: e.target.value,
+                        tieneHijos: e.target.value,
                       }))
                     }
+                    placeholder="Sí / No"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cantidadHijos">
+                    ¿Cuántos tienes?
+                  </Label>
+                  <Input
+                    id="cantidadHijos"
+                    type="number"
+                    value={perfil.cantidadHijos}
+                    onChange={(e) =>
+                      setPerfil((p) => ({
+                        ...p,
+                        cantidadHijos: e.target.value,
+                      }))
+                    }
+                    placeholder="Ej. 2"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="edadesHijos">
+                    ¿Edades de tus hijos?
+                  </Label>
+                  <Input
+                    id="edadesHijos"
+                    value={perfil.edadesHijos}
+                    onChange={(e) =>
+                      setPerfil((p) => ({
+                        ...p,
+                        edadesHijos: e.target.value,
+                      }))
+                    }
+                    placeholder="Ej. 5, 8, 12 años"
                   />
                 </div>
                 <div>

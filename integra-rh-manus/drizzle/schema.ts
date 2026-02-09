@@ -187,6 +187,9 @@ export const candidates = mysqlTable("candidates", {
       fechaMatrimonioUnion?: string;
       parejaDeAcuerdoConTrabajo?: string;
       esposaEmbarazada?: string;
+      tieneHijos?: string;
+      cantidadHijos?: number;
+      edadesHijos?: string;
       hijosDescripcion?: string;
       quienCuidaHijos?: string;
       dondeVivenCuidadores?: string;
