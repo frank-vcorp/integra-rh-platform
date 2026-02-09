@@ -2744,16 +2744,6 @@ export default function CandidatoDetalle() {
                               className="col-span-2 grid grid-cols-2 gap-4 border rounded-md p-2 bg-slate-50/60"
                             >
                               <div>
-                                <Label htmlFor={`periodoEmpresa_${index}`}>
-                                  Periodo laborado (empresa) {index + 1}
-                                </Label>
-                                <Input
-                                  id={`periodoEmpresa_${index}`}
-                                  name={`periodoEmpresa_${index}`}
-                                  defaultValue={periodo.periodoEmpresa || ""}
-                                />
-                              </div>
-                              <div>
                                 <Label htmlFor={`periodoCandidato_${index}`}>
                                   Periodo laborado (candidato) {index + 1}
                                 </Label>
@@ -2761,6 +2751,16 @@ export default function CandidatoDetalle() {
                                   id={`periodoCandidato_${index}`}
                                   name={`periodoCandidato_${index}`}
                                   defaultValue={periodo.periodoCandidato || ""}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`periodoEmpresa_${index}`}>
+                                  Periodo laborado (empresa) {index + 1}
+                                </Label>
+                                <Input
+                                  id={`periodoEmpresa_${index}`}
+                                  name={`periodoEmpresa_${index}`}
+                                  defaultValue={periodo.periodoEmpresa || ""}
                                 />
                               </div>
                               <div className="col-span-2">
