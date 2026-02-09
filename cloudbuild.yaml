@@ -28,16 +28,13 @@ steps:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # Deploy a Cloud Run
-  # 🔧 FIX REFERENCE: FIX-20260204-01
-  # 📄 SEE: context/interconsultas/DICTAMEN_FIX-20260204-01.md
-  # 🤖 AUTHOR: DEBY (Opus 4.5)
+  # Deploy a Cloud Run (Servicio 'api' conectado a Firebase Hosting)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
       - 'run'
       - 'deploy'
-      - 'integra-rh-backend'
+      - 'api'
       - '--image'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
       - '--region'

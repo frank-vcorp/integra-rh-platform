@@ -1,0 +1,9 @@
+.git
+.gitignore
+node_modules/
+dist/
+integra-rh-manus/node_modules/
+integra-rh-manus/dist/
+functions/node_modules/
+tests/
+integra-rh-manus/y/

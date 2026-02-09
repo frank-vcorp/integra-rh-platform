@@ -25,6 +25,11 @@ function assertCanEditProcess(ctx: any, proc: any) {
     return;
   }
 
+  // Usuarios con permiso "procesos" "edit" pueden editar cualquier proceso
+  if (hasPermission(ctx, "procesos", "edit")) {
+    return;
+  }
+
   // Usuarios con capacidad de crear o eliminar procesos se consideran
   // administradores operativos y pueden editar cualquier proceso
   const canManageAll =
@@ -34,16 +39,9 @@ function assertCanEditProcess(ctx: any, proc: any) {
     return;
   }
 
-  // Para el resto (por ejemplo Analistas), solo se permite editar
-  // cuando son el analista asignado al proceso.
-  const assignedId = (proc as any).especialistaAtraccionId as number | null | undefined;
-  if (assignedId && assignedId === ctx.user.id) {
-    return;
-  }
-
   throw new TRPCError({
     code: "FORBIDDEN",
-    message: "Solo el analista asignado o un administrador pueden modificar este proceso.",
+    message: "No tienes permisos para modificar procesos.",
   });
 }
 
@@ -246,7 +244,7 @@ export const processesRouter = router({
       tipoProducto: z.string().optional(),
       especialistaAtraccionId: z.number().nullable().optional(),
       especialistaAtraccionNombre: z.string().trim().nullable().optional(),
-      estatusVisual: z.enum(["nuevo","en_proceso","pausado","cerrado","descartado"]),
+      estatusVisual: z.enum(["nuevo","sin_entrevistar","entrevistado","en_proceso","pausado","cerrado","descartado"]),
       fechaCierre: z.string().nullable().optional(),
       investigacionLaboral: z.object({
         resultado: z.string().trim().optional(),

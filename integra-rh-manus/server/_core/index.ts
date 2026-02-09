@@ -458,7 +458,9 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  // En producción (Cloud Run), forzar el puerto preferido sin validaciones
+  // findAvailablePort puede ser problemático en entornos serverless/container
+  const port = process.env.NODE_ENV === 'production' ? preferredPort : await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     logger.warn("port_busy", {

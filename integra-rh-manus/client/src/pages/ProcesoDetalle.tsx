@@ -169,6 +169,8 @@ export default function ProcesoDetalle() {
   ];
   const ESTATUS_VISUAL = [
     { value: "nuevo", label: "Nuevo" },
+    { value: "sin_entrevistar", label: "Sin entrevistar" },
+    { value: "entrevistado", label: "Entrevistado" },
     { value: "en_proceso", label: "En proceso" },
     { value: "pausado", label: "Pausado" },
     { value: "cerrado", label: "Cerrado" },

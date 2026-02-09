@@ -460,6 +460,8 @@ export const processes = mysqlTable("processes", {
   // Estatus visual y detalle granular para panel de clientes
   estatusVisual: mysqlEnum("estatusVisual", [
     "nuevo",
+    "sin_entrevistar",
+    "entrevistado",
     "en_proceso",
     "pausado",
     "cerrado",
