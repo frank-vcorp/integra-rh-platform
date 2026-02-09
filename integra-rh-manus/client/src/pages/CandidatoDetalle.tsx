@@ -2441,6 +2441,7 @@ export default function CandidatoDetalle() {
                   <option value="CV">CV</option>
                   <option value="ACTA_NACIMIENTO">Acta de Nacimiento</option>
                   <option value="INE">Copia INE</option>
+                  <option value="LICENCIA_CONDUCIR">Licencia de conducir</option>
                   <option value="COMPROBANTE_DOMICILIO">Comprobante de Domicilio</option>
                   <option value="RFC">RFC</option>
                   <option value="CURP">CURP</option>

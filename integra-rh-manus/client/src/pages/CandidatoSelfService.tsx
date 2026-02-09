@@ -1474,6 +1474,7 @@ export default function CandidatoSelfService() {
                 <li>Acta de nacimiento</li>
                 <li>CURP</li>
                 <li>RFC</li>
+                <li>Licencia de conducir</li>
                 <li>Comprobante de domicilio reciente</li>
                 <li>Comprobante de estudios (si aplica)</li>
                 <li>Currículum actualizado (CV)</li>
@@ -1498,6 +1499,7 @@ export default function CandidatoSelfService() {
                       <option value="ACTA_NACIMIENTO">Acta de nacimiento</option>
                       <option value="CURP">CURP</option>
                       <option value="RFC">RFC</option>
+                      <option value="LICENCIA_CONDUCIR">Licencia de conducir</option>
                       <option value="COMPROBANTE_DOMICILIO">
                         Comprobante de domicilio
                       </option>
