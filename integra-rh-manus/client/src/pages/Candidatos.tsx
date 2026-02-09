@@ -52,11 +52,16 @@ export default function Candidatos() {
    * Consolidar fuentes de datos: usar única query para todas las plazas
    * - Admins: cargan TODAS las plazas (staleTime 5 min para evitar refetch innecesarios)
    * - Clientes: cargan solo sus plazas vía listByClient
+   * 
+   * FIX-20260209-02: Asegurar que allClientSites siempre esté disponible
+   * - enabled: true (siempre activa para admins, previene invalidación innecesaria)
+   * - staleTime: 10 min (datos frescos pero no sobre-refresca)
+   * - gcTime: 30 min (mantiene en memoria más tiempo)
    */
   const { data: allClientSites = [] } = trpc.clientSites.listAll.useQuery(undefined, {
     enabled: !isClient,
-    staleTime: 5 * 60 * 1000,  // 5 minutos: evita truncamiento por refetch durante edición
-    gcTime: 10 * 60 * 1000,    // Mantener en caché 10 minutos
+    staleTime: 10 * 60 * 1000,  // 10 minutos: más tiempo sin refetch
+    gcTime: 30 * 60 * 1000,     // Mantener en caché 30 minutos
   });
   const { data: clientSitesForClient = [] } = trpc.clientSites.listByClient.useQuery(
     isClient && user?.clientId ? { clientId: user.clientId } : { clientId: 0 },
@@ -67,15 +72,17 @@ export default function Candidatos() {
   const utils = trpc.useUtils();
 
   /**
-   * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
-   * Calcular clientSitesByClient IN-MEMORY (no query separada)
-   * Esto evita que se invalide durante navegación de candidatos
+   * INTEGRA: FIX-20260209-02 | Respaldo: context/interconsultas/DICTAMEN_FIX-20260209-02.md
+   * Calcular clientSitesByClient IN-MEMORY usando fuente correcta por rol.
+   * Patrón alineado con clientSiteMap (admin → allClientSites, client → clientSitesForClient).
+   * Fix: la versión anterior solo usaba allClientSites, que está vacío para usuarios client.
    */
   const clientSitesByClient = useMemo(() => {
     if (!selectedClient) return [];
     const clientId = parseInt(selectedClient);
-    return allClientSites.filter((s: any) => s.clientId === clientId);
-  }, [selectedClient, allClientSites]);
+    const sites = isClient ? clientSitesForClient : allClientSites;
+    return sites.filter((s: any) => s.clientId === clientId);
+  }, [selectedClient, allClientSites, clientSitesForClient, isClient]);
 
   /**
    * INTEGRA: FIX-20260209-01 (DEBY Debuggear)
@@ -649,17 +656,29 @@ export default function Candidatos() {
                 <Select
                   value={selectedSite}
                   onValueChange={setSelectedSite}
-                  disabled={!selectedClient || !clientSitesByClient.length}
+                  disabled={!selectedClient}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={selectedClient ? "Selecciona una plaza" : "Selecciona primero un cliente"} />
+                    <SelectValue placeholder={
+                      !selectedClient 
+                        ? "Selecciona primero un cliente" 
+                        : clientSitesByClient.length === 0
+                        ? "No hay plazas disponibles para este cliente"
+                        : "Selecciona una plaza"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {clientSitesByClient.map((site: any) => (
-                      <SelectItem key={site.id} value={site.id.toString()}>
-                        {site.nombrePlaza}
-                      </SelectItem>
-                    ))}
+                    {clientSitesByClient.length > 0 ? (
+                      clientSitesByClient.map((site: any) => (
+                        <SelectItem key={site.id} value={site.id.toString()}>
+                          {site.nombrePlaza}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1 text-sm text-muted-foreground">
+                        Sin plazas disponibles
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
