@@ -1458,6 +1458,33 @@ export default function CandidatoDetalle() {
                       </span>
                     </p>
                   )}
+                  {hasValue(perfil.financieroAntecedentes?.historialburoCredito) && (
+                    <p>
+                      <span className="text-muted-foreground">Historial crediticio: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.historialburoCredito}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.sindicato?.sindicatoEmpresa) && (
+                    <p>
+                      <span className="text-muted-foreground">¿Pertenece a sindicato?: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.sindicato?.sindicatoEmpresa}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.sindicato?.puestoSindicato) && (
+                    <p>
+                      <span className="text-muted-foreground">Puesto sindical: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.sindicato?.puestoSindicato}
+                      </span>
+                    </p>
+                  )}
                   {hasValue(perfil.financieroAntecedentes?.institucionDeuda) && (
                     <p>
                       <span className="text-muted-foreground">Institución de deuda: </span>
