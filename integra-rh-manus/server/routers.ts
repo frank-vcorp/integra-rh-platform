@@ -451,6 +451,8 @@ export const appRouter = router({
           estatusProceso: z.enum([
             "en_recepcion",
             "asignado",
+            "entrevistado",
+            "no_entrevistado",
             "en_verificacion",
             "visita_programada",
             "visita_realizada",

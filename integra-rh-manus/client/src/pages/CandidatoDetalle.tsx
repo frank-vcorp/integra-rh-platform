@@ -1002,13 +1002,6 @@ export default function CandidatoDetalle() {
           )}
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
-            <Progress value={perfilPct} />
-            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
-              {perfilPct}%
-            </span>
-          </div>
-
           {perfilFilledCount > 0 && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               {hasIdentificacion && (
@@ -1162,6 +1155,33 @@ export default function CandidatoDetalle() {
                       <span className="inline-flex items-center gap-1">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         {perfil.situacionFamiliar?.estadoCivil}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.tieneHijos) && (
+                    <p>
+                      <span className="text-muted-foreground">¿Tiene hijos?: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.tieneHijos}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.cantidadHijos) && (
+                    <p>
+                      <span className="text-muted-foreground">Cantidad de hijos: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.cantidadHijos}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.situacionFamiliar?.edadesHijos) && (
+                    <p>
+                      <span className="text-muted-foreground">Edades de los hijos: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.situacionFamiliar?.edadesHijos}
                       </span>
                     </p>
                   )}
@@ -1456,6 +1476,15 @@ export default function CandidatoDetalle() {
                       </span>
                     </p>
                   )}
+                  {hasValue(perfil.financieroAntecedentes?.historialburoCredito) && (
+                    <p>
+                      <span className="text-muted-foreground">Historial en buró: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.historialburoCredito}
+                      </span>
+                    </p>
+                  )}
                   {(hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) ||
                     hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado)) && (
                     <p>
@@ -1468,6 +1497,18 @@ export default function CandidatoDetalle() {
                         ]
                           .filter(Boolean)
                           .join(" / ")}
+                      </span>
+                    </p>
+                  )}
+                  {hasValue(perfil.financieroAntecedentes?.sindicatoEmpresa) && (
+                    <p>
+                      <span className="text-muted-foreground">Sindicato / Empresa: </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {perfil.financieroAntecedentes?.sindicatoEmpresa}
+                        {hasValue(perfil.financieroAntecedentes?.puestoSindicato) && (
+                          <span className="text-gray-500"> ({perfil.financieroAntecedentes?.puestoSindicato})</span>
+                        )}
                       </span>
                     </p>
                   )}

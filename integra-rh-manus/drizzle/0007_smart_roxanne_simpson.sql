@@ -1,0 +1,1 @@
+ALTER TABLE `processes` MODIFY COLUMN `estatusProceso` enum('en_recepcion','asignado','entrevistado','no_entrevistado','en_verificacion','visita_programada','visita_realizada','en_dictamen','finalizado','entregado') NOT NULL DEFAULT 'en_recepcion';

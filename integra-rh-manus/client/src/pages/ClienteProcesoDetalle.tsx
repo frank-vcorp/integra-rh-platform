@@ -49,14 +49,16 @@ export default function ClienteProcesoDetalle() {
   }
 
   const estatusLabels: Record<string, string> = {
-    en_recepcion: "En Recepción",
-    asignado: "Asignado",
-    en_verificacion: "En Verificación",
-    visita_programada: "Visita Programada",
-    visita_realizada: "Visita Realizada",
-    en_dictamen: "En Dictamen",
-    finalizado: "Finalizado",
-    entregado: "Entregado",
+    en_recepcion: "EN RECEPCIÓN",
+    asignado: "ASIGNADO",
+    entrevistado: "ENTREVISTADO",
+    no_entrevistado: "NO ENTREVISTADO",
+    en_verificacion: "EN VERIFICACIÓN",
+    visita_programada: "VISITA PROGRAMADA",
+    visita_realizada: "VISITA REALIZADA",
+    en_dictamen: "EN DICTAMEN",
+    finalizado: "FINALIZADO",
+    entregado: "ENTREGADO",
   };
 
   // Determinar qué servicios incluye este tipo de proceso

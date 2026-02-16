@@ -528,7 +528,8 @@ export const workHistoryRouter = router({
           .optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      /** FIX REFERENCE: FIX-20260210-01 — ctx no estaba desestructurado, causaba ReferenceError */
       const { id, empresa, puesto, periodo, incidencias, desempeno, conclusion } = input;
 
       const ratingsOnly = desempeno

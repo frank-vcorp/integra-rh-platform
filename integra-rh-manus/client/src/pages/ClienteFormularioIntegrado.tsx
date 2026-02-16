@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Building2, Users, Briefcase, FileText, ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -72,6 +73,16 @@ export default function ClienteFormularioIntegrado() {
     "NINGUNO"
   );
   const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
+
+  /**
+   * FIX REFERENCE: FIX-20260210-01
+   * Se agrega query de analistas y estado selectedAnalyst para campo obligatorio analistaAsignadoId
+   */
+  const { user } = useAuth();
+  const { data: analysts = [] } = trpc.users.list.useQuery();
+  const [selectedAnalyst, setSelectedAnalyst] = useState<string>(
+    user?.id ? String(user.id) : ""
+  );
 
   const utils = trpc.useUtils();
   
@@ -161,6 +172,11 @@ export default function ClienteFormularioIntegrado() {
 
   const handleCandidateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // FIX REFERENCE: FIX-20260210-01 — Validar analista obligatorio
+    if (!selectedAnalyst) {
+      toast.error("Debes seleccionar un analista responsable");
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     createCandidateMutation.mutate({
       nombreCompleto: formData.get("nombreCompleto") as string,
@@ -170,6 +186,7 @@ export default function ClienteFormularioIntegrado() {
       clienteId: clienteId!,
       // [HOMOGENEIZACIÓN] Ahora pasamos clientSiteId - antes era NULL
       clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
+      analistaAsignadoId: parseInt(selectedAnalyst),
     });
   };
 
@@ -421,12 +438,31 @@ export default function ClienteFormularioIntegrado() {
                     </p>
                   )}
                 </div>
+                {/* FIX REFERENCE: FIX-20260210-01 — Campo Analista Responsable obligatorio */}
+                <div className="col-span-2">
+                  <Label htmlFor="analistaAsignadoId">Analista Responsable *</Label>
+                  <Select
+                    value={selectedAnalyst}
+                    onValueChange={setSelectedAnalyst}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un analista" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {analysts.map((analyst: any) => (
+                        <SelectItem key={analyst.id} value={analyst.id.toString()}>
+                          {analyst.name || analyst.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex justify-between">
                 <Button type="button" variant="outline" onClick={() => setStep(1)}>
                   Regresar
                 </Button>
-                <Button type="submit" disabled={createCandidateMutation.isPending}>
+                <Button type="submit" disabled={createCandidateMutation.isPending || !selectedAnalyst}>
                   Continuar a Puesto
                   <ChevronRight className="h-4 w-4 ml-2" />
                 </Button>

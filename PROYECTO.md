@@ -140,6 +140,20 @@
   - Checkpoints asociados: [Checkpoints/CHK_2026-02-03_PROCESOS-ORDEN-FECHA-RECEPCION.md](Checkpoints/CHK_2026-02-03_PROCESOS-ORDEN-FECHA-RECEPCION.md), [Checkpoints/CHK_2026-02-03_FRONTEND-SORT-FIX.md](Checkpoints/CHK_2026-02-03_FRONTEND-SORT-FIX.md), [Checkpoints/CHK_2026-02-04_FIX-sorting-deploy.md](Checkpoints/CHK_2026-02-04_FIX-sorting-deploy.md).
   - Checkpoint: `CHK_2026-01-13_HOMOGENEIZACION-FLUJOS.md`
 
+### LOTE-FEATURES-09-FEB: Asignación de Analista + Pre-registro + Procesos
+**Fecha:** 2026-02-09 | **IDs:** IMPL-20260209-01 a -07
+**Estado:** ✅ VALIDADO E2E (10/02/2026)
+
+- `[X]` ANALISTA-01: Asignación Analista Responsable (candidatos con herencia a procesos)
+- `[X]` PREREGISTRO-01: Leyenda y campos en Sección 5 y 6
+- `[X]` PREREGISTRO-02: Licencia de conducir en Sección 8
+- `[X]` PROCESOS-01: Cambio de "Proceso a Realizar" sin restricción de rol
+- `[X]` PROCESOS-02: Nuevos estados (SIN_ENTREVISTAR, ENTREVISTADO)
+- `[X]` AUDIT-01: Registrar nombre real del usuario en historial de cambios
+- `[X]` INVESTIGACION-01: Invertir orden de periodo laborado
+
+**Checkpoint:** `Checkpoints/CHK_2026-02-09_LOTE-FEATURES-ANALISTA-PROCESOS-PREREGISTRO.md`
+
 **Estado Anterior (18/12/2025)**
 
 - **Incidente Resuelto:** El bloqueo de WAF (Cloudflare) en integración con Psicométricas fue temporal y se ha restablecido el servicio.

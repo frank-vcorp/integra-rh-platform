@@ -204,7 +204,21 @@ export const processesRouter = router({
 
   updateStatus: protectedProcedure
     .use(requirePermission("procesos", "edit"))
-    .input(z.object({ id: z.number(), estatusProceso: z.string() }))
+    .input(z.object({ 
+      id: z.number(), 
+      estatusProceso: z.enum([
+        "en_recepcion",
+        "asignado",
+        "entrevistado",
+        "no_entrevistado",
+        "en_verificacion",
+        "visita_programada",
+        "visita_realizada",
+        "en_dictamen",
+        "finalizado",
+        "entregado"
+      ]) 
+    }))
     .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
       if (!proc) {
@@ -226,7 +240,11 @@ export const processesRouter = router({
 
   updateCalificacion: protectedProcedure
     .use(requirePermission("procesos", "edit"))
-    .input(z.object({ id: z.number(), calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable"]) }))
+    .input(z.object({ 
+      id: z.number(), 
+      calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable"]),
+      comentarioCalificacion: z.string().optional()
+    }))
     .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
       if (!proc) {
@@ -234,7 +252,12 @@ export const processesRouter = router({
       }
       assertCanEditProcess(ctx, proc);
 
-      await db.updateProcess(input.id, { calificacionFinal: input.calificacionFinal } as any);
+      const updateData: any = { calificacionFinal: input.calificacionFinal };
+      if (input.comentarioCalificacion !== undefined) {
+        updateData.comentarioCalificacion = input.comentarioCalificacion;
+      }
+
+      await db.updateProcess(input.id, updateData);
 
       await logAuditEvent(ctx, {
         action: "update",
@@ -270,11 +293,13 @@ export const processesRouter = router({
         notasPeriodisticas: z.string().trim().optional(),
         observacionesImss: z.string().trim().optional(),
         semanasComentario: z.string().trim().optional(),
+        evidenciaImgUrl: z.string().trim().optional().nullable(),
       }).partial().optional(),
       buroCredito: z.object({
         estatus: z.string().trim().optional(),
         score: z.string().trim().optional(),
         aprobado: z.boolean().optional(),
+        pdfUrl: z.string().trim().optional().nullable(),
       }).partial().optional(),
       visitaDetalle: z.object({
         tipo: z.enum(["virtual","presencial"]).optional(),

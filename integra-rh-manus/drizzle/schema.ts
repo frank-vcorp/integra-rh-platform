@@ -451,9 +451,15 @@ export const processes = mysqlTable("processes", {
     "presencial",
     "otro",
   ]),
+  /**
+   * @intervention: ARCH-20260210-01
+   * @desc: Se agregan estatus 'entrevistado' y 'no_entrevistado' al flujo principal.
+   */
   estatusProceso: mysqlEnum("estatusProceso", [
     "en_recepcion",
     "asignado",
+    "entrevistado",
+    "no_entrevistado",
     "en_verificacion",
     "visita_programada",
     "visita_realizada",
@@ -467,6 +473,7 @@ export const processes = mysqlTable("processes", {
     "con_reservas",
     "no_recomendable"
   ]).default("pendiente"),
+  comentarioCalificacion: text("comentarioCalificacion"),
   // Estatus visual y detalle granular para panel de clientes
   estatusVisual: mysqlEnum("estatusVisual", [
     "nuevo",
@@ -492,16 +499,14 @@ export const processes = mysqlTable("processes", {
   investigacionLegal: json("investigacionLegal").$type<{
     antecedentes?: string;
     flagRiesgo?: boolean;
-    archivoAdjuntoUrl?: string;
+    archivoAdjuntoUrl?: string; // Para documento PDF principal
+    evidenciaImgUrl?: string;   // Para imagen pegada (portapapeles)
     // Investigación documental complementaria
     notasPeriodisticas?: string;
-    observacionesImss?: string;
     semanasComentario?: string;
   }>(),
   buroCredito: json("buroCredito").$type<{
-    estatus?: string;
-    score?: string;
-    aprobado?: boolean;
+    pdfUrl?: string; // Archivo PDF del reporte de Buró
   }>(),
   visitaDetalle: json("visitaDetalle").$type<{
     tipo?: "virtual" | "presencial";
