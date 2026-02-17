@@ -171,11 +171,22 @@ export const processesRouter = router({
       const consecutivo = await db.getNextConsecutiveByClavePrefix(prefix, year);
       const clave = `${prefix}-${year}-${String(consecutivo).padStart(3, '0')}`;
 
+      // FIX-20260217-01: Auto-asignar clientSiteId si no se proporciona
+      // Buscar plazas disponibles del cliente
+      let clientSiteIdToUse = input.clientSiteId;
+      if (!clientSiteIdToUse) {
+        const availableSites = await db.getClientSitesByClient(input.clienteId);
+        if (availableSites.length > 0) {
+          // Asignar la primera plaza disponible
+          clientSiteIdToUse = availableSites[0].id;
+        }
+      }
+
       const id = await db.createProcess({
         candidatoId: input.candidatoId,
         clienteId: input.clienteId,
         puestoId: input.puestoId,
-        clientSiteId: input.clientSiteId,
+        clientSiteId: clientSiteIdToUse,
         tipoProducto: input.tipoProducto as any,
         medioDeRecepcion: input.medioDeRecepcion as any,
         fechaRecepcion,

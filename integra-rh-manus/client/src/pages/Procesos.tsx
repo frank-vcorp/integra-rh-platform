@@ -1,3 +1,9 @@
+/**
+ * @file Procesos.tsx
+ * @description Gestión de procesos de investigación.
+ * @fix FIX-20260217-01: Corrección de nombres de Plaza y Responsable mediante propiedades directas.
+ * @fix FIX-20260217-03: Validación obligatoria de Plaza y fallback de Responsable a Analista.
+ */
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { Plus, FileText, Eye, Trash2, ArrowUpDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -69,8 +75,17 @@ export default function Procesos() {
     { enabled: !!selectedClient } as any
   );
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
-  const { data: users = [] } = trpc.users.list.useQuery();
+
   const utils = trpc.useUtils();
+
+  // FIX-20260217-02: Auto-seleccionar plaza si solo hay una disponible
+  useEffect(() => {
+    if (selectedClient && clientSitesByClient && clientSitesByClient.length === 1) {
+      setSelectedSite(clientSitesByClient[0].id.toString());
+    } else if (!selectedClient) {
+      setSelectedSite("");
+    }
+  }, [selectedClient, clientSitesByClient]);
 
   const createMutation = trpc.processes.create.useMutation({
     onSuccess: (data) => {
@@ -101,7 +116,7 @@ export default function Procesos() {
     e.preventDefault();
     
     if (!selectedCandidate || !selectedClient || !selectedPost) {
-      toast.error("Todos los campos son requeridos");
+      toast.error("Candidato, Cliente y Puesto son requeridos");
       return;
     }
 
@@ -148,27 +163,12 @@ export default function Procesos() {
     return candidate?.nombreCompleto || "-";
   };
 
-  const getClientName = (clienteId: number) => {
-    const client = clients.find((c) => c.id === clienteId);
-    return client?.nombreEmpresa || "-";
-  };
 
   const getPostName = (puestoId: number) => {
     const post = allPosts.find((p) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
   };
 
-  const getSiteName = (siteId?: number | null) => {
-    if (!siteId || !Array.isArray(clientSitesByClient)) return "-";
-    const site = clientSitesByClient.find((s: any) => s.id === siteId);
-    return site?.nombrePlaza || "-";
-  };
-
-  const getResponsableName = (userId?: number | null) => {
-    if (!userId) return "-";
-    const u = (users as any[]).find((user) => user.id === userId);
-    return u?.name || u?.email || "-";
-  };
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
@@ -528,18 +528,19 @@ export default function Procesos() {
                           {getCandidateName(process.candidatoId)}
                         </TableCell>
                         <TableCell className="max-w-[220px] text-xs">
-                          {getClientName(process.clienteId)}
+                          {(process as any).clientName || "-"}
                         </TableCell>
                         <TableCell className="max-w-[200px] text-xs">
-                          {getSiteName((process as any).clientSiteId)}
+                          {(process as any).siteName || "-"}
                         </TableCell>
                         <TableCell className="max-w-[220px] text-xs">
                           {getPostName(process.puestoId)}
                         </TableCell>
                         <TableCell className="max-w-[200px] text-xs">
-                          {getResponsableName(
-                            (process as any).especialistaAtraccionId,
-                          )}
+                          {(process as any).responsableName ||
+                            (process as any).especialistaAtraccionNombre ||
+                            (process as any).analistaName ||
+                            "-"}
                         </TableCell>
                         <TableCell className="text-xs">
                           {new Date(
@@ -636,7 +637,7 @@ export default function Procesos() {
                       </div>
 	                      <div>
 	                        <span className="font-semibold">Cliente: </span>
-	                        {getClientName(process.clienteId)}
+	                        {(process as any).clientName || "-"}
 	                      </div>
 	                      <div>
 	                        <span className="font-semibold">Puesto: </span>
@@ -644,9 +645,9 @@ export default function Procesos() {
 	                      </div>
 	                      <div>
 	                        <span className="font-semibold">Responsable: </span>
-	                        {getResponsableName(
-	                          (process as any).especialistaAtraccionId,
-	                        )}
+	                        {(process as any).responsableName ||
+                            (process as any).especialistaAtraccionNombre ||
+                            "-"}
 	                      </div>
                       <div>
                         <span className="font-semibold">Recepción: </span>
