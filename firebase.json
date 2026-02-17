@@ -49,7 +49,10 @@
       },
       {
         "source": "**",
-        "destination": "/index.html"
+        "run": {
+          "serviceId": "api",
+          "region": "us-central1"
+        }
       }
     ]
   },
