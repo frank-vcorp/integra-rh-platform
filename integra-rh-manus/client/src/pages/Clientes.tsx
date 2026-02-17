@@ -888,7 +888,7 @@ export default function Clientes() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div className="md:col-span-3">
-                    <Label htmlFor="site-name">Nombre de la plaza *</Label>
+                    <Label htmlFor="site-name">Plaza / CEDI *</Label>
                     <Input
                       id="site-name"
                       value={newSiteName}

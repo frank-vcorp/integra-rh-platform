@@ -561,7 +561,7 @@ export default function CandidatoFormularioIntegrado() {
             }}
           >
             <div className="space-y-1">
-              <Label htmlFor="new-site-name">Nombre de la plaza *</Label>
+              <Label htmlFor="new-site-name">Plaza / CEDI *</Label>
               <Input
                 id="new-site-name"
                 value={newSiteName}

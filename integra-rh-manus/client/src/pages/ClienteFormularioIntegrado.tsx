@@ -660,7 +660,7 @@ export default function ClienteFormularioIntegrado() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="newSiteName">Nombre de la Plaza *</Label>
+              <Label htmlFor="newSiteName">Plaza / CEDI *</Label>
               <Input
                 id="newSiteName"
                 value={newSiteName}

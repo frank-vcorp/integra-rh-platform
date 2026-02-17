@@ -802,7 +802,7 @@ export default function CandidatoSelfService() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="plaza">CEDI / Plaza</Label>
+                  <Label htmlFor="plaza">Plaza / CEDI</Label>
                   <Input
                     id="plaza"
                     value={perfil.plaza}

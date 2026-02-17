@@ -669,7 +669,7 @@ export async function getAllProcesses() {
     .select()
     .from(processes)
     .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
-    .leftJoin(users, eq(processes.analista_asignado_id, users.id))
+    .leftJoin(users, eq(processes.analistaAsignadoId, users.id))
     .leftJoin(clients, eq(processes.clienteId, clients.id))
     .orderBy(desc(processes.fechaRecepcion));
   
@@ -689,7 +689,7 @@ export async function getProcessesByClient(clienteId: number) {
     .from(processes)
     .where(eq(processes.clienteId, clienteId))
     .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
-    .leftJoin(users, eq(processes.analista_asignado_id, users.id))
+    .leftJoin(users, eq(processes.analistaAsignadoId, users.id))
     .leftJoin(clients, eq(processes.clienteId, clients.id))
     .orderBy(desc(processes.fechaRecepcion));
   
