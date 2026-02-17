@@ -241,6 +241,37 @@
 
 - Checkpoint nuevo (28 ene 2026): `CHK_2026-01-28_INVESTIGACION-LOCALSTORAGE.md`.
 
+### FIX - ISSUES ACTIVOS (Febrero 2026)
+- `[/]` **FIX-20260217: Plazas faltantes en Procesos — Migración MySQL**
+  - **Estado:** 95% COMPLETADO — **BLOQUEADO por Railway IP restrictions**
+  - **Owner:** Frank Saavedra (para ejecutar SQL o whitelist IPs)
+  - **Trabajo Completado:**
+    - ✅ Backend auto-assign logic (processes.ts) — FIX-20260217-01
+    - ✅ Frontend UX improvement (Procesos.tsx) — FIX-20260217-02
+    - ✅ Cloud Functions creadas (migrateProcessSites, validateProcessSites) — FIX-20260217-03
+    - ✅ Dependencia mysql2 instalada en functions/
+    - ✅ Firebase deployment exitoso
+    - ✅ Variables de entorno configuradas (DATABASE_URL)
+    - ✅ Git commit y push a master (commit: 6304400)
+  - **Blocking Issue:** Railway MySQL rechaza conexiones desde Google Cloud (IPs 100.64.0.0/11 bloqueadas). Cloud Functions activas pero no pueden alcanzar DB.
+  - **Soluciones Pendientes:**
+    1. Opción A: Whitelist Google Cloud IP range en Railway dashboard
+    2. Opción B: Ejecutar `bash run-migration.sh` desde servidor con acceso a Railway
+    3. Opción C: Configurar SSH tunnel
+  - **Archivos Creados/Modificados:**
+    - integra-rh-manus/server/routers/processes.ts (auto-assign)
+    - integra-rh-manus/client/src/pages/Procesos.tsx (UX)
+    - functions/index.js (Cloud Functions)
+    - functions/package.json (mysql2 added)
+    - fix-plazas.sql (migration script)
+    - deploy-functions.sh (deployment script)
+    - run-migration.sh (run script)
+    - STATUS_MIGRACION.md (resumen completo)
+    - FIX_20260217_MIGRACION_PLAZAS.md (arquitectura detallada)
+  - **Validación:** Una vez resuelto IP issue, ejecutar `run-migration.sh` (~2 min) y validar en https://integra-rh.web.app/procesos
+  - **Checkpoint:** `Checkpoints/CHK_2026-02-17_FIX-PLAZAS-95-PERCENT.md` (pendiente crear tras resolver IP)
+  - **ID de Intervención:** IMPL-20260217-03 (Sofia - Builder)
+
 ### Mejoras de DX (Developer Experience)
 - `[ ]` DX-AG-01: Validar agente DEBY (Deep Debugging) con un caso real de error.
 
