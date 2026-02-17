@@ -665,13 +665,40 @@ export async function createCandidateComment(data: InsertCandidateComment) {
 export async function getAllProcesses() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(processes).orderBy(desc(processes.fechaRecepcion));
+  const results = await db
+    .select()
+    .from(processes)
+    .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
+    .leftJoin(users, eq(processes.analista_asignado_id, users.id))
+    .leftJoin(clients, eq(processes.clienteId, clients.id))
+    .orderBy(desc(processes.fechaRecepcion));
+  
+  return results.map(row => ({
+    ...row.processes,
+    siteName: row.clientSites?.nombrePlaza || null,
+    responsableName: row.users?.name || null,
+    clientName: row.clients?.nombreEmpresa || null,
+  }));
 }
 
 export async function getProcessesByClient(clienteId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(processes).where(eq(processes.clienteId, clienteId)).orderBy(desc(processes.fechaRecepcion));
+  const results = await db
+    .select()
+    .from(processes)
+    .where(eq(processes.clienteId, clienteId))
+    .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
+    .leftJoin(users, eq(processes.analista_asignado_id, users.id))
+    .leftJoin(clients, eq(processes.clienteId, clients.id))
+    .orderBy(desc(processes.fechaRecepcion));
+  
+  return results.map(row => ({
+    ...row.processes,
+    siteName: row.clientSites?.nombrePlaza || null,
+    responsableName: row.users?.name || null,
+    clientName: row.clients?.nombreEmpresa || null,
+  }));
 }
 
 export async function getProcessesByCandidate(candidatoId: number) {
