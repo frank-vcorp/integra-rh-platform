@@ -353,6 +353,9 @@ export default function CandidatoSelfService() {
       parejaDeAcuerdoConTrabajo:
         detalle.situacionFamiliar?.parejaDeAcuerdoConTrabajo || "",
       esposaEmbarazada: detalle.situacionFamiliar?.esposaEmbarazada || "",
+      tieneHijos: detalle.situacionFamiliar?.tieneHijos || "",
+      cantidadHijos: detalle.situacionFamiliar?.cantidadHijos?.toString() || "",
+      edadesHijos: detalle.situacionFamiliar?.edadesHijos || "",
       hijosDescripcion: detalle.situacionFamiliar?.hijosDescripcion || "",
       quienCuidaHijos: detalle.situacionFamiliar?.quienCuidaHijos || "",
       dondeVivenCuidadores:
@@ -518,6 +521,9 @@ export default function CandidatoSelfService() {
           fechaMatrimonioUnion: perfil.fechaMatrimonioUnion || "",
           parejaDeAcuerdoConTrabajo: perfil.parejaDeAcuerdoConTrabajo || "",
           esposaEmbarazada: perfil.esposaEmbarazada || "",
+          tieneHijos: perfil.tieneHijos || "",
+          cantidadHijos: perfil.cantidadHijos ? Number(perfil.cantidadHijos) : 0,
+          edadesHijos: perfil.edadesHijos || "",
           hijosDescripcion: perfil.hijosDescripcion || "",
           quienCuidaHijos: perfil.quienCuidaHijos || "",
           dondeVivenCuidadores: perfil.dondeVivenCuidadores || "",
