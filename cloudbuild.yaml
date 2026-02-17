@@ -1,18 +1,15 @@
 steps:
-  # Build del cliente (Vite)
-  - name: 'gcr.io/cloud-builders/npm'
-    entrypoint: 'bash'
-    args: ['-c', 'npm install -g pnpm && pnpm install --no-frozen-lockfile']
-    dir: 'integra-rh-manus'
+  # Construir imagen Docker (usando multi-stage build)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+      - '-f'
+      - 'Dockerfile.prod'
+      - '.'
 
-  # Compilar el proyecto
-  - name: 'gcr.io/cloud-builders/npm'
-    args: ['run', 'build']
-    dir: 'integra-rh-manus'
-    env:
-      - 'NODE_ENV=production'
-
-  # Construir imagen Docker
+  # Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'

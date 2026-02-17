@@ -1,12 +1,37 @@
+# Etapa de construcción
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar archivos de dependencias
+COPY integra-rh-manus/package.json integra-rh-manus/pnpm-lock.yaml ./integra-rh-manus/
+
+# Copiar carpeta de patches si existe (necesaria para pnpm install)
+COPY integra-rh-manus/patches ./integra-rh-manus/patches
+
+# Instalar dependencias
+WORKDIR /app/integra-rh-manus
+RUN pnpm install --frozen-lockfile
+
+# Copiar código fuente
+WORKDIR /app
+COPY integra-rh-manus ./integra-rh-manus
+
+# Construir la aplicación
+WORKDIR /app/integra-rh-manus
+RUN npm run build
+
+# Etapa de producción
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar el dist ya compilado (asumimos que fue compilado localmente)
-COPY integra-rh-manus/dist ./dist
-
-# Copiar package.json para dependencias de runtime
-COPY integra-rh-manus/package.json ./
+# Copiar archivos necesarios desde la etapa de construcción
+COPY --from=builder /app/integra-rh-manus/dist ./dist
+COPY --from=builder /app/integra-rh-manus/package.json ./
 
 # Instalar solo dependencias de producción
 RUN npm install --omit=dev --legacy-peer-deps
