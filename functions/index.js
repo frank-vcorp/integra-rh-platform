@@ -517,8 +517,9 @@ exports.migrateProcessSites = functions.https.onRequest(async (req, res) => {
 
   try {
     // Conectar a Railway MySQL usando DATABASE_URL del entorno
+    // Usar URL raíz de Railway que funciona desde Google Cloud
     const dbUrl = process.env.DATABASE_URL||
-      "mysql://Integra-rh:X%2FT9gHT7i4%2Abk1D8@gondola.proxy.rlwy.net:18090/integra_rh_v2";
+      "mysql://root:bldEVdXlGWCBTDNqhjDkSeNQrIdbHejE@gondola.proxy.rlwy.net:18090/railway";
     
     connection = await mysql.createConnection(dbUrl);
     logger.info("[Migration] Connected to Railway MySQL");
@@ -608,7 +609,7 @@ exports.validateProcessSites = functions.https.onRequest(async (req, res) => {
 
   try {
     const dbUrl = process.env.DATABASE_URL||
-      "mysql://Integra-rh:X%2FT9gHT7i4%2Abk1D8@gondola.proxy.rlwy.net:18090/integra_rh_v2";
+      "mysql://root:bldEVdXlGWCBTDNqhjDkSeNQrIdbHejE@gondola.proxy.rlwy.net:18090/railway";
     
     connection = await mysql.createConnection(dbUrl);
 
