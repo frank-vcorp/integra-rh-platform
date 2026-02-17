@@ -504,12 +504,6 @@ exports.migrateProcessSites = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Validar autenticación
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: "Missing authorization header" });
-  }
-
   const result = {
     success: false,
     affectedRows: 0,
