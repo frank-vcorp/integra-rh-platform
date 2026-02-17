@@ -334,8 +334,7 @@ export default function ProcesoDetalle() {
 
   const canEditProcess = useHasPermission("procesos", "edit");
 
-  const handleSavePanel = () => {
-    if (!process) return;
+  const getPanelPayload = (form: typeof panelForm) => {
     const config: ProcesoConfig =
       baseTipo === "ILA"
         ? { base: "ILA", modo: ilaModo }
@@ -350,37 +349,47 @@ export default function ProcesoDetalle() {
         : { base: "SEMANAS" };
     const tipoProducto = mapProcesoConfigToTipoProducto(config);
 
-    updatePanelDetail.mutate({
+    return {
       id: processId,
-      especialistaAtraccionId: panelForm.especialistaAtraccionId
-        ? Number(panelForm.especialistaAtraccionId)
+      especialistaAtraccionId: form.especialistaAtraccionId
+        ? Number(form.especialistaAtraccionId)
         : null,
-      especialistaAtraccionNombre: panelForm.especialistaAtraccionNombre || null,
-      estatusVisual: panelForm.estatusVisual as any,
-      fechaCierre: panelForm.fechaCierre || null,
+      especialistaAtraccionNombre: form.especialistaAtraccionNombre || null,
+      estatusVisual: form.estatusVisual as any,
+      fechaCierre: form.fechaCierre || null,
       investigacionLaboral: {
-        resultado: panelForm.investigacionLaboral.resultado || undefined,
-        detalles: panelForm.investigacionLaboral.detalles || undefined,
-        completado: panelForm.investigacionLaboral.completado,
+        resultado: form.investigacionLaboral.resultado || undefined,
+        detalles: form.investigacionLaboral.detalles || undefined,
+        completado: form.investigacionLaboral.completado,
       },
       investigacionLegal: {
-        antecedentes: panelForm.investigacionLegal.antecedentes || undefined,
-        flagRiesgo: panelForm.investigacionLegal.flagRiesgo,
-        archivoAdjuntoUrl: panelForm.investigacionLegal.archivoAdjuntoUrl || undefined,
+        antecedentes: form.investigacionLegal.antecedentes || undefined,
+        flagRiesgo: form.investigacionLegal.flagRiesgo,
+        archivoAdjuntoUrl: form.investigacionLegal.archivoAdjuntoUrl || undefined,
+        notasPeriodisticas: form.investigacionLegal.notasPeriodisticas || undefined,
+        observacionesImss: form.investigacionLegal.observacionesImss || undefined,
+        semanasComentario: form.investigacionLegal.semanasComentario || undefined,
+        evidenciaImgUrl: (form.investigacionLegal as any).evidenciaImgUrl || undefined,
       },
       buroCredito: {
-        estatus: panelForm.buroCredito.estatus || undefined,
-        score: panelForm.buroCredito.score || undefined,
-        aprobado: panelForm.buroCredito.aprobado === null ? undefined : panelForm.buroCredito.aprobado,
+        estatus: form.buroCredito.estatus || undefined,
+        score: form.buroCredito.score || undefined,
+        aprobado: form.buroCredito.aprobado === null ? undefined : form.buroCredito.aprobado,
+        pdfUrl: (form.buroCredito as any).pdfUrl || undefined,
       },
       visitaDetalle: {
-        tipo: panelForm.visitaDetalle.tipo as any || undefined,
-        comentarios: panelForm.visitaDetalle.comentarios || undefined,
-        fechaRealizacion: panelForm.visitaDetalle.fechaRealizacion || undefined,
-        enlaceReporteUrl: panelForm.visitaDetalle.enlaceReporteUrl || undefined,
+        tipo: (form.visitaDetalle.tipo as any) || undefined,
+        comentarios: form.visitaDetalle.comentarios || undefined,
+        fechaRealizacion: form.visitaDetalle.fechaRealizacion || undefined,
+        enlaceReporteUrl: form.visitaDetalle.enlaceReporteUrl || undefined,
       },
       tipoProducto,
-    });
+    };
+  };
+
+  const handleSavePanel = () => {
+    if (!process) return;
+    updatePanelDetail.mutate(getPanelPayload(panelForm));
   };
 
   const findName = (id: number | null | undefined, arr: any[], field: string) => {
@@ -846,12 +855,15 @@ export default function ProcesoDetalle() {
                        const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
                        
                        // Manually update the panel form url
-                       setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, evidenciaImgUrl: res.url } }));
-                       // Trigger save
-                       await updatePanelDetail.mutateAsync({
-                          id: processId,
-                          ...panelForm, investigacionLegal: { ...panelForm.investigacionLegal, evidenciaImgUrl: res.url }
-                       } as any);
+                       setPanelForm(currentForm => {
+                          const newForm = { 
+                            ...currentForm, 
+                            investigacionLegal: { ...currentForm.investigacionLegal, evidenciaImgUrl: res.url } 
+                          };
+                          // Trigger save with correct payload structure
+                          updatePanelDetail.mutate(getPanelPayload(newForm));
+                          return newForm;
+                       });
                        toast.success("Evidencia guardada");
                      } catch (err: any) {
                        toast.error("Error al subir: " + err.message);
@@ -973,13 +985,14 @@ export default function ProcesoDetalle() {
                      <a href={(panelForm.buroCredito as any).pdfUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline block truncate">Ver Documento</a>
                    </div>
                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
-                       // Update local state and trigger save
-                       const newData = { ...(panelForm.buroCredito as any), pdfUrl: null };
-                       setPanelForm(f => ({ ...f, buroCredito: newData }));
-                       updatePanelDetail.mutate({ 
-                           id: processId, 
-                           ...panelForm, buroCredito: newData 
-                       } as any);
+                       setPanelForm(currentForm => {
+                          const newForm = { 
+                            ...currentForm, 
+                            buroCredito: { ...currentForm.buroCredito, pdfUrl: null } as any 
+                          };
+                          updatePanelDetail.mutate(getPanelPayload(newForm));
+                          return newForm;
+                       });
                    }}>Eliminar</Button>
                 </div>
               ) : (
@@ -1002,12 +1015,14 @@ export default function ProcesoDetalle() {
                         const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO', fileName: file.name, contentType: file.type, base64 } as any);
                         
                         // Update JSON
-                        const newData = { pdfUrl: res.url }; // Overwrite old data mostly
-                        setPanelForm(f => ({ ...f, buroCredito: newData as any }));
-                        await updatePanelDetail.mutateAsync({ 
-                            id: processId, 
-                            ...panelForm, buroCredito: newData 
-                        } as any);
+                        setPanelForm(currentForm => {
+                          const newForm = { 
+                            ...currentForm, 
+                            buroCredito: { pdfUrl: res.url } as any 
+                          };
+                          updatePanelDetail.mutate(getPanelPayload(newForm));
+                          return newForm;
+                        });
                         toast.success("PDF vinculado");
                       } catch (err) {
                         toast.error("Error al subir");
