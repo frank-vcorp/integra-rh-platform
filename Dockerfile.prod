@@ -20,9 +20,9 @@ RUN pnpm install --frozen-lockfile
 WORKDIR /app
 COPY integra-rh-manus ./integra-rh-manus
 
-# Construir la aplicación
+# Exportar variables de Firebase para que Vite las compile en el bundle
 WORKDIR /app/integra-rh-manus
-RUN npm run build
+RUN source .env.production && npm run build
 
 # Etapa de producción
 FROM node:18-alpine
