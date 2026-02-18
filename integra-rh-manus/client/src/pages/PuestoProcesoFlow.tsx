@@ -78,10 +78,31 @@ export default function PuestoProcesoFlow() {
   );
 
   // Mutations
+  const updateCandidateMutation = trpc.candidates.update.useMutation({
+    onSuccess: () => {
+      utils.candidates.list.invalidate();
+      utils.posts.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error("Error al actualizar candidato: " + error.message);
+    },
+  });
+
   const createPostMutation = trpc.posts.create.useMutation({
     onSuccess: (data) => {
       setPuestoId(data.id);
       toast.success("Puesto creado exitosamente");
+      
+      // FIX-20260218-01: Actualizar candidato con el puestoId recién creado
+      if (candidatoId) {
+        updateCandidateMutation.mutate({
+          id: parseInt(candidatoId),
+          data: {
+            puestoId: data.id,
+          },
+        });
+      }
+      
       setStep(2);
     },
     onError: (error) => {
