@@ -167,12 +167,13 @@ export default function PuestoProcesoFlow() {
 
     const tipoProducto: TipoProcesoType = mapProcesoConfigToTipoProducto(config);
     
-    // FIX-20260219-01: Actualizar candidato con clientSiteId ANTES de crear proceso
+    // FIX-20260219-01: Actualizar candidato con clientSiteId Y puestoId ANTES de crear proceso
     updateCandidateMutation.mutate(
       {
         id: parseInt(candidatoId),
         data: {
           clientSiteId: parseInt(selectedSite),
+          puestoId: puestoId!, // Preservar puestoId asignado en Step 1
         },
       },
       {
