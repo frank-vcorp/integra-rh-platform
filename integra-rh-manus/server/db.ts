@@ -710,8 +710,24 @@ export async function getProcessesByCandidate(candidatoId: number) {
 export async function getProcessById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(processes).where(eq(processes.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  const result = await db
+    .select()
+    .from(processes)
+    .where(eq(processes.id, id))
+    .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
+    .leftJoin(users, eq(processes.analistaAsignadoId, users.id))
+    .leftJoin(clients, eq(processes.clienteId, clients.id))
+    .limit(1);
+  
+  if (result.length === 0) return undefined;
+  
+  const row = result[0];
+  return {
+    ...row.processes,
+    siteName: row.clientSites?.nombrePlaza || null,
+    responsableName: row.users?.name || null,
+    clientName: row.clients?.nombreEmpresa || null,
+  };
 }
 
 export async function getProcessByClave(clave: string) {
