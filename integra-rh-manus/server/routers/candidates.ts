@@ -144,7 +144,9 @@ export const candidatesRouter = router({
         details: input.data as any,
       });
 
-      return { success: true } as const;
+      // FIX-20260219-03: Retornar el candidato actualizado para confirmar cambios en frontend
+      const updatedCandidate = await db.getCandidateById(input.id);
+      return { success: true, candidate: updatedCandidate } as const;
     }),
 
   delete: adminProcedure

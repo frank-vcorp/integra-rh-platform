@@ -79,12 +79,22 @@ export default function PuestoProcesoFlow() {
 
   // Mutations
   const updateCandidateMutation = trpc.candidates.update.useMutation({
-    onSuccess: () => {
-      utils.candidates.list.invalidate();
-      utils.posts.list.invalidate();
+    onSuccess: (result) => {
+      // FIX-20260219-03: Validar que candidato tiene puestoId asignado
+      if (result.candidate?.puestoId) {
+        console.log("[DEBUG] Candidato actualizado exitosamente con puestoId:", result.candidate.puestoId);
+        utils.candidates.list.invalidate();
+        utils.posts.list.invalidate();
+        // Ahora sí avanzar a Step 2
+        setStep(2);
+      } else {
+        toast.error("Error: No se asignó el puestoId al candidato");
+        console.error("[DEBUG] Candidato retornado sin puestoId:", result.candidate);
+      }
     },
     onError: (error) => {
       toast.error("Error al actualizar candidato: " + error.message);
+      console.error("[DEBUG] Error en updateCandidateMutation:", error);
     },
   });
 
@@ -93,8 +103,10 @@ export default function PuestoProcesoFlow() {
       setPuestoId(data.id);
       toast.success("Puesto creado exitosamente");
       
-      // FIX-20260218-01: Actualizar candidato con el puestoId recién creado
+      // FIX-20260219-03: Actualizar candidato con el puestoId recién creado
+      // NOTA: setStep(2) ocurre en updateCandidateMutation.onSuccess(), no aquí
       if (candidatoId) {
+        console.log("[DEBUG] Creando puesto con id:", data.id, "para candidato:", candidatoId);
         updateCandidateMutation.mutate({
           id: parseInt(candidatoId),
           data: {
@@ -102,11 +114,10 @@ export default function PuestoProcesoFlow() {
           },
         });
       }
-      
-      setStep(2);
     },
     onError: (error) => {
       toast.error("Error al crear puesto: " + error.message);
+      console.error("[DEBUG] Error en createPostMutation:", error);
     },
   });
 
