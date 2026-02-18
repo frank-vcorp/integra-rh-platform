@@ -57,7 +57,6 @@ export function ReviewAndCompleteDialog({
     causalSalidaJefeInmediato: workHistoryItem?.causalSalidaJefeInmediato || "",
     observaciones: workHistoryItem?.observaciones || "",
     tiempoTrabajadoEmpresa: workHistoryItem?.tiempoTrabajadoEmpresa || "",
-    estatusInvestigacion: workHistoryItem?.estatusInvestigacion || "en_revision",
     comentarioInvestigacion: workHistoryItem?.comentarioInvestigacion || "",
   });
 
@@ -76,7 +75,6 @@ export function ReviewAndCompleteDialog({
         causalSalidaJefeInmediato: workHistoryItem.causalSalidaJefeInmediato || "",
         observaciones: workHistoryItem.observaciones || "",
         tiempoTrabajadoEmpresa: workHistoryItem.tiempoTrabajadoEmpresa || "",
-        estatusInvestigacion: workHistoryItem.estatusInvestigacion || "en_revision",
         comentarioInvestigacion: workHistoryItem.comentarioInvestigacion || "",
       });
       setEsActual(!workHistoryItem.fechaFin);
@@ -94,7 +92,6 @@ export function ReviewAndCompleteDialog({
         causalSalidaJefeInmediato: "",
         observaciones: "",
         tiempoTrabajadoEmpresa: "",
-        estatusInvestigacion: "en_revision",
         comentarioInvestigacion: "",
       });
       setEsActual(false);
@@ -127,7 +124,6 @@ export function ReviewAndCompleteDialog({
         causalSalidaJefeInmediato: formData.causalSalidaJefeInmediato,
         observaciones: formData.observaciones,
         tiempoTrabajadoEmpresa: formData.tiempoTrabajadoEmpresa,
-        estatusInvestigacion: formData.estatusInvestigacion,
         comentarioInvestigacion: formData.comentarioInvestigacion,
         capturadoPor: "analista",
         investigacionDetalle: {
@@ -475,33 +471,6 @@ export function ReviewAndCompleteDialog({
                     value={formData.tiempoTrabajadoEmpresa}
                     onChange={(e) => setFormData({ ...formData, tiempoTrabajadoEmpresa: e.target.value })}
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="estatus">Estatus de verificación</Label>
-                  <select
-                    id="estatus"
-                    value={formData.estatusInvestigacion}
-                    onChange={(e) => setFormData({ ...formData, estatusInvestigacion: e.target.value })}
-                    className="mt-1 block w-full border rounded-md h-10 px-3 bg-white"
-                  >
-                    <option value="en_revision">En revisión</option>
-                    <option value="revisado">Revisado</option>
-                    <option value="terminado">Terminado</option>
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="resultado">Resultado</Label>
-                  <select
-                    id="resultado"
-                    className="mt-1 block w-full border rounded-md h-10 px-3 bg-white"
-                  >
-                    <option value="">Pendiente</option>
-                    <option value="recomendable">Recomendable</option>
-                    <option value="con_reservas">Con reservas</option>
-                    <option value="no_recomendable">No recomendable</option>
-                  </select>
                 </div>
 
                 <div className="col-span-2">
