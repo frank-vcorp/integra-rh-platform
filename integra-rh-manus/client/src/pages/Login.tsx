@@ -129,7 +129,7 @@ export default function Login() {
             </div>
             <div>
               <label className="text-sm text-gray-600">Contraseña</label>
-              <input type="password" className="mt-1 w-full border rounded-md h-10 px-3" value={password} onChange={e=> setPassword(e.target.value)} placeholder="••••••••" required />
+              <input type="password" className="mt-1 w-full border rounded-md h-10 px-3" value={password} onChange={e=> setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
             </div>
             <div className="flex items-center justify-between text-sm">
               <button type="button" onClick={handleReset} className="text-blue-600 hover:underline">Olvidé mi contraseña</button>

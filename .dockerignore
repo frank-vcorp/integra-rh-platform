@@ -1,0 +1,27 @@
+# Ignorar carpetas pesadas y temporales
+node_modules
+integra-rh-manus/node_modules
+*/node_modules
+
+integra-rh-manus/y
+integra-rh-manus/y/
+
+.git
+.gitignore
+.gcloudignore
+
+dist
+integra-rh-manus/dist
+build
+.next
+.nuxt
+
+# Archivos de entorno locales (seguridad)
+.env
+.env.local
+.env.development
+*.log
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
