@@ -2,6 +2,7 @@
 .gitignore
 .env
 .env.*
+!.env.production
 *.log
 
 node_modules/
