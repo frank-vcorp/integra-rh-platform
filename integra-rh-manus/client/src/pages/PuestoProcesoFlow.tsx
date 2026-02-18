@@ -80,6 +80,12 @@ export default function PuestoProcesoFlow() {
     { enabled: !!clienteId }
   );
 
+  // FIX-20260219-04: Cargar datos del candidato para heredar analistaAsignadoId al proceso
+  const { data: candidate } = trpc.candidates.getById.useQuery(
+    { id: candidatoId ? parseInt(candidatoId) : 0 },
+    { enabled: !!candidatoId }
+  );
+
   // Mutations
   const updateCandidateMutation = trpc.candidates.update.useMutation({
     onSuccess: (result) => {
@@ -207,6 +213,7 @@ export default function PuestoProcesoFlow() {
       {
         onSuccess: () => {
           // Luego crear el proceso
+          // FIX-20260219-04: Backend hereda automáticamente analistaAsignadoId del candidato
           createProcessMutation.mutate({
             tipoProducto,
             clienteId: parseInt(clienteId),
