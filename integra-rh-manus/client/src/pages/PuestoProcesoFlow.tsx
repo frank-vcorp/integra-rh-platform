@@ -145,6 +145,12 @@ export default function PuestoProcesoFlow() {
       return;
     }
     
+    // FIX-20260219-01: Validar que Plaza/CEDI sea obligatoria
+    if (!selectedSite) {
+      toast.error("Debes seleccionar una Plaza / CEDI");
+      return;
+    }
+    
     // [HOMOGENEIZACIÓN] Usar config builder igual que otros flujos
     const config: ProcesoConfig =
       baseTipo === "ILA"
@@ -161,14 +167,27 @@ export default function PuestoProcesoFlow() {
 
     const tipoProducto: TipoProcesoType = mapProcesoConfigToTipoProducto(config);
     
-    createProcessMutation.mutate({
-      tipoProducto,
-      clienteId: parseInt(clienteId),
-      candidatoId: parseInt(candidatoId),
-      puestoId: puestoId!,
-      // [HOMOGENEIZACIÓN] Ahora pasamos clientSiteId - antes era NULL
-      clientSiteId: selectedSite ? parseInt(selectedSite) : undefined,
-    });
+    // FIX-20260219-01: Actualizar candidato con clientSiteId ANTES de crear proceso
+    updateCandidateMutation.mutate(
+      {
+        id: parseInt(candidatoId),
+        data: {
+          clientSiteId: parseInt(selectedSite),
+        },
+      },
+      {
+        onSuccess: () => {
+          // Luego crear el proceso
+          createProcessMutation.mutate({
+            tipoProducto,
+            clienteId: parseInt(clienteId),
+            candidatoId: parseInt(candidatoId),
+            puestoId: puestoId!,
+            clientSiteId: parseInt(selectedSite),
+          });
+        },
+      }
+    );
   };
   
   // Helper para mostrar nombre de plaza en resumen
@@ -257,14 +276,14 @@ export default function PuestoProcesoFlow() {
                   <div className="col-span-2">
                     <Label className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      Plaza / CEDI
+                      Plaza / CEDI *
                     </Label>
                     <Select
                       value={selectedSite}
                       onValueChange={setSelectedSite}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una plaza (opcional)" />
+                        <SelectValue placeholder="Selecciona una plaza/CEDI*" />
                       </SelectTrigger>
                       <SelectContent>
                         {clientSites.map((site: any) => (
