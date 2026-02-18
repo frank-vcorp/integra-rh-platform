@@ -16,10 +16,11 @@ build
 .next
 .nuxt
 
-# Archivos de entorno locales (seguridad)
+# Archivos de entorno locales (seguridad) - pero NO .env.production que es necesario para el build
 .env
 .env.local
 .env.development
+.env.*.local
 *.log
 
 # Archivos de sistema
