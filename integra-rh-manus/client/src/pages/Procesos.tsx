@@ -46,6 +46,7 @@ import {
   formatTipoProductoDisplay,
   mapProcesoConfigToTipoProducto,
 } from "@/lib/procesoTipo";
+import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 
 export default function Procesos() {
   const { user } = useAuth();
@@ -505,6 +506,9 @@ export default function Procesos() {
                           <ArrowUpDown className="h-3 w-3" />
                         </button>
                       </TableHead>
+                      <TableHead className="max-w-[160px]">
+                        Calificación
+                      </TableHead>
                       <TableHead className="w-[120px] text-right">
                         Acciones
                       </TableHead>
@@ -554,6 +558,15 @@ export default function Procesos() {
                             )}`}
                           >
                             {getStatusLabel(process.estatusProceso)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs font-medium">
+                          <span
+                            className={getCalificacionTextClass(
+                              process.calificacionFinal,
+                            )}
+                          >
+                            {getCalificacionLabel(process.calificacionFinal)}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
@@ -654,6 +667,16 @@ export default function Procesos() {
                         {new Date(
                           process.fechaRecepcion,
                         ).toLocaleDateString()}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Calificación: </span>
+                        <span
+                          className={getCalificacionTextClass(
+                            process.calificacionFinal,
+                          )}
+                        >
+                          {getCalificacionLabel(process.calificacionFinal)}
+                        </span>
                       </div>
                     </div>
                     <div className="mt-2 flex justify-end gap-1">
