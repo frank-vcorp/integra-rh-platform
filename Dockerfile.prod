@@ -22,7 +22,7 @@ COPY integra-rh-manus ./integra-rh-manus
 
 # Exportar variables de Firebase para que Vite las compile en el bundle
 WORKDIR /app/integra-rh-manus
-RUN source .env.production && npm run build
+RUN set -a && source .env.production && set +a && npm run build
 
 # Etapa de producción
 FROM node:18-alpine
