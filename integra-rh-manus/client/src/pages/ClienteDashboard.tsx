@@ -413,32 +413,54 @@ function WorkHistoryPreview({ candidatoId }: { candidatoId: number }) {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold">Historial laboral</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {workHistory.slice(0, 3).map((job: any) => (
-          <div key={job.id} className="border rounded-md p-3 text-sm text-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-gray-900">{job.empresa}</p>
-                <p>{job.puesto || "—"}</p>
-                <p className="text-xs text-gray-500">
-                  {job.fechaInicio ? formatearFecha(job.fechaInicio) : "—"} -{" "}
-                  {job.fechaFin ? formatearFecha(job.fechaFin) : "Actual"} •{" "}
-                  {job.tiempoTrabajado || calcularTiempoTrabajado(job.fechaInicio, job.fechaFin) || "Tiempo no disponible"}
-                </p>
-              </div>
-              <Badge className="bg-indigo-100 text-indigo-800">
-                {job.estatusInvestigacion
-                  ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
-                  : ESTATUS_INVESTIGACION_LABELS.en_revision}
-              </Badge>
-            </div>
-            {job.comentarioInvestigacion && (
-              <p className="mt-2 text-xs text-gray-500">
-                Comentario: {job.comentarioInvestigacion}
-              </p>
-            )}
-          </div>
-        ))}
+      <CardContent>
+        <Accordion type="single" collapsible className="w-full space-y-2">
+          {workHistory.slice(0, 3).map((job: any) => (
+            <AccordionItem key={job.id} value={`job-${job.id}`} className="border rounded-md px-3">
+              <AccordionTrigger className="py-2 text-left hover:no-underline">
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">{job.empresa}</p>
+                  <p className="text-xs text-gray-500">
+                    {job.puesto || "—"} • {job.tiempoTrabajado || calcularTiempoTrabajado(job.fechaInicio, job.fechaFin) || "Tiempo no disponible"}
+                  </p>
+                </div>
+                <Badge className="bg-indigo-100 text-indigo-800 ml-2">
+                  {job.estatusInvestigacion
+                    ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
+                    : ESTATUS_INVESTIGACION_LABELS.en_revision}
+                </Badge>
+              </AccordionTrigger>
+              <AccordionContent className="pb-3 space-y-3 text-sm text-gray-700">
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">Fechas</p>
+                  <p className="text-xs">
+                    {job.fechaInicio ? formatearFecha(job.fechaInicio) : "—"} a {job.fechaFin ? formatearFecha(job.fechaFin) : "Actual"}
+                  </p>
+                </div>
+                {job.causalSalidaRH && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1">Motivo de salida</p>
+                    <p className="text-xs bg-gray-50 p-2 rounded">{job.causalSalidaRH}</p>
+                  </div>
+                )}
+                {job.comentarioInvestigacion && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1">Comentario de investigación</p>
+                    <p className="text-xs bg-gray-50 p-2 rounded">{job.comentarioInvestigacion}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">Status investigación</p>
+                  <p className="text-xs">
+                    {job.estatusInvestigacion
+                      ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
+                      : "En revisión"}
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       </CardContent>
     </Card>
   );
