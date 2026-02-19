@@ -91,8 +91,8 @@ export default function ClienteDashboard() {
             />
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-500">Portal empresarial</p>
-              <h1 className="text-2xl font-bold text-gray-900">Sinergia RH</h1>
-              <p className="text-sm text-gray-600">Bienvenido {clientData.nombreEmpresa}</p>
+              <h1 className="text-3xl font-bold text-gray-900">{clientData.nombreEmpresa}</h1>
+              <p className="text-xs text-gray-500">Powered by Sinergia RH</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
