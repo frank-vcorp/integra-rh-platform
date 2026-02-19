@@ -439,85 +439,10 @@ export default function ProcesoDetalle() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">Analista asignado</p>
-                {(process as any).responsableName && (
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {(process as any).responsableName}
-                  </span>
-                )}
-              </div>
-              {(process as any).responsableName && (
-                <p className="text-[11px] text-muted-foreground mb-3">
-                  <span className="text-emerald-600">✓ Heredado del candidato</span>
-                </p>
-              )}
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="h-4 w-4 text-blue-600" />
-                  <select
-                    className="border rounded-md h-9 px-2 flex-1"
-                    value={panelForm.especialistaAtraccionId}
-                    onChange={e =>
-                      setPanelForm(f => {
-                        const val = e.target.value;
-                        const uid = val ? Number(val) : null;
-                        const u = (users as any[]).find(us => us.id === uid);
-                        return {
-                          ...f,
-                          especialistaAtraccionId: val,
-                          especialistaAtraccionNombre:
-                            u?.name || u?.email || f.especialistaAtraccionNombre,
-                        };
-                      })
-                    }
-                    disabled={isClientAuth || !canEditProcess}
-                  >
-                    <option value="">Sin asignar</option>
-                    {(users as any[])
-                      .filter(u => u.role === "admin")
-                      .map(u => {
-                        const count = assignedCounts[u.id] || 0;
-                        const labelBase = u.name || u.email || "Sin nombre";
-                        const labelCount =
-                          count > 0
-                            ? ` — ${count} proceso${count === 1 ? "" : "s"}`
-                            : " — 0 procesos";
-                        return (
-                          <option key={u.id} value={u.id}>
-                            {labelBase}
-                            {labelCount}
-                          </option>
-                        );
-                      })}
-                  </select>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {panelForm.especialistaAtraccionId
-                    ? (() => {
-                        const uid = Number(panelForm.especialistaAtraccionId);
-                        const u = (users as any[]).find(us => us.id === uid);
-                        const count = assignedCounts[uid] || 0;
-                        const displayName = u?.name || u?.email || "Analista";
-                        return `Analista seleccionado: ${displayName}. Actualmente tiene ${count} proceso${
-                          count === 1 ? "" : "s"
-                        } asignado${
-                          count === 1 ? "" : "s"
-                        }. Para guardar la asignación usa el botón "Guardar bloques" de este recuadro.`;
-                      })()
-                    : 'Selecciona quién dará seguimiento a este proceso y luego usa el botón "Guardar bloques" para guardar la asignación.'}
-                </p>
-                <div className="mt-1">
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={isClientAuth || !canEditProcess || updatePanelDetail.isPending}
-                    onClick={handleSavePanel}
-                  >
-                    Guardar asignación
-                  </Button>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">Analista asignado</p>
+              <p className="text-base font-semibold">
+                {(process as any).responsableName || "Sin asignar"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Proceso a realizar</p>
