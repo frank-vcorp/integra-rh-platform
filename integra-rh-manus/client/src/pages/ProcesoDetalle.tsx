@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck } from "lucide-react";
+import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
@@ -267,6 +267,9 @@ export default function ProcesoDetalle() {
   const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
   const [calificacion, setCalificacion] = useState("");
   const [comentarioCalificacion, setComentarioCalificacion] = useState("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxSection, setLightboxSection] = useState<"legal" | "semanas">("legal");
 
   useEffect(() => {
     if (process) {
@@ -839,25 +842,85 @@ export default function ProcesoDetalle() {
                 rows={2}
                 disabled={isClientAuth || !canEditProcess}
               />
-              {/* Observaciones IMSS REMOVIDO */}
-              
-              <Label className="text-xs mt-2">
-                Comentario sobre cotejo de semanas cotizadas
-              </Label>
-              <Textarea
-                value={panelForm.investigacionLegal.semanasComentario}
-                onChange={e =>
-                  setPanelForm(f => ({
-                    ...f,
-                    investigacionLegal: {
-                      ...f.investigacionLegal,
-                      semanasComentario: e.target.value,
-                    },
-                  }))
-                }
-                rows={2}
-                disabled={isClientAuth || !canEditProcess}
-              />
+
+              <div className="mt-3">
+                <Label className="text-xs">Evidencia Gráfica (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
+                <div
+                  className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-gray-50 mt-1 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onPaste={async (e) => {
+                    if (isClientAuth || !canEditProcess) return;
+                    e.preventDefault();
+                    const items = e.clipboardData.items;
+                    let blob: File | null = null;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.indexOf("image") !== -1) {
+                        blob = items[i].getAsFile();
+                        break;
+                      }
+                    }
+                    if (!blob) {
+                      toast.error("No se detectó imagen en el portapapeles");
+                      return;
+                    }
+                    try {
+                      toast.info("Subiendo imagen pegada...");
+                      const arrayBuf = await blob.arrayBuffer();
+                      let binary = '';
+                      const bytes = new Uint8Array(arrayBuf);
+                      const len = bytes.byteLength;
+                      for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                      }
+                      const base64 = btoa(binary);
+
+                      const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
+                      
+                      setPanelForm(currentForm => {
+                        const newForm = { 
+                          ...currentForm, 
+                          investigacionLegal: { 
+                            ...currentForm.investigacionLegal, 
+                            evidenciasGraficas: [...(currentForm.investigacionLegal as any).evidenciasGraficas, res.url]
+                          } 
+                        };
+                        updatePanelDetail.mutate(getPanelPayload(newForm));
+                        return newForm;
+                      });
+                      toast.success("Evidencia guardada");
+                    } catch (err: any) {
+                      toast.error("Error al subir: " + err.message);
+                    }
+                  }}
+                  tabIndex={0}
+                >
+                  {(panelForm.investigacionLegal as any).evidenciasGraficas?.length > 0 ? (
+                    <div className="w-full">
+                      <div className="grid grid-cols-3 gap-2">
+                        {(panelForm.investigacionLegal as any).evidenciasGraficas.map((url: string, idx: number) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={url} 
+                              alt={`Evidencia ${idx + 1}`} 
+                              className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                              onClick={() => { setLightboxSection("legal"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                            />
+                            <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
+                              e.stopPropagation();
+                              setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, evidenciasGraficas: (f.investigacionLegal as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
+                            }}>×</Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.investigacionLegal as any).evidenciasGraficas?.length || 0})</p>
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Observaciones IMSS removido - trasladado a semanasDetalle */}
               <div className="mt-2 flex items-center gap-2 text-sm">
                 <input
                   id="invLegalRiesgo"
@@ -868,10 +931,114 @@ export default function ProcesoDetalle() {
                 />
                 <Label htmlFor="invLegalRiesgo">Con riesgo</Label>
               </div>
+            </div>
 
-              {/* Antecedentes Penales - Carga de archivos */}
-              <div className="mt-4 pt-3 border-t">
-                <Label className="text-xs font-semibold">Archivos - Antecedentes Penales</Label>
+            {/* SEMANAS COTIZADAS - Bloque separado */}
+            <div className="border rounded p-3 bg-white shadow-sm">
+              <h3 className="text-sm font-bold text-blue-900 mb-3">SEMANAS COTIZADAS</h3>
+              
+              <Label className="text-xs">Comentario sobre cotejo de semanas cotizadas</Label>
+              <Textarea
+                value={panelForm.semanasDetalle.comentario}
+                onChange={e =>
+                  setPanelForm(f => ({
+                    ...f,
+                    semanasDetalle: {
+                      ...f.semanasDetalle,
+                      comentario: e.target.value,
+                    },
+                  }))
+                }
+                rows={2}
+                disabled={isClientAuth || !canEditProcess}
+                placeholder="Registra aquí los detalles del cotejo de semanas cotizadas"
+              />
+
+              <div className="mt-3">
+                <Label className="text-xs">Evidencia de Semanas (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
+                <div
+                  className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-blue-50 mt-1 cursor-pointer hover:bg-blue-100 transition-colors"
+                  onPaste={async (e) => {
+                    if (isClientAuth || !canEditProcess) return;
+                    e.preventDefault();
+                    const items = e.clipboardData.items;
+                    let blob: File | null = null;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.indexOf("image") !== -1) {
+                        blob = items[i].getAsFile();
+                        break;
+                      }
+                    }
+                    if (!blob) {
+                      toast.error("No se detectó imagen en el portapapeles");
+                      return;
+                    }
+                    try {
+                      toast.info("Subiendo imagen pegada...");
+                      const arrayBuf = await blob.arrayBuffer();
+                      let binary = '';
+                      const bytes = new Uint8Array(arrayBuf);
+                      const len = bytes.byteLength;
+                      for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                      }
+                      const base64 = btoa(binary);
+
+                      const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
+                      
+                      setPanelForm(currentForm => {
+                        const newForm = { 
+                          ...currentForm, 
+                          semanasDetalle: { 
+                            ...currentForm.semanasDetalle, 
+                            evidenciasGraficas: [...(currentForm.semanasDetalle as any).evidenciasGraficas, res.url]
+                          } 
+                        };
+                        updatePanelDetail.mutate(getPanelPayload(newForm));
+                        return newForm;
+                      });
+                      toast.success("Evidencia guardada");
+                    } catch (err: any) {
+                      toast.error("Error al subir: " + err.message);
+                    }
+                  }}
+                  tabIndex={0}
+                >
+                  {(panelForm.semanasDetalle as any).evidenciasGraficas?.length > 0 ? (
+                    <div className="w-full">
+                      <div className="grid grid-cols-3 gap-2">
+                        {(panelForm.semanasDetalle as any).evidenciasGraficas.map((url: string, idx: number) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={url} 
+                              alt={`Semanas ${idx + 1}`} 
+                              className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                              onClick={() => { setLightboxSection("semanas"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                            />
+                            <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
+                              e.stopPropagation();
+                              setPanelForm(f => ({ ...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: (f.semanasDetalle as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
+                            }}>×</Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.semanasDetalle as any).evidenciasGraficas?.length || 0})</p>
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Antecedentes Penales */}
+            <div className="border rounded p-3 bg-white shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <p className="font-semibold">Antecedentes Penales</p>
+              </div>
                 <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
                   <input
                     type="file"
@@ -907,7 +1074,6 @@ export default function ProcesoDetalle() {
                   <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
                 </div>
               </div>
-            </div>
 
             <div className="border rounded p-3 bg-white shadow-sm">
               <div className="flex items-center gap-2 mb-2">
@@ -1055,6 +1221,7 @@ export default function ProcesoDetalle() {
               />
             </div>
           </div>
+
           <p className="text-xs text-muted-foreground">Captura interna; el cliente solo lo ve en modo lectura.</p>
         </CardContent>
       </Card>
@@ -1365,6 +1532,60 @@ export default function ProcesoDetalle() {
           )}
         </CardContent>
       </Card>
+
+      {/* Lightbox Modal para galerías */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {lightboxSection === "legal" ? "Evidencia - Investigación Legal" : "Evidencia - Semanas Cotizadas"}
+            </DialogTitle>
+          </DialogHeader>
+          {
+            lightboxSection === "legal" 
+              ? ((panelForm.investigacionLegal as any).evidenciasGraficas?.length > 0 && (
+                  <div className="space-y-3">
+                    <img 
+                      src={(panelForm.investigacionLegal as any).evidenciasGraficas[lightboxIndex]} 
+                      alt="Lightbox" 
+                      className="w-full max-h-96 object-contain rounded"
+                    />
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{lightboxIndex + 1} de {(panelForm.investigacionLegal as any).evidenciasGraficas.length}</span>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
+                          <ChevronLeft className="h-4 w-4" /> Anterior
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.min((panelForm.investigacionLegal as any).evidenciasGraficas.length - 1, lightboxIndex + 1))} disabled={lightboxIndex === (panelForm.investigacionLegal as any).evidenciasGraficas.length - 1}>
+                          Siguiente <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              : ((panelForm.semanasDetalle as any).evidenciasGraficas?.length > 0 && (
+                  <div className="space-y-3">
+                    <img 
+                      src={(panelForm.semanasDetalle as any).evidenciasGraficas[lightboxIndex]} 
+                      alt="Lightbox" 
+                      className="w-full max-h-96 object-contain rounded"
+                    />
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{lightboxIndex + 1} de {(panelForm.semanasDetalle as any).evidenciasGraficas.length}</span>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
+                          <ChevronLeft className="h-4 w-4" /> Anterior
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.min((panelForm.semanasDetalle as any).evidenciasGraficas.length - 1, lightboxIndex + 1))} disabled={lightboxIndex === (panelForm.semanasDetalle as any).evidenciasGraficas.length - 1}>
+                          Siguiente <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+          }
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
