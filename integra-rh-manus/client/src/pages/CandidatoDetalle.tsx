@@ -745,7 +745,6 @@ export default function CandidatoDetalle() {
     // Financiero / Antecedentes
     perfil.financieroAntecedentes?.tieneDeudas,
     perfil.financieroAntecedentes?.institucionDeuda,
-    perfil.financieroAntecedentes?.buroCreditoDeclarado,
     perfil.financieroAntecedentes?.haSidoSindicalizado,
     perfil.financieroAntecedentes?.haEstadoAfianzado,
     perfil.financieroAntecedentes?.accidentesVialesPrevios,
@@ -813,7 +812,7 @@ export default function CandidatoDetalle() {
   const hasEconomia =
     hasValue(perfil.financieroAntecedentes?.tieneDeudas) ||
     hasValue(perfil.financieroAntecedentes?.institucionDeuda) ||
-    hasValue(perfil.financieroAntecedentes?.buroCreditoDeclarado) ||
+
     hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) ||
     hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado) ||
     hasValue(perfil.financieroAntecedentes?.accidentesVialesPrevios) ||
@@ -1491,15 +1490,6 @@ export default function CandidatoDetalle() {
                       <span className="inline-flex items-center gap-1">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         {perfil.financieroAntecedentes?.institucionDeuda}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.financieroAntecedentes?.buroCreditoDeclarado) && (
-                    <p>
-                      <span className="text-muted-foreground">Buró de crédito (declarado): </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.buroCreditoDeclarado}
                       </span>
                     </p>
                   )}

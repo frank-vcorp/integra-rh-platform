@@ -162,7 +162,6 @@ export default function CandidatoSelfService() {
     // Financiero / antecedentes
     tieneDeudas: string;
     institucionDeuda: string;
-    buroCreditoDeclarado: string;
     historialburoCredito: string;
     haSidoSindicalizado: string;
     sindicatoEmpresa: string;
@@ -217,7 +216,6 @@ export default function CandidatoSelfService() {
     negocioEnConjunto: "",
     tieneDeudas: "",
     institucionDeuda: "",
-    buroCreditoDeclarado: "",
     historialburoCredito: "",
     haSidoSindicalizado: "",
     sindicatoEmpresa: "",
@@ -372,8 +370,6 @@ export default function CandidatoSelfService() {
       tieneDeudas: detalle.financieroAntecedentes?.tieneDeudas || "",
       institucionDeuda:
         detalle.financieroAntecedentes?.institucionDeuda || "",
-      buroCreditoDeclarado:
-        detalle.financieroAntecedentes?.buroCreditoDeclarado || "",
       historialburoCredito:
         detalle.financieroAntecedentes?.historialburoCredito || "",
       haSidoSindicalizado:
@@ -463,7 +459,6 @@ export default function CandidatoSelfService() {
       perfil.claseLicencia,
       perfil.tieneVehiculo,
       perfil.tieneDeudas,
-      perfil.buroCreditoDeclarado,
       perfil.haSidoSindicalizado,
       perfil.haEstadoAfianzado,
       jobs.length > 0,
@@ -541,7 +536,6 @@ export default function CandidatoSelfService() {
         financieroAntecedentes: {
           tieneDeudas: perfil.tieneDeudas || "",
           institucionDeuda: perfil.institucionDeuda || "",
-          buroCreditoDeclarado: perfil.buroCreditoDeclarado || "",
           historialburoCredito: perfil.historialburoCredito || "",
           haSidoSindicalizado: perfil.haSidoSindicalizado || "",
           sindicatoEmpresa: perfil.sindicatoEmpresa || "",
@@ -1391,21 +1385,6 @@ export default function CandidatoSelfService() {
                       setPerfil((p) => ({
                         ...p,
                         institucionDeuda: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="buroCreditoDeclarado">
-                    ¿Te han dicho que estás en buró de crédito?
-                  </Label>
-                  <Input
-                    id="buroCreditoDeclarado"
-                    value={perfil.buroCreditoDeclarado}
-                    onChange={(e) =>
-                      setPerfil((p) => ({
-                        ...p,
-                        buroCreditoDeclarado: e.target.value,
                       }))
                     }
                   />
