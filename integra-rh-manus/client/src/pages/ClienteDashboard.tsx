@@ -236,7 +236,7 @@ export default function ClienteDashboard() {
                           </TableCell>
                           <TableCell>
                             <span className="text-xs text-gray-600 line-clamp-2">
-                              {(process as any)?.observacionesCalificacion || '-'}
+                              {(process as any)?.comentarioCalificacion || '-'}
                             </span>
                           </TableCell>
                           <TableCell>

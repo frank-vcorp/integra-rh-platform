@@ -266,11 +266,11 @@ export default function ClienteProcesoDetalle() {
                 </p>
               )}
             </div>
-            {(process as any)?.observacionesCalificacion && (
+            {(process as any)?.comentarioCalificacion && (
               <div className="border-t pt-4">
                 <p className="text-sm text-gray-600 font-semibold mb-2">Observaciones</p>
                 <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
-                  {(process as any).observacionesCalificacion}
+                  {(process as any).comentarioCalificacion}
                 </p>
               </div>
             )}
