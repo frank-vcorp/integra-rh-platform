@@ -538,7 +538,6 @@ export default function CandidatoDetalle() {
       antiguedadTexto: getString("antiguedadTexto"),
       sueldoInicial: getString("sueldoInicial"),
       sueldoFinal: getString("sueldoFinal"),
-      semanasCotizadas: getString("semanasCotizadas"),
       disposicionSemanasCotizadas: getString("disposicionSemanasCotizadas"),
       motivoDisposicion: getString("motivoDisposicion"),
       periodos: periodos.length > 0 ? periodos : undefined,
@@ -2890,17 +2889,6 @@ export default function CandidatoDetalle() {
             <div className="border rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold">Semanas cotizadas</div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label htmlFor="semanasCotizadas">Semanas cotizadas</Label>
-                  <Input
-                    id="semanasCotizadas"
-                    name="semanasCotizadas"
-                    defaultValue={
-                      investigationTarget?.investigacionDetalle?.periodo?.semanasCotizadas ||
-                      ""
-                    }
-                  />
-                </div>
                 <div className="col-span-2">
                   <Label htmlFor="disposicionSemanasCotizadas">
                     Disposición de semanas cotizadas
