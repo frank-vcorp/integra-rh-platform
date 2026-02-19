@@ -247,6 +247,7 @@ export default function ProcesoDetalle() {
       notasPeriodisticas: "",
       observacionesImss: "",
       semanasComentario: "",
+      evidenciaImgUrl: "",
     },
     buroCredito: { estatus: "", score: "", aprobado: null as null | boolean },
     visitaDetalle: { tipo: "", comentarios: "", fechaRealizacion: "", enlaceReporteUrl: "" },
@@ -301,6 +302,7 @@ export default function ProcesoDetalle() {
         notasPeriodisticas: (process as any).investigacionLegal?.notasPeriodisticas || "",
         observacionesImss: (process as any).investigacionLegal?.observacionesImss || "",
         semanasComentario: (process as any).investigacionLegal?.semanasComentario || "",
+        evidenciaImgUrl: (process as any).investigacionLegal?.evidenciaImgUrl || "",
       },
       buroCredito: {
         estatus: (process as any).buroCredito?.estatus || "",
