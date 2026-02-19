@@ -154,9 +154,9 @@ export default function ProcesoDetalle() {
   const ESTATUS = [
     { value: 'en_recepcion', label: 'EN RECEPCIÓN' },
     { value: 'asignado', label: 'ASIGNADO' },
-    { value: 'en_verificacion', label: 'EN INVESTIGACIÓN' },
     { value: 'entrevistado', label: 'ENTREVISTADO' },
     { value: 'no_entrevistado', label: 'NO ENTREVISTADO' },
+    { value: 'en_verificacion', label: 'EN INVESTIGACIÓN' },
     { value: 'visita_programada', label: 'VISITA PROGRAMADA' },
     { value: 'visita_realizada', label: 'VISITA REALIZADA' },
     { value: 'en_dictamen', label: 'EN REVISIÓN FINAL' },
