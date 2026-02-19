@@ -1824,6 +1824,12 @@ export default function CandidatoDetalle() {
                           <span className="text-muted-foreground">Observaciones:</span> {item.observaciones}
                         </p>
                       )}
+                      {item.investigacionDetalle && item.investigacionDetalle.conclusion && item.investigacionDetalle.conclusion.comentariosAdicionales && (
+                        <p className="text-sm mt-2 bg-amber-50 p-2 rounded-md border-l-2 border-amber-400">
+                          <span className="text-muted-foreground font-semibold block mb-1">Comentarios adicionales:</span>
+                          <span className="text-slate-700">{item.investigacionDetalle.conclusion.comentariosAdicionales}</span>
+                        </p>
+                      )}
                       {item.investigacionDetalle && (
                         <div className="mt-3 border-t pt-2 text-[11px] text-slate-600 space-y-1">
                           {(() => {
