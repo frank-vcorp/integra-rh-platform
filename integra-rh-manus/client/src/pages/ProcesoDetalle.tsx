@@ -437,6 +437,15 @@ export default function ProcesoDetalle() {
           <CardTitle>Información</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Responsable del Proceso - Heredado del Candidato */}
+          <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-xs text-blue-600 font-medium mb-1">Responsable del Proceso (Heredado)</p>
+            <p className="text-sm font-semibold text-blue-900">
+              {(process as any).responsableName || "Sin asignar"}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">Este analista fue asignado automáticamente del candidato</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-2">
