@@ -197,6 +197,7 @@ export default function ClienteDashboard() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estatus</TableHead>
                       <TableHead>Calificación</TableHead>
+                      <TableHead>Observaciones</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
@@ -231,6 +232,11 @@ export default function ClienteDashboard() {
                               )}`}
                             >
                               {getCalificacionLabel(process.calificacionFinal)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs text-gray-600 line-clamp-2">
+                              {(process as any)?.observacionesCalificacion || '-'}
                             </span>
                           </TableCell>
                           <TableCell>

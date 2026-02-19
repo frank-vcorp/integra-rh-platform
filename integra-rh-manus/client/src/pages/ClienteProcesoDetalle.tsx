@@ -251,7 +251,7 @@ export default function ClienteProcesoDetalle() {
               Calificación Final
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="text-center py-6">
               <p
                 className={`text-4xl font-bold ${getCalificacionTextClass(
@@ -266,6 +266,14 @@ export default function ClienteProcesoDetalle() {
                 </p>
               )}
             </div>
+            {(process as any)?.observacionesCalificacion && (
+              <div className="border-t pt-4">
+                <p className="text-sm text-gray-600 font-semibold mb-2">Observaciones</p>
+                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                  {(process as any).observacionesCalificacion}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
