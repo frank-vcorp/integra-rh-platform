@@ -267,7 +267,7 @@ export const appRouter = router({
         contactoReferencia: z.string().optional(),
         telefonoReferencia: z.string().optional(),
         correoReferencia: z.string().email().optional(),
-        resultadoVerificacion: z.enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
+        resultadoVerificacion: z.enum(["pendiente", "recomendable", "con_reservas", "no_recomendable", "recomendable_con_observacion", "con_reservas_con_observacion"]).optional(),
         observaciones: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
@@ -287,7 +287,7 @@ export const appRouter = router({
           contactoReferencia: z.string().optional(),
           telefonoReferencia: z.string().optional(),
           correoReferencia: z.string().email().optional(),
-          resultadoVerificacion: z.enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
+          resultadoVerificacion: z.enum(["pendiente", "recomendable", "con_reservas", "no_recomendable", "recomendable_con_observacion", "con_reservas_con_observacion"]).optional(),
           observaciones: z.string().optional(),
         }),
       }))
@@ -460,7 +460,7 @@ export const appRouter = router({
             "finalizado",
             "entregado"
           ]).optional(),
-          calificacionFinal: z.enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
+          calificacionFinal: z.enum(["pendiente", "recomendable", "con_reservas", "no_recomendable", "recomendable_con_observacion", "con_reservas_con_observacion"]).optional(),
           fechaEnvio: z.date().optional(),
           quienEnvio: z.string().optional(),
           archivoDictamenUrl: z.string().optional(),

@@ -253,7 +253,7 @@ export const processesRouter = router({
     .use(requirePermission("procesos", "edit"))
     .input(z.object({ 
       id: z.number(), 
-      calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable"]),
+      calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable","recomendable_con_observacion","con_reservas_con_observacion"]),
       comentarioCalificacion: z.string().optional()
     }))
     .mutation(async ({ input, ctx }) => {
@@ -303,8 +303,12 @@ export const processesRouter = router({
         archivoAdjuntoUrl: z.string().trim().optional(),
         notasPeriodisticas: z.string().trim().optional(),
         observacionesImss: z.string().trim().optional(),
-        semanasComentario: z.string().trim().optional(),
         evidenciaImgUrl: z.string().trim().optional().nullable(),
+        evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs
+      }).partial().optional(),
+      semanasDetalle: z.object({
+        comentario: z.string().trim().optional(),
+        evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs
       }).partial().optional(),
       buroCredito: z.object({
         estatus: z.string().trim().optional(),
@@ -334,6 +338,7 @@ export const processesRouter = router({
         fechaCierre: input.fechaCierre ? new Date(input.fechaCierre) : null,
         investigacionLaboral: input.investigacionLaboral,
         investigacionLegal: input.investigacionLegal,
+        semanasDetalle: input.semanasDetalle,
         buroCredito: input.buroCredito,
         visitaDetalle: input.visitaDetalle,
       };

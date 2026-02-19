@@ -168,6 +168,8 @@ export default function ProcesoDetalle() {
     { value: 'recomendable', label: 'Recomendable' },
     { value: 'con_reservas', label: 'Con reservas' },
     { value: 'no_recomendable', label: 'No recomendable' },
+    { value: 'recomendable_con_observacion', label: 'Recomendable con Observación' },
+    { value: 'con_reservas_con_observacion', label: 'Con Reservas con Observación' },
   ];
   const ESTATUS_VISUAL = [
     { value: "nuevo", label: "Nuevo" },
@@ -246,8 +248,12 @@ export default function ProcesoDetalle() {
       archivoAdjuntoUrl: "",
       notasPeriodisticas: "",
       observacionesImss: "",
-      semanasComentario: "",
       evidenciaImgUrl: "",
+      evidenciasGraficas: [] as string[],
+    },
+    semanasDetalle: {
+      comentario: "",
+      evidenciasGraficas: [] as string[],
     },
     buroCredito: { estatus: "", score: "", aprobado: null as null | boolean },
     visitaDetalle: { tipo: "", comentarios: "", fechaRealizacion: "", enlaceReporteUrl: "" },
@@ -301,8 +307,12 @@ export default function ProcesoDetalle() {
         archivoAdjuntoUrl: (process as any).investigacionLegal?.archivoAdjuntoUrl || "",
         notasPeriodisticas: (process as any).investigacionLegal?.notasPeriodisticas || "",
         observacionesImss: (process as any).investigacionLegal?.observacionesImss || "",
-        semanasComentario: (process as any).investigacionLegal?.semanasComentario || "",
         evidenciaImgUrl: (process as any).investigacionLegal?.evidenciaImgUrl || "",
+        evidenciasGraficas: Array.isArray((process as any).investigacionLegal?.evidenciasGraficas) ? (process as any).investigacionLegal.evidenciasGraficas : [],
+      },
+      semanasDetalle: {
+        comentario: (process as any).semanasDetalle?.comentario || "",
+        evidenciasGraficas: Array.isArray((process as any).semanasDetalle?.evidenciasGraficas) ? (process as any).semanasDetalle.evidenciasGraficas : [],
       },
       buroCredito: {
         estatus: (process as any).buroCredito?.estatus || "",

@@ -323,7 +323,7 @@ export const workHistoryRouter = router({
         telefonoReferencia: z.string().optional(),
         correoReferencia: z.string().email().optional(),
         resultadoVerificacion: z
-          .enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
+          .enum(["pendiente", "recomendable", "con_reservas", "no_recomendable", "recomendable_con_observacion", "con_reservas_con_observacion"]).optional(),
         observaciones: z.string().optional(),
         estatusInvestigacion: z.enum(ESTATUS_INVESTIGACION).optional(),
         comentarioInvestigacion: z.string().optional(),
@@ -362,7 +362,7 @@ export const workHistoryRouter = router({
           telefonoReferencia: z.string().optional(),
           correoReferencia: z.string().email().optional(),
           resultadoVerificacion: z
-            .enum(["pendiente", "recomendable", "con_reservas", "no_recomendable"]).optional(),
+            .enum(["pendiente", "recomendable", "con_reservas", "no_recomendable", "recomendable_con_observacion", "con_reservas_con_observacion"]).optional(),
           observaciones: z.string().optional(),
           estatusInvestigacion: z.enum(ESTATUS_INVESTIGACION).optional(),
           comentarioInvestigacion: z.string().optional(),

@@ -471,7 +471,9 @@ export const processes = mysqlTable("processes", {
     "pendiente",
     "recomendable",
     "con_reservas",
-    "no_recomendable"
+    "no_recomendable",
+    "recomendable_con_observacion",
+    "con_reservas_con_observacion"
   ]).default("pendiente"),
   comentarioCalificacion: text("comentarioCalificacion"),
   // Estatus visual y detalle granular para panel de clientes
@@ -500,10 +502,14 @@ export const processes = mysqlTable("processes", {
     antecedentes?: string;
     flagRiesgo?: boolean;
     archivoAdjuntoUrl?: string; // Para documento PDF principal
-    evidenciaImgUrl?: string;   // Para imagen pegada (portapapeles)
+    evidenciaImgUrl?: string;   // Para imagen pegada (portapapeles) - CAMPO VIEJO, mantener para compat
+    evidenciasGraficas?: string[]; // NEW: Array de URLs de imágenes
     // Investigación documental complementaria
     notasPeriodisticas?: string;
-    semanasComentario?: string;
+  }>(),
+  semanasDetalle: json("semanasDetalle").$type<{
+    comentario?: string;
+    evidenciasGraficas?: string[]; // Array de URLs de imágenes de semanas
   }>(),
   buroCredito: json("buroCredito").$type<{
     pdfUrl?: string; // Archivo PDF del reporte de Buró

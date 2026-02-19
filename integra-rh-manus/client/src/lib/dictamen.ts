@@ -3,6 +3,8 @@ export type CalificacionFinalType =
   | "recomendable"
   | "con_reservas"
   | "no_recomendable"
+  | "recomendable_con_observacion"
+  | "con_reservas_con_observacion"
   | (string & {});
 
 export const CALIFICACION_LABELS: Record<CalificacionFinalType, string> = {
@@ -10,6 +12,8 @@ export const CALIFICACION_LABELS: Record<CalificacionFinalType, string> = {
   recomendable: "Recomendable",
   con_reservas: "Con Reservas",
   no_recomendable: "No Recomendable",
+  recomendable_con_observacion: "Recomendable con Observación",
+  con_reservas_con_observacion: "Con Reservas con Observación",
 };
 
 export function getCalificacionLabel(value?: string | null): string {
@@ -23,8 +27,10 @@ export function getCalificacionLabel(value?: string | null): string {
 export function getCalificacionTextClass(value?: string | null): string {
   switch (value as CalificacionFinalType) {
     case "recomendable":
+    case "recomendable_con_observacion":
       return "text-emerald-600";
     case "con_reservas":
+    case "con_reservas_con_observacion":
       return "text-amber-600";
     case "no_recomendable":
       return "text-red-600";

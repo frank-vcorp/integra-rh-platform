@@ -443,6 +443,12 @@ function WorkHistoryPreview({ candidatoId }: { candidatoId: number }) {
                     <p className="text-xs bg-gray-50 p-2 rounded">{job.causalSalidaRH}</p>
                   </div>
                 )}
+                {job.investigacionDetalle?.incidencias?.motivoSeparacionEmpresa && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-1">Motivo de Separación (Empresa)</p>
+                    <p className="text-xs bg-gray-50 p-2 rounded">{job.investigacionDetalle.incidencias.motivoSeparacionEmpresa}</p>
+                  </div>
+                )}
                 {job.comentarioInvestigacion && (
                   <div>
                     <p className="text-xs font-semibold text-gray-600 mb-1">Comentario de investigación</p>
