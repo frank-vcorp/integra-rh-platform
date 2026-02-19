@@ -437,29 +437,21 @@ export default function ProcesoDetalle() {
           <CardTitle>Información</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Responsable del Proceso - Heredado del Candidato */}
-          <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
-            <p className="text-xs text-blue-600 font-medium mb-1">Responsable del Proceso (Heredado)</p>
-            <p className="text-sm font-semibold text-blue-900">
-              {(process as any).responsableName || "Sin asignar"}
-            </p>
-            <p className="text-xs text-blue-600 mt-1">Este analista fue asignado automáticamente del candidato</p>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">Analista asignado</p>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    panelForm.especialistaAtraccionId
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-slate-50 text-slate-600 border border-slate-200"
-                  }`}
-                >
-                  {panelForm.especialistaAtraccionId ? "Asignado" : "Sin asignar"}
-                </span>
+                {(process as any).responsableName && (
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {(process as any).responsableName}
+                  </span>
+                )}
               </div>
+              {(process as any).responsableName && (
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  <span className="text-emerald-600">✓ Heredado del candidato</span>
+                </p>
+              )}
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <UserCheck className="h-4 w-4 text-blue-600" />
