@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Building2, Users, FileText, CheckCircle2, Clock, AlertCircle, Zap } from "lucide-react";
+import { Building2, Users, FileText, CheckCircle2, Clock, AlertCircle, Zap, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +41,40 @@ export default function Dashboard() {
 
   // Procesos recientes
   const recentProcesses = processes.slice(0, 5);
+
+  // Calcular procesos concluidos por día (últimos 30 días)
+  const last30DaysData = (() => {
+    const data: Record<string, number> = {};
+    const today = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateKey = date.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
+      data[dateKey] = 0;
+    }
+    
+    processes.forEach(p => {
+      if (p.estatusProceso === 'finalizado' || p.estatusProceso === 'entregado') {
+        if (p.fechaCierre) {
+          const closeDate = new Date(p.fechaCierre);
+          const today = new Date();
+          const daysDiff = Math.floor((today.getTime() - closeDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysDiff >= 0 && daysDiff < 30) {
+            const dateKey = closeDate.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
+            if (data[dateKey] !== undefined) {
+              data[dateKey]++;
+            }
+          }
+        }
+      }
+    });
+    
+    return Object.entries(data).map(([date, count]) => ({ date, count }));
+  })();
+
+  const maxValue = Math.max(...last30DaysData.map(d => d.count), 1);
 
   return (
     <div className="space-y-6">
@@ -181,6 +215,52 @@ export default function Dashboard() {
         </Card>
       </div>
       )}
+
+      {/* Completed Processes Analytics - IMPL-20260219-04 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Procesos Concluidos (Últimos 30 días)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex justify-center items-end gap-1 h-48 bg-gray-50 p-6 rounded-lg">
+              {last30DaysData.map((item, idx) => {
+                const height = maxValue > 0 ? (item.count / maxValue) * 160 : 0;
+                return (
+                  <div
+                    key={idx}
+                    className="flex-1 flex flex-col items-center gap-2 group"
+                  >
+                    <div className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-semibold">
+                      {item.count}
+                    </div>
+                    <div
+                      className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600 cursor-pointer"
+                      style={{ height: `${height}px`, minHeight: item.count > 0 ? '4px' : '1px' }}
+                      title={`${item.date}: ${item.count} proceso${item.count !== 1 ? 's' : ''}`}
+                    />
+                    <div className="text-xs text-muted-foreground hidden sm:block">
+                      {item.date}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Total concluidos: <strong className="text-foreground">{last30DaysData.reduce((sum, d) => sum + d.count, 0)}</strong>
+              </span>
+              <span>
+                Promedio diario: <strong className="text-foreground">{(last30DaysData.reduce((sum, d) => sum + d.count, 0) / 30).toFixed(1)}</strong>
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Processes */}
       <Card>
