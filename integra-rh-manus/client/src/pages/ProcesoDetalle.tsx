@@ -836,7 +836,7 @@ export default function ProcesoDetalle() {
 
                       // FIX-20260220-01: Debug log antes del upload
                       console.log('[FIX-20260220-01] onPaste Investigación Legal - Antes de upload:', {
-                        procesoId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`,
+                        procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`,
                         blobSize: blob.size, base64Length: base64.length
                       });
 
@@ -972,7 +972,7 @@ export default function ProcesoDetalle() {
 
                       // FIX-20260220-01: Debug log antes del upload
                       console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Antes de upload:', {
-                        procesoId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`,
+                        procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`,
                         blobSize: blob.size, base64Length: base64.length
                       });
 
