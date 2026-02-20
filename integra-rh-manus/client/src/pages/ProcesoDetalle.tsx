@@ -763,70 +763,6 @@ export default function ProcesoDetalle() {
                 disabled={isClientAuth || !canEditProcess}
               />
               
-              <div className="mt-2">
-                 <Label className="text-xs">Evidencia Gráfica (Pegar del portapapeles)</Label>
-                 <div
-                   className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-gray-50 mt-1 cursor-pointer hover:bg-gray-100 transition-colors"
-                   onPaste={async (e) => {
-                     if (isClientAuth) return;
-                     const items = e.clipboardData.items;
-                     let blob: File | null = null;
-                     for (let i = 0; i < items.length; i++) {
-                       if (items[i].type.indexOf("image") !== -1) {
-                         blob = items[i].getAsFile();
-                         break;
-                       }
-                     }
-                     if (!blob) {
-                       toast.error("No se detectó imagen en el portapapeles");
-                       return;
-                     }
-                     try {
-                       toast.info("Subiendo imagen pegada...");
-                       const arrayBuf = await blob.arrayBuffer();
-                       let binary = '';
-                       const bytes = new Uint8Array(arrayBuf);
-                       const len = bytes.byteLength;
-                       for (let i = 0; i < len; i++) {
-                         binary += String.fromCharCode(bytes[i]);
-                       }
-                       const base64 = btoa(binary);
-
-                       // Upload using generic uploader logic but tagging as EVIDENCIA_LEGAL
-                       const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-                       
-                       // Manually update the panel form url
-                       setPanelForm(currentForm => {
-                          const newForm = { 
-                            ...currentForm, 
-                            investigacionLegal: { ...currentForm.investigacionLegal, evidenciaImgUrl: res.url } 
-                          };
-                          // Trigger save with correct payload structure
-                          updatePanelDetail.mutate(getPanelPayload(newForm));
-                          return newForm;
-                       });
-                       toast.success("Evidencia guardada");
-                     } catch (err: any) {
-                       toast.error("Error al subir: " + err.message);
-                     }
-                   }}
-                 >
-                   {(panelForm.investigacionLegal as any).evidenciaImgUrl ? (
-                     <div className="relative group w-full flex justify-center">
-                       <img src={(panelForm.investigacionLegal as any).evidenciaImgUrl} alt="Evidencia" className="max-h-[150px] object-contain rounded shadow-sm" />
-                       <Button size="sm" variant="destructive" className="absolute top-1 right-1 opacity-0 group-hover:opacity-100" onClick={(e) => {
-                          e.stopPropagation();
-                          setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, evidenciaImgUrl: null } }));
-                       }}>X</Button>
-                     </div>
-                   ) : (
-                     <div className="text-center text-gray-400">
-                       <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imagen</p>
-                     </div>
-                   )}
-                 </div>
-              </div>
-
               <Label className="text-xs mt-2">Notas periodísticas / búsqueda en medios</Label>
               <Textarea
                 value={panelForm.investigacionLegal.notasPeriodisticas}
@@ -847,6 +783,7 @@ export default function ProcesoDetalle() {
                 <Label className="text-xs">Evidencia Gráfica (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
                 <div
                   className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-gray-50 mt-1 cursor-pointer hover:bg-gray-100 transition-colors"
+                  tabIndex={0}
                   onPaste={async (e) => {
                     if (isClientAuth || !canEditProcess) return;
                     e.preventDefault();
@@ -891,7 +828,6 @@ export default function ProcesoDetalle() {
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
-                  tabIndex={0}
                 >
                   {(panelForm.investigacionLegal as any).evidenciasGraficas?.length > 0 ? (
                     <div className="w-full">
