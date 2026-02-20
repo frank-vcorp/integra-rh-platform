@@ -41,13 +41,22 @@ export default function ProcesoDetalle() {
   });
   const updatePanelDetail = trpc.processes.updatePanelDetail.useMutation({
     onSuccess: () => {
+      // FIX-20260220-01: Log de éxito en actualización
+      console.log('[FIX-20260220-01] updatePanelDetail.onSuccess ejecutado - Changes guardados en BD');
       utils.processes.getById.invalidate({ id: processId });
       // También refrescamos la lista para que la columna "Responsable"
       // y los conteos de analista asignado se actualicen al instante.
       utils.processes.list.invalidate();
       toast.success("Bloques actualizados");
     },
-    onError: (e:any) => toast.error(e.message || "Error al guardar"),
+    onError: (e:any) => {
+      // FIX-20260220-01: Log de error en actualización
+      console.error('[FIX-20260220-01] updatePanelDetail.onError:', {
+        errorMessage: e.message,
+        errorData: e
+      });
+      toast.error(e.message || "Error al guardar");
+    },
   });
   // Llamar hooks siempre en el mismo orden. Evitar condicionales.
   const { data: surveyors = [] } = trpc.surveyors.listActive.useQuery(undefined as any, {
@@ -385,6 +394,15 @@ export default function ProcesoDetalle() {
         observacionesImss: form.investigacionLegal.observacionesImss || undefined,
         semanasComentario: form.investigacionLegal.semanasComentario || undefined,
         evidenciaImgUrl: (form.investigacionLegal as any).evidenciaImgUrl || undefined,
+        evidenciasGraficas: Array.isArray((form.investigacionLegal as any).evidenciasGraficas) 
+          ? (form.investigacionLegal as any).evidenciasGraficas.filter((url: string) => !!url)
+          : undefined,
+      },
+      semanasDetalle: {
+        comentario: form.semanasDetalle?.comentario || undefined,
+        evidenciasGraficas: Array.isArray((form.semanasDetalle as any)?.evidenciasGraficas)
+          ? (form.semanasDetalle as any).evidenciasGraficas.filter((url: string) => !!url)
+          : undefined,
       },
       buroCredito: {
         estatus: form.buroCredito.estatus || undefined,
@@ -400,6 +418,12 @@ export default function ProcesoDetalle() {
       },
       tipoProducto,
     };
+    
+    // FIX REFERENCE: FIX-20260220-01
+    // Agregado console.log para debugging del payload (puede removerse después de validación)
+    console.log('[FIX-20260220-01] getPanelPayload resultado:', JSON.stringify({payload: result, investigacionLegal: result.investigacionLegal, semanasDetalle: result.semanasDetalle}, null, 2));
+    
+    return result;
   };
 
   const handleSavePanel = () => {
@@ -810,8 +834,20 @@ export default function ProcesoDetalle() {
                       }
                       const base64 = btoa(binary);
 
+                      // FIX-20260220-01: Debug log antes del upload
+                      console.log('[FIX-20260220-01] onPaste Investigación Legal - Antes de upload:', {
+                        procesoId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`,
+                        blobSize: blob.size, base64Length: base64.length
+                      });
+
                       const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
                       
+                      // FIX-20260220-01: Debug log después del upload
+                      console.log('[FIX-20260220-01] onPaste Investigación Legal - Upload completado:', {
+                        respuestaUrl: res.url,
+                        estadoActualEvidencias: (panelForm.investigacionLegal as any).evidenciasGraficas
+                      });
+
                       setPanelForm(currentForm => {
                         const newForm = { 
                           ...currentForm, 
@@ -820,11 +856,24 @@ export default function ProcesoDetalle() {
                             evidenciasGraficas: [...(currentForm.investigacionLegal as any).evidenciasGraficas, res.url]
                           } 
                         };
-                        updatePanelDetail.mutate(getPanelPayload(newForm));
+                        
+                        // FIX-20260220-01: Debug log antes de guardar
+                        console.log('[FIX-20260220-01] onPaste Investigación Legal - Antes de updatePanelDetail.mutate:', {
+                          evidenciasGraficasEnNuevoForm: (newForm.investigacionLegal as any).evidenciasGraficas,
+                          payloadAEnviar: getPanelPayload(newForm)
+                        });
+
+                        const payload = getPanelPayload(newForm);
+                        updatePanelDetail.mutate(payload);
+                        
+                        // FIX-20260220-01: Debug log después de setState
+                        console.log('[FIX-20260220-01] onPaste Investigación Legal - SetPanelForm completado, estado local actualizado');
+                        
                         return newForm;
                       });
                       toast.success("Evidencia guardada");
                     } catch (err: any) {
+                      console.error('[FIX-20260220-01] Error en onPaste Investigación Legal:', err);
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
@@ -921,8 +970,20 @@ export default function ProcesoDetalle() {
                       }
                       const base64 = btoa(binary);
 
+                      // FIX-20260220-01: Debug log antes del upload
+                      console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Antes de upload:', {
+                        procesoId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`,
+                        blobSize: blob.size, base64Length: base64.length
+                      });
+
                       const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
                       
+                      // FIX-20260220-01: Debug log después del upload
+                      console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Upload completado:', {
+                        respuestaUrl: res.url,
+                        estadoActualEvidencias: (panelForm.semanasDetalle as any).evidenciasGraficas
+                      });
+
                       setPanelForm(currentForm => {
                         const newForm = { 
                           ...currentForm, 
@@ -931,11 +992,24 @@ export default function ProcesoDetalle() {
                             evidenciasGraficas: [...(currentForm.semanasDetalle as any).evidenciasGraficas, res.url]
                           } 
                         };
-                        updatePanelDetail.mutate(getPanelPayload(newForm));
+                        
+                        // FIX-20260220-01: Debug log antes de guardar
+                        console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Antes de updatePanelDetail.mutate:', {
+                          evidenciasGraficasEnNuevoForm: (newForm.semanasDetalle as any).evidenciasGraficas,
+                          payloadAEnviar: getPanelPayload(newForm)
+                        });
+
+                        const payload = getPanelPayload(newForm);
+                        updatePanelDetail.mutate(payload);
+                        
+                        // FIX-20260220-01: Debug log después de setState
+                        console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - SetPanelForm completado, estado local actualizado');
+                        
                         return newForm;
                       });
                       toast.success("Evidencia guardada");
                     } catch (err: any) {
+                      console.error('[FIX-20260220-01] Error en onPaste Semanas Cotizadas:', err);
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
