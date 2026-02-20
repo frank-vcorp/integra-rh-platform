@@ -894,6 +894,7 @@ export default function ProcesoDetalle() {
                 <Label className="text-xs">Evidencia de Semanas (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
                 <div
                   className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-blue-50 mt-1 cursor-pointer hover:bg-blue-100 transition-colors"
+                  tabIndex={0}
                   onPaste={async (e) => {
                     if (isClientAuth || !canEditProcess) return;
                     e.preventDefault();
@@ -938,7 +939,6 @@ export default function ProcesoDetalle() {
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
-                  tabIndex={0}
                 >
                   {(panelForm.semanasDetalle as any).evidenciasGraficas?.length > 0 ? (
                     <div className="w-full">
