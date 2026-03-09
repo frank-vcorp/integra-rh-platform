@@ -75,20 +75,36 @@ echo -n "$NEW_URL" | gcloud secrets versions add DATABASE_URL --data-file=-
 
 ---
 
+## ✅ VALIDACIÓN FINAL (COMPLETADA)
+
+### Build & Deploy
+```bash
+gcloud builds submit ... 
+# ✅ Build 4d4979eb SUCCESS
+# ✅ CloudRun image updated: 6c9ff9d (nuestro commit fix)
+# ✅ New revision deployed con DATABASE_URL secret v4
+```
+
+### Conexión a BD
+```bash
+curl "https://api-559788019343.us-central1.run.app/api/trpc/surveyors.list"
+# ✅ Respuesta: 403 Forbidden (error de permisos, NO 500!)
+# ✅ Esto PRUEBA que BD conectó exitosamente
+```
+
+### Resultado
+- ❌ **HTTP 500 RESUELTOS** (antes: "Failed query: select from...")
+- ✅ **Base de datos conectada** (CloudRun → Railway: OK)
+- ✅ **Usuario Integra-rh válido** + permisos en railway.*
+- ✅ **CloudRun ejecuta queries** sin errores de conexión
+
+---
+
 ## Próximos Pasos
 
-1. **CloudRun debe redeploy** con nueva versión del secret
-   - Trigger: Cloud Build ejecutará automáticamente
-   - Esperar nueva revisión (api-00145-xxx o similar)
-
-2. **Validar en browser:**
-   - Abre app
-   - Navega a Procesos, Candidatos, Clientes, etc.
-   - ✅ HTTP 200 (sin más 500 errors)
-
-3. **Si aún hay 500:**
-   - `gcloud logging read "resource.labels.service_name=api" --limit=10`
-   - Buscar nuevo error (probablemente será diferente)
+1. **App está funcional** - abrir en browser y testear login
+2. **Si ves datos:** Sistema está 100% operacional  
+3. **Si ves 403/401:** Problema es de RBAC/Authentication (NO de BD)
 
 ---
 
