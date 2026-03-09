@@ -264,8 +264,11 @@ export default function ProcesoDetalle() {
       comentario: "",
       evidenciasGraficas: [] as string[],
     },
-    buroCredito: { estatus: "", score: "", aprobado: null as null | boolean },
-    visitaDetalle: { tipo: "", comentarios: "", fechaRealizacion: "", enlaceReporteUrl: "" },
+    antecedentesPenales: {
+      evidenciasGraficas: [] as string[],
+    },
+    buroCredito: { estatus: "", score: "", aprobado: null as null | boolean, pdfUrl: "", archivosAdicionales: [] as string[] },
+    visitaDetalle: { tipo: "", comentarios: "", fechaRealizacion: "", enlaceReporteUrl: "", evidenciasGraficas: [] as string[] },
   });
   const [baseTipo, setBaseTipo] = useState<ProcesoBaseType>("ILA");
   const [ilaModo, setIlaModo] = useState<IlaModoType>("NORMAL");
@@ -278,7 +281,7 @@ export default function ProcesoDetalle() {
   const [comentarioCalificacion, setComentarioCalificacion] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [lightboxSection, setLightboxSection] = useState<"legal" | "semanas">("legal");
+  const [lightboxSection, setLightboxSection] = useState<"legal" | "semanas" | "penales" | "buro" | "visita">("legal");
 
   useEffect(() => {
     if (process) {
@@ -326,10 +329,15 @@ export default function ProcesoDetalle() {
         comentario: (process as any).semanasDetalle?.comentario || "",
         evidenciasGraficas: Array.isArray((process as any).semanasDetalle?.evidenciasGraficas) ? (process as any).semanasDetalle.evidenciasGraficas : [],
       },
+      antecedentesPenales: {
+        evidenciasGraficas: Array.isArray((process as any).antecedentesPenales?.evidenciasGraficas) ? (process as any).antecedentesPenales.evidenciasGraficas : [],
+      },
       buroCredito: {
         estatus: (process as any).buroCredito?.estatus || "",
         score: (process as any).buroCredito?.score || "",
         aprobado: (process as any).buroCredito?.aprobado ?? null,
+        pdfUrl: (process as any).buroCredito?.pdfUrl || "",
+        archivosAdicionales: Array.isArray((process as any).buroCredito?.archivosAdicionales) ? (process as any).buroCredito.archivosAdicionales : [],
       },
       visitaDetalle: {
         tipo: (process as any).visitaDetalle?.tipo || "",
@@ -338,6 +346,7 @@ export default function ProcesoDetalle() {
           ? new Date((process as any).visitaDetalle?.fechaRealizacion).toISOString().split("T")[0]
           : "",
         enlaceReporteUrl: (process as any).visitaDetalle?.enlaceReporteUrl || "",
+        evidenciasGraficas: Array.isArray((process as any).visitaDetalle?.evidenciasGraficas) ? (process as any).visitaDetalle.evidenciasGraficas : [],
       },
     });
   }, [process]);
@@ -373,7 +382,7 @@ export default function ProcesoDetalle() {
         : { base: "SEMANAS" };
     const tipoProducto = mapProcesoConfigToTipoProducto(config);
 
-    return {
+    const result = {
       id: processId,
       especialistaAtraccionId: form.especialistaAtraccionId
         ? Number(form.especialistaAtraccionId)
@@ -404,24 +413,34 @@ export default function ProcesoDetalle() {
           ? (form.semanasDetalle as any).evidenciasGraficas.filter((url: string) => !!url)
           : undefined,
       },
+      antecedentesPenales: {
+        evidenciasGraficas: Array.isArray((form.antecedentesPenales as any)?.evidenciasGraficas)
+          ? (form.antecedentesPenales as any).evidenciasGraficas.filter((url: string) => !!url)
+          : undefined,
+      },
       buroCredito: {
         estatus: form.buroCredito.estatus || undefined,
         score: form.buroCredito.score || undefined,
         aprobado: form.buroCredito.aprobado === null ? undefined : form.buroCredito.aprobado,
         pdfUrl: (form.buroCredito as any).pdfUrl || undefined,
+        archivosAdicionales: Array.isArray((form.buroCredito as any)?.archivosAdicionales)
+          ? (form.buroCredito as any).archivosAdicionales.filter((url: string) => !!url)
+          : undefined,
       },
       visitaDetalle: {
         tipo: (form.visitaDetalle.tipo as any) || undefined,
         comentarios: form.visitaDetalle.comentarios || undefined,
         fechaRealizacion: form.visitaDetalle.fechaRealizacion || undefined,
         enlaceReporteUrl: form.visitaDetalle.enlaceReporteUrl || undefined,
+        evidenciasGraficas: Array.isArray((form.visitaDetalle as any)?.evidenciasGraficas)
+          ? (form.visitaDetalle as any).evidenciasGraficas.filter((url: string) => !!url)
+          : undefined,
       },
       tipoProducto,
     };
     
-    // FIX REFERENCE: FIX-20260220-01
-    // Agregado console.log para debugging del payload (puede removerse después de validación)
-    console.log('[FIX-20260220-01] getPanelPayload resultado:', JSON.stringify({payload: result, investigacionLegal: result.investigacionLegal, semanasDetalle: result.semanasDetalle}, null, 2));
+    // IMPL-20260309-02: Debug log para validar payload con todas las evidenciasGraficas
+    console.log('[IMPL-20260309-02] getPanelPayload resultado:', JSON.stringify({payload: result, investigacionLegal: result.investigacionLegal, semanasDetalle: result.semanasDetalle, antecedentesPenales: result.antecedentesPenales, visitaDetalle: result.visitaDetalle}, null, 2));
     
     return result;
   };
@@ -1049,17 +1068,99 @@ export default function ProcesoDetalle() {
                 <AlertTriangle className="h-4 w-4 text-red-600" />
                 <p className="font-semibold">Antecedentes Penales</p>
               </div>
-                <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={async (e) => {
-                      const files = e.currentTarget.files;
-                      if (files && !isClientAuth && canEditProcess) {
-                        for (let i = 0; i < files.length; i++) {
-                          const file = files[i];
-                          const arrayBuf = await file.arrayBuffer();
+
+              <Label className="text-xs">Evidencia (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
+              <div
+                className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-red-50 mt-1 cursor-pointer hover:bg-red-100 transition-colors"
+                tabIndex={0}
+                onPaste={async (e) => {
+                  if (isClientAuth || !canEditProcess) return;
+                  e.preventDefault();
+                  const items = e.clipboardData.items;
+                  let blob: File | null = null;
+                  for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                      blob = items[i].getAsFile();
+                      break;
+                    }
+                  }
+                  if (!blob) {
+                    toast.error("No se detectó imagen en el portapapeles");
+                    return;
+                  }
+                  try {
+                    toast.info("Subiendo imagen pegada...");
+                    const arrayBuf = await blob.arrayBuffer();
+                    let binary = '';
+                    const bytes = new Uint8Array(arrayBuf);
+                    const len = bytes.byteLength;
+                    for (let i = 0; i < len; i++) {
+                      binary += String.fromCharCode(bytes[i]);
+                    }
+                    const base64 = btoa(binary);
+
+                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'ANTECEDENTES_PENALES', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
+                    
+                    setPanelForm(currentForm => {
+                      const newForm = { 
+                        ...currentForm, 
+                        antecedentesPenales: { 
+                          ...currentForm.antecedentesPenales, 
+                          evidenciasGraficas: [...(currentForm.antecedentesPenales as any).evidenciasGraficas, res.url]
+                        } 
+                      };
+                      
+                      const payload = getPanelPayload(newForm);
+                      updatePanelDetail.mutate(payload);
+                      
+                      return newForm;
+                    });
+                    toast.success("Evidencia guardada");
+                  } catch (err: any) {
+                    console.error('[IMPL-20260309-02] Error en onPaste Antecedentes Penales:', err);
+                    toast.error("Error al subir: " + err.message);
+                  }
+                }}
+              >
+                {(panelForm.antecedentesPenales as any).evidenciasGraficas?.length > 0 ? (
+                  <div className="w-full">
+                    <div className="grid grid-cols-3 gap-2">
+                      {(panelForm.antecedentesPenales as any).evidenciasGraficas.map((url: string, idx: number) => (
+                        <div key={idx} className="relative group">
+                          <img 
+                            src={url} 
+                            alt={`Antecedentes ${idx + 1}`} 
+                            className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                            onClick={() => { setLightboxSection("penales"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                          />
+                          <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
+                            e.stopPropagation();
+                            setPanelForm(f => ({ ...f, antecedentesPenales: { ...f.antecedentesPenales, evidenciasGraficas: (f.antecedentesPenales as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
+                          }}>×</Button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.antecedentesPenales as any).evidenciasGraficas?.length || 0})</p>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = e.currentTarget.files;
+                    const inputEl = e.currentTarget;
+                    if (files && !isClientAuth && canEditProcess) {
+                      for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        file.arrayBuffer().then(arrayBuf => {
                           let binary = '';
                           const bytes = new Uint8Array(arrayBuf);
                           const len = bytes.byteLength;
@@ -1074,16 +1175,17 @@ export default function ProcesoDetalle() {
                             contentType: file.type || 'application/octet-stream', 
                             base64 
                           } as any);
-                        }
+                        });
                       }
-                      (e.currentTarget as HTMLInputElement).value = '';
-                    }}
-                    disabled={isClientAuth || !canEditProcess}
-                    className="block w-full text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
-                </div>
+                      inputEl.value = '';
+                    }
+                  }}
+                  disabled={isClientAuth || !canEditProcess}
+                  className="block w-full text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
               </div>
+            </div>
 
             <div className="border rounded p-3 bg-white shadow-sm">
               <div className="flex items-center gap-2 mb-2">
@@ -1153,37 +1255,118 @@ export default function ProcesoDetalle() {
                 </div>
               )}
 
-              {/* Buró de Crédito - Carga de archivos Extra (Legacy support or extras) */}
+              {/* Buró de Crédito - Carga de archivos Extra con Galería */}
               <div className="mt-4 pt-3 border-t">
-                <Label className="text-xs font-semibold">Archivos Adicionales (Opcional)</Label>
+                <Label className="text-xs font-semibold">Archivos Adicionales (Opcional - con galería)</Label>
+                <div
+                  className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-amber-50 mt-2 cursor-pointer hover:bg-amber-100 transition-colors"
+                  tabIndex={0}
+                  onPaste={async (e) => {
+                    if (isClientAuth || !canEditProcess) return;
+                    e.preventDefault();
+                    const items = e.clipboardData.items;
+                    let blob: File | null = null;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.indexOf("image") !== -1) {
+                        blob = items[i].getAsFile();
+                        break;
+                      }
+                    }
+                    if (!blob) {
+                      toast.error("No se detectó imagen en el portapapeles");
+                      return;
+                    }
+                    try {
+                      toast.info("Subiendo imagen pegada...");
+                      const arrayBuf = await blob.arrayBuffer();
+                      let binary = '';
+                      const bytes = new Uint8Array(arrayBuf);
+                      const len = bytes.byteLength;
+                      for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                      }
+                      const base64 = btoa(binary);
+
+                      const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO_ADICIONAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
+                      
+                      setPanelForm(currentForm => {
+                        const newForm = { 
+                          ...currentForm, 
+                          buroCredito: { 
+                            ...currentForm.buroCredito, 
+                            archivosAdicionales: [...(currentForm.buroCredito as any).archivosAdicionales, res.url]
+                          } 
+                        };
+                        
+                        const payload = getPanelPayload(newForm);
+                        updatePanelDetail.mutate(payload);
+                        
+                        return newForm;
+                      });
+                      toast.success("Evidencia guardada");
+                    } catch (err: any) {
+                      console.error('[IMPL-20260309-02] Error en onPaste Buró Adicional:', err);
+                      toast.error("Error al subir: " + err.message);
+                    }
+                  }}
+                >
+                  {(panelForm.buroCredito as any).archivosAdicionales?.length > 0 ? (
+                    <div className="w-full">
+                      <div className="grid grid-cols-3 gap-2">
+                        {(panelForm.buroCredito as any).archivosAdicionales.map((url: string, idx: number) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={url} 
+                              alt={`Buro Adicional ${idx + 1}`} 
+                              className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                              onClick={() => { setLightboxSection("buro"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                            />
+                            <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
+                              e.stopPropagation();
+                              setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, archivosAdicionales: (f.buroCredito as any).archivosAdicionales.filter((_: string, i: number) => i !== idx) } }));
+                            }}>×</Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.buroCredito as any).archivosAdicionales?.length || 0})</p>
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
                   <input
                     type="file"
                     multiple
                     accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const files = e.currentTarget.files;
+                      const inputEl = e.currentTarget;
                       if (files && !isClientAuth && canEditProcess) {
                         for (let i = 0; i < files.length; i++) {
                           const file = files[i];
-                          const arrayBuf = await file.arrayBuffer();
-                          let binary = '';
-                          const bytes = new Uint8Array(arrayBuf);
-                          const len = bytes.byteLength;
-                          for (let j = 0; j < len; j++) {
-                            binary += String.fromCharCode(bytes[j]);
-                          }
-                          const base64 = btoa(binary);
-                          uploadProcessDoc.mutate({ 
-                            procesoId: processId, 
-                            tipoDocumento: 'BURO_CREDITO', 
-                            fileName: file.name, 
-                            contentType: file.type || 'application/octet-stream', 
-                            base64 
-                          } as any);
+                          file.arrayBuffer().then(arrayBuf => {
+                            let binary = '';
+                            const bytes = new Uint8Array(arrayBuf);
+                            const len = bytes.byteLength;
+                            for (let j = 0; j < len; j++) {
+                              binary += String.fromCharCode(bytes[j]);
+                            }
+                            const base64 = btoa(binary);
+                            uploadProcessDoc.mutate({ 
+                              procesoId: processId, 
+                              tipoDocumento: 'BURO_CREDITO_ADICIONAL', 
+                              fileName: file.name, 
+                              contentType: file.type || 'application/octet-stream', 
+                              base64 
+                            } as any);
+                          });
                         }
+                        inputEl.value = '';
                       }
-                      (e.currentTarget as HTMLInputElement).value = '';
                     }}
                     disabled={isClientAuth || !canEditProcess}
                     className="block w-full text-sm"
@@ -1229,6 +1412,124 @@ export default function ProcesoDetalle() {
                 onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, enlaceReporteUrl: e.target.value } }))}
                 disabled={isClientAuth}
               />
+              
+              {/* Galería de fotos de Visita */}
+              <Label className="text-xs mt-3">Fotos de la Visita (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
+              <div
+                className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-green-50 mt-1 cursor-pointer hover:bg-green-100 transition-colors"
+                tabIndex={0}
+                onPaste={async (e) => {
+                  if (isClientAuth) return;
+                  e.preventDefault();
+                  const items = e.clipboardData.items;
+                  let blob: File | null = null;
+                  for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                      blob = items[i].getAsFile();
+                      break;
+                    }
+                  }
+                  if (!blob) {
+                    toast.error("No se detectó imagen en el portapapeles");
+                    return;
+                  }
+                  try {
+                    toast.info("Subiendo imagen pegada...");
+                    const arrayBuf = await blob.arrayBuffer();
+                    let binary = '';
+                    const bytes = new Uint8Array(arrayBuf);
+                    const len = bytes.byteLength;
+                    for (let i = 0; i < len; i++) {
+                      binary += String.fromCharCode(bytes[i]);
+                    }
+                    const base64 = btoa(binary);
+
+                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'VISITA_FOTOGRAFIA', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
+                    
+                    setPanelForm(currentForm => {
+                      const newForm = { 
+                        ...currentForm, 
+                        visitaDetalle: { 
+                          ...currentForm.visitaDetalle, 
+                          evidenciasGraficas: [...(currentForm.visitaDetalle as any).evidenciasGraficas, res.url]
+                        } 
+                      };
+                      
+                      const payload = getPanelPayload(newForm);
+                      updatePanelDetail.mutate(payload);
+                      
+                      return newForm;
+                    });
+                    toast.success("Foto guardada");
+                  } catch (err: any) {
+                    console.error('[IMPL-20260309-02] Error en onPaste Visita:', err);
+                    toast.error("Error al subir: " + err.message);
+                  }
+                }}
+              >
+                {(panelForm.visitaDetalle as any).evidenciasGraficas?.length > 0 ? (
+                  <div className="w-full">
+                    <div className="grid grid-cols-3 gap-2">
+                      {(panelForm.visitaDetalle as any).evidenciasGraficas.map((url: string, idx: number) => (
+                        <div key={idx} className="relative group">
+                          <img 
+                            src={url} 
+                            alt={`Visita ${idx + 1}`} 
+                            className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                            onClick={() => { setLightboxSection("visita"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                          />
+                          <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
+                            e.stopPropagation();
+                            setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, evidenciasGraficas: (f.visitaDetalle as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
+                          }}>×</Button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.visitaDetalle as any).evidenciasGraficas?.length || 0})</p>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes de fotos tomadas en la visita</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
+                <input
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.gif"
+                  onChange={(e) => {
+                    const files = e.currentTarget.files;
+                    const inputEl = e.currentTarget;
+                    if (files && !isClientAuth) {
+                      for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        file.arrayBuffer().then(arrayBuf => {
+                          let binary = '';
+                          const bytes = new Uint8Array(arrayBuf);
+                          const len = bytes.byteLength;
+                          for (let j = 0; j < len; j++) {
+                            binary += String.fromCharCode(bytes[j]);
+                          }
+                          const base64 = btoa(binary);
+                          uploadProcessDoc.mutate({ 
+                            procesoId: processId, 
+                            tipoDocumento: 'VISITA_FOTOGRAFIA', 
+                            fileName: file.name, 
+                            contentType: file.type || 'image/jpeg', 
+                            base64 
+                          } as any);
+                        });
+                      }
+                      inputEl.value = '';
+                    }
+                  }}
+                  disabled={isClientAuth}
+                  className="block w-full text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">Soporta: JPG, PNG, GIF (múltiples archivos)</p>
+              </div>
             </div>
           </div>
 
@@ -1548,51 +1849,49 @@ export default function ProcesoDetalle() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {lightboxSection === "legal" ? "Evidencia - Investigación Legal" : "Evidencia - Semanas Cotizadas"}
+              {lightboxSection === "legal" && "Evidencia - Investigación Legal"}
+              {lightboxSection === "semanas" && "Evidencia - Semanas Cotizadas"}
+              {lightboxSection === "penales" && "Evidencia - Antecedentes Penales"}
+              {lightboxSection === "buro" && "Evidencia - Buró de Crédito (Archivos Adicionales)"}
+              {lightboxSection === "visita" && "Evidencia - Visita"}
             </DialogTitle>
           </DialogHeader>
           {
-            lightboxSection === "legal" 
-              ? ((panelForm.investigacionLegal as any).evidenciasGraficas?.length > 0 && (
-                  <div className="space-y-3">
-                    <img 
-                      src={(panelForm.investigacionLegal as any).evidenciasGraficas[lightboxIndex]} 
-                      alt="Lightbox" 
-                      className="w-full max-h-96 object-contain rounded"
-                    />
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{lightboxIndex + 1} de {(panelForm.investigacionLegal as any).evidenciasGraficas.length}</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
-                          <ChevronLeft className="h-4 w-4" /> Anterior
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.min((panelForm.investigacionLegal as any).evidenciasGraficas.length - 1, lightboxIndex + 1))} disabled={lightboxIndex === (panelForm.investigacionLegal as any).evidenciasGraficas.length - 1}>
-                          Siguiente <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
+            (() => {
+              const getImagesForSection = () => {
+                switch(lightboxSection) {
+                  case "legal": return (panelForm.investigacionLegal as any).evidenciasGraficas || [];
+                  case "semanas": return (panelForm.semanasDetalle as any).evidenciasGraficas || [];
+                  case "penales": return (panelForm.antecedentesPenales as any).evidenciasGraficas || [];
+                  case "buro": return (panelForm.buroCredito as any).archivosAdicionales || [];
+                  case "visita": return (panelForm.visitaDetalle as any).evidenciasGraficas || [];
+                  default: return [];
+                }
+              };
+              const images = getImagesForSection();
+              const currentImage = images[lightboxIndex];
+              
+              return images.length > 0 && currentImage ? (
+                <div className="space-y-3">
+                  <img 
+                    src={currentImage} 
+                    alt="Lightbox" 
+                    className="w-full max-h-96 object-contain rounded"
+                  />
+                  <div className="flex items-center justify-between text-sm">
+                    <span>{lightboxIndex + 1} de {images.length}</span>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
+                        <ChevronLeft className="h-4 w-4" /> Anterior
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.min(images.length - 1, lightboxIndex + 1))} disabled={lightboxIndex === images.length - 1}>
+                        Siguiente <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                ))
-              : ((panelForm.semanasDetalle as any).evidenciasGraficas?.length > 0 && (
-                  <div className="space-y-3">
-                    <img 
-                      src={(panelForm.semanasDetalle as any).evidenciasGraficas[lightboxIndex]} 
-                      alt="Lightbox" 
-                      className="w-full max-h-96 object-contain rounded"
-                    />
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{lightboxIndex + 1} de {(panelForm.semanasDetalle as any).evidenciasGraficas.length}</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
-                          <ChevronLeft className="h-4 w-4" /> Anterior
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.min((panelForm.semanasDetalle as any).evidenciasGraficas.length - 1, lightboxIndex + 1))} disabled={lightboxIndex === (panelForm.semanasDetalle as any).evidenciasGraficas.length - 1}>
-                          Siguiente <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))
+                </div>
+              ) : null;
+            })()
           }
         </DialogContent>
       </Dialog>

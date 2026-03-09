@@ -1,0 +1,39 @@
+﻿p3 mar 2026
+Reunión del 3 mar 2026 a las 17:28 CST
+Registros de la reunión Transcripción 
+
+
+Resumen
+Reunión revisó formatos de estudio socioeconómico y procesos de armado, enfocándose en la automatización del llenado de formularios para encuestadores y la gestión de documentos adjuntos.
+
+Revisión de Formatos de Armado
+Se discutió la información del dashboard y el proceso de armado que actualmente usa 9 formatos distintos para clientes. El formato de Sigma alimentos se identificó como el más largo y completo, sirviendo de base para los demás.
+
+Propuesta de Automatización de Formularios
+Se solicitó el formato de Sigma alimentos lleno y vacío para analizar la información y crear un formulario digital para encuestadores. El objetivo es eliminar la revisión y acomodo manual, simplificando el proceso de recopilación de datos.
+
+Gestión de Documentación Adjunta
+Se detalló el proceso de adjuntar la firma del candidato, obtenida mediante un aviso de privacidad impreso y una foto de la misma. Se confirmaron los requisitos fotográficos y la inclusión de documentos adicionales, como redes sociales o antecedentes legales, dependiendo del estudio solicitado.
+
+
+Califica este resumen: Útil o Poco útil
+
+
+Detalles
+* Revisión de Información en el Dashboard y Formatos de Armado: Frank Saavedra y CALIDAD EMPRESARIAL reanudaron la conversación sobre la información que el cliente debe ver en el dashboard, y se enfocaron en el proceso de "armados" que involucra al encuestador. El proceso actual requiere que CALIDAD EMPRESARIAL envíe un formato al encuestador para su llenado, y este lo devuelve con toda la información necesaria (00:00:00). Existen nueve formatos de armado diferentes para los clientes, siendo el de Sigma alimentos el más largo y completo, sirviendo de base para los demás (00:02:21).
+* Solicitud de Formatos y Propuesta de Automatización: Frank Saavedra solicitó el formato de Sigma alimentos (el más completo) sin llenar y un ejemplo del mismo formato ya lleno y armado para poder analizar la información. La intención de Frank Saavedra es crear un formulario digital para los encuestadores, similar al que usan los candidatos, para que puedan llenar la información directamente y eliminar un paso intermedio de acomodo y revisión manual, facilitando el proceso para todas las partes (00:02:21) (00:04:42).
+* Revisión de Formatos de Estudio Socioeconómico y Laboral: CALIDAD EMPRESARIAL compartió el formato "Sigma sureste," identificado como un estudio socioeconómico, aunque en el título aparezca como sociolaboral debido a una reestructuración interna (00:06:01). El formato de estudio lleno se convierte a PDF para la entrega final al cliente, y CALIDAD EMPRESARIAL confirmó que este es el documento que se considera el "armado" (00:10:37).
+* Proceso de Manejo de la Firma y Documentos Adjuntos: Se discutió el proceso para incluir la firma del candidato en el reporte, que se obtiene mediante un aviso de privacidad impreso que el visitador lleva, el candidato firma, y el visitador toma una foto para enviarla y que se adjunte al documento armado (00:12:33). El visitador también debe tomar fotografías de la documentación que el candidato debe presentar para la validación, cuya lista se proporciona al candidato (00:14:55).
+* Requisitos de Fotografía y Documentación Adicional: CALIDAD EMPRESARIAL detalló los requisitos fotográficos que incluyen fotos del rostro y cuerpo completo del candidato, fotos del interior y exterior de la casa, y la ubicación en el mapa. En el estudio de Sigma sureste también se adjuntan las redes sociales del candidato y las semanas cotizadas (00:16:49). Otros estudios, como el de Red Servicios, no incluyen redes sociales, sino antecedentes legales y notas periodísticas (00:19:16).
+* Planificación del Demo y Próximos Pasos: Frank Saavedra solicitó la documentación de ejemplo para antecedentes legales y notas periodísticas, las cuales están incluidas en el armado del formato de Red Servicios (00:20:21). Frank Saavedra indicó que analizará toda la información recibida para crear un demo del formulario automatizado, que será probado por CALIDAD EMPRESARIAL (00:21:36). Acordaron revisar el demo al día siguiente por la tarde, lo que debería ayudar a evitar que las solicitudes de los clientes se pierdan, ya que estarían registradas en el sistema con un estatus (00:22:35).
+
+
+Pasos siguientes recomendados
+* [CALIDAD EMPRESARIAL] Enviar Reporte Sigma: Enviar el formato final armado (PDF) del estudio socioeconómico Sigma Sureste.
+* [CALIDAD EMPRESARIAL] Enviar Ejemplo Redes: Enviar el reporte de ejemplo de Redes Servicios. Incluir las secciones de notas periodísticas y antecedentes legales.
+* [Frank Saavedra] Crear Formulario Demo: Analizar la información recibida para construir un formulario para encuestadores.
+* [Frank Saavedra] Enviar Demo Revisión: Enviar el formulario demo a CALIDAD EMPRESARIAL mañana por la tarde. Coordinar la revisión, llenado y validación de la función.
+
+
+Revisa las notas de Gemini para asegurarte de que sean correctas. Obtén consejos y descubre cómo toma notas Gemini
+Danos tu opinión sobre el uso de Gemini para tomar notas en una breve encuesta.
