@@ -1160,7 +1160,7 @@ export default function ProcesoDetalle() {
                     if (files && !isClientAuth && canEditProcess) {
                       for (let i = 0; i < files.length; i++) {
                         const file = files[i];
-                        file.arrayBuffer().then(arrayBuf => {
+                        file.arrayBuffer().then(async (arrayBuf) => {
                           let binary = '';
                           const bytes = new Uint8Array(arrayBuf);
                           const len = bytes.byteLength;
@@ -1168,13 +1168,32 @@ export default function ProcesoDetalle() {
                             binary += String.fromCharCode(bytes[j]);
                           }
                           const base64 = btoa(binary);
-                          uploadProcessDoc.mutate({ 
-                            procesoId: processId, 
-                            tipoDocumento: 'ANTECEDENTES_PENALES', 
-                            fileName: file.name, 
-                            contentType: file.type || 'application/octet-stream', 
-                            base64 
-                          } as any);
+                          try {
+                            const res = await uploadProcessDoc.mutateAsync({ 
+                              procesoId: processId, 
+                              tipoDocumento: 'ANTECEDENTES_PENALES', 
+                              fileName: file.name, 
+                              contentType: file.type || 'application/octet-stream', 
+                              base64 
+                            } as any);
+                            
+                            setPanelForm(currentForm => {
+                              const newForm = { 
+                                ...currentForm, 
+                                antecedentesPenales: { 
+                                  ...currentForm.antecedentesPenales, 
+                                  evidenciasGraficas: [...(currentForm.antecedentesPenales as any).evidenciasGraficas, res.url]
+                                } 
+                              };
+                              const payload = getPanelPayload(newForm);
+                              updatePanelDetail.mutate(payload);
+                              return newForm;
+                            });
+                            toast.success("Evidencia guardada");
+                          } catch (err: any) {
+                            console.error('Error al subir Antecedentes Penales:', err);
+                            toast.error("Error al subir: " + err.message);
+                          }
                         });
                       }
                       inputEl.value = '';
@@ -1348,7 +1367,7 @@ export default function ProcesoDetalle() {
                       if (files && !isClientAuth && canEditProcess) {
                         for (let i = 0; i < files.length; i++) {
                           const file = files[i];
-                          file.arrayBuffer().then(arrayBuf => {
+                          file.arrayBuffer().then(async (arrayBuf) => {
                             let binary = '';
                             const bytes = new Uint8Array(arrayBuf);
                             const len = bytes.byteLength;
@@ -1356,13 +1375,32 @@ export default function ProcesoDetalle() {
                               binary += String.fromCharCode(bytes[j]);
                             }
                             const base64 = btoa(binary);
-                            uploadProcessDoc.mutate({ 
-                              procesoId: processId, 
-                              tipoDocumento: 'BURO_CREDITO_ADICIONAL', 
-                              fileName: file.name, 
-                              contentType: file.type || 'application/octet-stream', 
-                              base64 
-                            } as any);
+                            try {
+                              const res = await uploadProcessDoc.mutateAsync({ 
+                                procesoId: processId, 
+                                tipoDocumento: 'BURO_CREDITO_ADICIONAL', 
+                                fileName: file.name, 
+                                contentType: file.type || 'application/octet-stream', 
+                                base64 
+                              } as any);
+                              
+                              setPanelForm(currentForm => {
+                                const newForm = { 
+                                  ...currentForm, 
+                                  buroCredito: { 
+                                    ...currentForm.buroCredito, 
+                                    archivosAdicionales: [...(currentForm.buroCredito as any).archivosAdicionales, res.url]
+                                  } 
+                                };
+                                const payload = getPanelPayload(newForm);
+                                updatePanelDetail.mutate(payload);
+                                return newForm;
+                              });
+                              toast.success("Archivo guardado");
+                            } catch (err: any) {
+                              console.error('Error al subir Buró Crédito:', err);
+                              toast.error("Error al subir: " + err.message);
+                            }
                           });
                         }
                         inputEl.value = '';
@@ -1505,7 +1543,7 @@ export default function ProcesoDetalle() {
                     if (files && !isClientAuth) {
                       for (let i = 0; i < files.length; i++) {
                         const file = files[i];
-                        file.arrayBuffer().then(arrayBuf => {
+                        file.arrayBuffer().then(async (arrayBuf) => {
                           let binary = '';
                           const bytes = new Uint8Array(arrayBuf);
                           const len = bytes.byteLength;
@@ -1513,13 +1551,32 @@ export default function ProcesoDetalle() {
                             binary += String.fromCharCode(bytes[j]);
                           }
                           const base64 = btoa(binary);
-                          uploadProcessDoc.mutate({ 
-                            procesoId: processId, 
-                            tipoDocumento: 'VISITA_FOTOGRAFIA', 
-                            fileName: file.name, 
-                            contentType: file.type || 'image/jpeg', 
-                            base64 
-                          } as any);
+                          try {
+                            const res = await uploadProcessDoc.mutateAsync({ 
+                              procesoId: processId, 
+                              tipoDocumento: 'VISITA_FOTOGRAFIA', 
+                              fileName: file.name, 
+                              contentType: file.type || 'image/jpeg', 
+                              base64 
+                            } as any);
+                            
+                            setPanelForm(currentForm => {
+                              const newForm = { 
+                                ...currentForm, 
+                                visitaDetalle: { 
+                                  ...currentForm.visitaDetalle, 
+                                  evidenciasGraficas: [...(currentForm.visitaDetalle as any).evidenciasGraficas, res.url]
+                                } 
+                              };
+                              const payload = getPanelPayload(newForm);
+                              updatePanelDetail.mutate(payload);
+                              return newForm;
+                            });
+                            toast.success("Foto guardada");
+                          } catch (err: any) {
+                            console.error('Error al subir Visita:', err);
+                            toast.error("Error al subir: " + err.message);
+                          }
                         });
                       }
                       inputEl.value = '';
