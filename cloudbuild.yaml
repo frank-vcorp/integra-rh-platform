@@ -35,6 +35,8 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
       - '--region'
       - 'us-central1'
+      - '--set-secrets'
+      - 'DATABASE_URL=DATABASE_URL:latest'
 
   # 5. Deploy Firebase Hosting + Cloud Functions (AUTOMATIZADO)
   - name: 'gcr.io/cloud-builders/firebase'
