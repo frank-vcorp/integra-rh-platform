@@ -310,17 +310,22 @@ export const processesRouter = router({
         comentario: z.string().trim().optional(),
         evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs
       }).partial().optional(),
+      antecedentesPenales: z.object({
+        evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs para galerías
+      }).partial().optional(),
       buroCredito: z.object({
         estatus: z.string().trim().optional(),
         score: z.string().trim().optional(),
         aprobado: z.boolean().optional(),
         pdfUrl: z.string().trim().optional().nullable(),
+        archivosAdicionales: z.array(z.string()).optional(), // Array de URLs para galerías
       }).partial().optional(),
       visitaDetalle: z.object({
         tipo: z.enum(["virtual","presencial"]).optional(),
         comentarios: z.string().trim().optional(),
         fechaRealizacion: z.string().optional(),
         enlaceReporteUrl: z.string().trim().optional(),
+        evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs para galerías
       }).partial().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
