@@ -344,6 +344,7 @@ export const processesRouter = router({
         investigacionLaboral: input.investigacionLaboral,
         investigacionLegal: input.investigacionLegal,
         semanasDetalle: input.semanasDetalle,
+        antecedentesPenales: input.antecedentesPenales,
         buroCredito: input.buroCredito,
         visitaDetalle: input.visitaDetalle,
       };
