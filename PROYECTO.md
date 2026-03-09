@@ -141,34 +141,42 @@
 
 **Infraestructura - CI/CD Completamente Automático (09/03/2026) ✅**
 
-- **DATABASE_URL en CloudRun (RESUELTO):**
-  - Problema: API retornaba HTTP 500 porque `DATABASE_URL` no estaba siendo inyectado en runtime de CloudRun desde Secret Manager.
-  - Solución: Agregado `DATABASE_URL` a través de Secret Manager v3 con credenciales Railway MySQL.
-  - Validación: Nueva revisión api-00140-2s4 desplegada con base de datos conectada (errores 500 eliminados).
-  - Checkpoint: `Checkpoints/CHK_2025-12-16_0330-fix-email-waf-diagnosis.md`
+- **DATABASE_URL en CloudRun (RESUELTO ✅):**
+  - Problema inicial: Secret `DATABASE_URL` estaba creado en Secret Manager v3 pero **NO era inyectado** en CloudRun → HTTP 500 en todos los queries
+  - Causa root: `cloudbuild.yaml` paso 4 faltaba flag `--set-secrets DATABASE_URL=DATABASE_URL:latest`
+  - Solución: Agregado `--set-secrets` al comando `gcloud run deploy` en paso 4
+  - Build ejecutado: `cc7972f4-ec73-45f3-a8dd-876c977efeaf` (SUCCESS)
+  - Nueva revisión: **api-00143-dfq** (100% tráfico activo, DATABASE_URL inyectado)
+  - Verificación: API retorna 401 UNAUTHORIZED (en lugar de 500) → **BD conectada ✅**
+  - Commit: `112870c` (fix(infrastructure): agregar DATABASE_URL secret a CloudRun deployment)
+  - Checkpoint: `CHK_20260309-FIX-DATABASE-URL-CLOUDRUN.md`
 
 - **Firebase Hosting Automático en Pipeline (RESUELTO - CRÍTICO):**
   - Problema: `git push master` → CloudRun auto-actualizado ✅ pero Firebase Hosting requería `firebase deploy` manual ❌
   - Solución: Implementado Service Account (`firebase-deployer@integra-rh.iam.gserviceaccount.com`) con rol `firebase.admin`.
   - Integración: FIREBASE_SA_KEY guardado en Secret Manager v1; Cloud Build ahora ejecuta `firebase deploy --only hosting,functions` como paso final automático.
-  - Commits: `3167496` (Firebase step basic) + `4e27607` (integración Service Account secret).
-  - Validación: Build eddb961a-900b ejecutó exitosamente todos 5 pasos, incluyendo Firebase deploy (revisión api-00142-lm6 creada).
-  - Resultado: Pipeline completamente automático — `git push master` → API + Frontend + Functions en vivo en ~3 minutos.
+  - Commits: `3167496` (Firebase step basic) + `4e27607` (integración Service Account secret) + `112870c` (fix DATABASE_URL injection).
+  - Validaciones: 
+    - Build eddb961a-900b ejecutó todos 5 pasos, api-00142-lm6 creada
+    - Build cc7972f4 con fix DATABASE_URL completó SUCCESS, api-00143-dfq creada con SECRET inyectado
+  - Resultado: Pipeline completamente automático — `git push master` → API + Frontend + Functions en vivo en ~4.5 minutos.
 
 - **Pipeline Completo (5 pasos automatizados):**
   1. Docker pull (caché optimizado)
   2. Docker build (compilación Vite + Node.js)
   3. Docker push (Artifact Registry)
-  4. CloudRun deploy (api-XXX-XXX con DATABASE_URL)
-  5. Firebase deploy (Hosting + Cloud Functions)
+  4. CloudRun deploy (api-XXX-XXX con DATABASE_URL inyectado desde Secret Manager)
+  5. Firebase deploy (Hosting + Cloud Functions automático)
 
 - **Beneficios:**
   - Automatización 100%: DEVs solo hacen `git push`
   - Sincronización garantizada entre API, Frontend y Functions
-  - Seguridad: sin credenciales en Git (Secret Manager)
-  - Velocidad: ~3 min deploy completo end-to-end
+  - Seguridad: sin credenciales en Git (Secret Manager + Service Accounts)
+  - Velocidad: ~4.5 min deploy completo end-to-end
   
-- **Checkpoint:** `Checkpoints/CHK_20260309-CI-CD-FINAL.md`
+- **Checkpoints:** 
+  - `CHK_20260309-CI-CD-FINAL.md` (pipeline inicial)
+  - `CHK_20260309-FIX-DATABASE-URL-CLOUDRUN.md` (fix del error 500)
 
 **Desarrollo - Session Persistence (09/03/2026) ✅**
 
