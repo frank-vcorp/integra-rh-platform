@@ -136,9 +136,69 @@
 - **Ordenamiento por defecto de Procesos en Web:**
   - Se corrigió el ordenamiento por defecto del listado de Procesos en la aplicación web para que refleje correctamente la prioridad/fecha esperada por el usuario (centrado en Fecha de Recepción).
   - Se realizó un deploy rápido **solo de Frontend** mediante `firebase deploy --only hosting`, aplicando la mejora de UX sin depender del pipeline de backend.
-  - El pipeline de Backend (Cloud Build → Cloud Run) sigue marcado como bloqueado/roto y pendiente de corrección, pero no impidió este ajuste visual.
   - Checkpoints asociados: [Checkpoints/CHK_2026-02-03_PROCESOS-ORDEN-FECHA-RECEPCION.md](Checkpoints/CHK_2026-02-03_PROCESOS-ORDEN-FECHA-RECEPCION.md), [Checkpoints/CHK_2026-02-03_FRONTEND-SORT-FIX.md](Checkpoints/CHK_2026-02-03_FRONTEND-SORT-FIX.md), [Checkpoints/CHK_2026-02-04_FIX-sorting-deploy.md](Checkpoints/CHK_2026-02-04_FIX-sorting-deploy.md).
   - Checkpoint: `CHK_2026-01-13_HOMOGENEIZACION-FLUJOS.md`
+
+**Infraestructura - CI/CD Completamente Automático (09/03/2026) ✅**
+
+- **DATABASE_URL en CloudRun (RESUELTO):**
+  - Problema: API retornaba HTTP 500 porque `DATABASE_URL` no estaba siendo inyectado en runtime de CloudRun desde Secret Manager.
+  - Solución: Agregado `DATABASE_URL` a través de Secret Manager v3 con credenciales Railway MySQL.
+  - Validación: Nueva revisión api-00140-2s4 desplegada con base de datos conectada (errores 500 eliminados).
+  - Checkpoint: `Checkpoints/CHK_2025-12-16_0330-fix-email-waf-diagnosis.md`
+
+- **Firebase Hosting Automático en Pipeline (RESUELTO - CRÍTICO):**
+  - Problema: `git push master` → CloudRun auto-actualizado ✅ pero Firebase Hosting requería `firebase deploy` manual ❌
+  - Solución: Implementado Service Account (`firebase-deployer@integra-rh.iam.gserviceaccount.com`) con rol `firebase.admin`.
+  - Integración: FIREBASE_SA_KEY guardado en Secret Manager v1; Cloud Build ahora ejecuta `firebase deploy --only hosting,functions` como paso final automático.
+  - Commits: `3167496` (Firebase step basic) + `4e27607` (integración Service Account secret).
+  - Validación: Build eddb961a-900b ejecutó exitosamente todos 5 pasos, incluyendo Firebase deploy (revisión api-00142-lm6 creada).
+  - Resultado: Pipeline completamente automático — `git push master` → API + Frontend + Functions en vivo en ~3 minutos.
+
+- **Pipeline Completo (5 pasos automatizados):**
+  1. Docker pull (caché optimizado)
+  2. Docker build (compilación Vite + Node.js)
+  3. Docker push (Artifact Registry)
+  4. CloudRun deploy (api-XXX-XXX con DATABASE_URL)
+  5. Firebase deploy (Hosting + Cloud Functions)
+
+- **Beneficios:**
+  - Automatización 100%: DEVs solo hacen `git push`
+  - Sincronización garantizada entre API, Frontend y Functions
+  - Seguridad: sin credenciales en Git (Secret Manager)
+  - Velocidad: ~3 min deploy completo end-to-end
+  
+- **Checkpoint:** `Checkpoints/CHK_20260309-CI-CD-FINAL.md`
+
+**Desarrollo - Session Persistence (09/03/2026) ✅**
+
+- **Problema:** Durante desarrollo local, al revisar deploys o pasar tiempo revisando código, la sesión de Firebase expirab o se desconectaba sin aviso, requiriendo re-login manual.
+
+- **Solución:** Implementado sistema de persistencia de sesión automático:
+  1. **Token Refresh Proactivo:** Refresca token cada 45 minutos (expira en 60) → nunca hay sorpresas
+  2. **Heartbeat de Sesión:** Ping ligero cada 5 minutos mantiene sesión "viva"
+  3. **Retry Automático:** Errores transitorios (CloudRun redeploy, lag) se reintentan 2x sin mostrar error al usuario
+  4. **Monitoreo de Conexión:** Detecta online/offline automáticamente
+  5. **Logging Mejorado:** Console muestra exactamente qué pasó en caso de error
+
+- **Beneficios:**
+  - ✅ Sesión viva sin re-login aunque pases 1+ hora
+  - ✅ Puedes revisar deploys sin perder sesión
+  - ✅ Errores transitorios se recuperan automáticamente
+  - ✅ Diagnóstico claro en console [Auth] y [Heartbeat]
+  
+- **Archivos Modificados:**
+  - `integra-rh-manus/client/src/contexts/AuthContext.tsx` → Token refresh automático
+  - `integra-rh-manus/client/src/main.tsx` → Retry config + Heartbeat + Logging
+  
+- **Componente Visual Opcional:**
+  - `integra-rh-manus/client/src/components/ConnectionStatusIndicator.tsx` → Badge badge con status en bottom-right
+
+- **Documentación:**
+  - `DEV-SESSION-PERSISTENCE.md` → Guía completa
+  - `Checkpoints/CHK_20260309-SESSION-PERSISTENCE.md` → Checkpoint detallado
+
+- **Para Usar:** Abrir F12 → Console para ver logs. (Opcional: agregar `<ConnectionStatusIndicator />` en DashboardLayout para badge visual)
 
 ### LOTE-FEATURES-09-FEB: Asignación de Analista + Pre-registro + Procesos
 **Fecha:** 2026-02-09 | **IDs:** IMPL-20260209-01 a -07

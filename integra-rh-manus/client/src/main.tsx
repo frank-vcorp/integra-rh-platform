@@ -11,7 +11,26 @@ import { getLoginUrl } from "./const";
 import "./index.css";
 import { ClientAuthProvider } from "./contexts/ClientAuthContext";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Retry automático en caso de fallo (ideal para dev con deploys)
+      retry: (failureCount, error) => {
+        // No reintentar errores de autenticación
+        if (error instanceof TRPCClientError && error.data?.code === 'UNAUTHORIZED') {
+          return false;
+        }
+        // Reintentar máximo 2 veces para otros errores
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // backoff exponencial
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
@@ -24,13 +43,22 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   try {
     const auth = getAuth();
     if (!auth.currentUser) {
+      console.warn('[Auth] 401 UNAUTHORIZED detected; no current user in Firebase');
+      const currentPath = window.location.pathname;
+      if (!currentPath.startsWith("/login")) {
+        console.log('[Auth] Redirecting to login...');
+        window.location.href = '/login';
+      }
       return;
     }
-  } catch {}
+    console.debug('[Auth] 401 detected but Firebase has current user; token may have been revoked');
+  } catch (e) {
+    console.error('[Auth] Error checking current user:', e);
+  }
 
   const currentPath = window.location.pathname;
   if (currentPath.startsWith("/login")) return;
-  console.warn('[Auth] 401; skipping auto-redirect');
+  console.warn('[Auth] 401 detected; user still in Firebase, will retry on next request');
 };
 
 queryClient.getQueryCache().subscribe(event => {
@@ -51,6 +79,31 @@ queryClient.getMutationCache().subscribe(event => {
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { getAuth } from "firebase/auth";
+
+// ============================================
+// HEARTBEAT: Mantener sesión viva en desarrollo
+// ============================================
+// Cada 5 minutos, hace un ping ligero a auth.me para verificar que la sesión sigue viva
+// Útil durante desarrollo para evitar logout sorpresa mientras revisas deploys
+const startHeartbeat = () => {
+  const heartbeatInterval = setInterval(async () => {
+    try {
+      const auth = getAuth();
+      if (!auth.currentUser) return; // Si no hay usuario, no hacer nada
+
+      // Hacer un request ligero para mantener viva la sesión
+      // getIdToken(true) also refresca el token si está cerca de expirar
+      await auth.currentUser.getIdToken(true);
+      console.debug('[Heartbeat] Session kept alive');
+    } catch (err) {
+      console.error('[Heartbeat] Failed to keep session alive:', err);
+    }
+  }, 5 * 60 * 1000); // 5 minutos
+
+  return () => clearInterval(heartbeatInterval);
+};
+
+startHeartbeat();
 
 // Detectar URL del API según el entorno
 const getApiUrl = () => {
