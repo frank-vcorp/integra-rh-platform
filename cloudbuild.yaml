@@ -6,7 +6,7 @@ steps:
       - '-c'
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
-  # 2. Construir Docker con API Key desde Cloud Build secretEnv
+  # 2. Construir Docker con API Key y DATABASE_URL desde Cloud Build secretEnv
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -15,11 +15,13 @@ steps:
       - '--cache-from'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
       - '--build-arg'
+      - 'DATABASE_URL=$$DATABASE_URL'
+      - '--build-arg'
       - 'GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY'
       - '-f'
       - 'Dockerfile.prod'
       - '.'
-    secretEnv: ['GOOGLE_MAPS_API_KEY']
+    secretEnv: ['DATABASE_URL', 'GOOGLE_MAPS_API_KEY']
 
   # 3. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
