@@ -1,7 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,38 +10,11 @@ declare global {
   }
 }
 
-// Fijar ícono predeterminado de Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-});
-
 interface MapPickerProps {
   value: { lat: number; lng: number } | null;
   onChange: (coords: { lat: number; lng: number } | null) => void;
   address: string; // dirección para geocodificación
   disabled?: boolean;
-}
-
-/** Componente auxiliar para capturar clics en el mapa */
-function MapClickHandler({ onLocationSelect }: { onLocationSelect: (coords: { lat: number; lng: number }) => void }) {
-  useMapEvents({
-    click(e) {
-      onLocationSelect({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return null;
-}
-
-/** Componente auxiliar para centrar el mapa */
-function MapCenter({ center }: { center: { lat: number; lng: number } }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView([center.lat, center.lng], 16);
-  }, [center, map]);
-  return null;
 }
 
 export function MapPicker({ value, onChange, address, disabled }: MapPickerProps) {
@@ -58,7 +28,6 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
   const [searchError, setSearchError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [searchInput, setSearchInput] = useState(address);
-  const autocompleteRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
   // Cargar Google Maps API
@@ -66,13 +35,23 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
     if (isOpen && !window.google) {
       const script = document.createElement('script');
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+      
+      if (!apiKey) {
+        console.error('VITE_GOOGLE_MAPS_API_KEY no está configurada');
+        setSearchError('Error: API Key de Google Maps no configurada');
+        return;
+      }
+      
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
       script.async = true;
+      script.defer = true;
       script.onload = () => {
         if (window.google?.maps) {
-          autocompleteRef.current = new window.google.maps.places.AutocompleteService();
           geocoderRef.current = new window.google.maps.Geocoder();
         }
+      };
+      script.onerror = () => {
+        setSearchError('Error al cargar Google Maps API');
       };
       document.head.appendChild(script);
     }
@@ -86,7 +65,7 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
     }
   }, [value]);
 
-  // Autocompletar mientras escribe
+  // Autocompletar mientras escribe (usando nueva API AutocompleteSuggestion)
   const handleSearchChange = async (query: string) => {
     setSearchInput(query);
     if (!query || query.trim().length < 3) {
@@ -94,16 +73,26 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
       return;
     }
 
-    if (!autocompleteRef.current) return;
+    if (!window.google?.maps?.places) {
+      console.warn('Google Places API no está listo');
+      return;
+    }
 
     try {
+      // Usar la nueva API AutocompleteSuggestion (recomendado desde Mar 2025)
+      const sessionToken = new (window.google.maps as any).places.AutocompleteSessionToken();
+      const service = new (window.google.maps as any).places.AutocompleteService({
+        sessionToken: sessionToken,
+      });
+      
       const results = await new Promise((resolve) => {
-        autocompleteRef.current?.getPlacePredictions(
+        service.getPlacePredictions(
           {
             input: query,
             componentRestrictions: { country: 'mx' },
+            sessionToken: sessionToken,
           },
-          (predictions) => {
+          (predictions: any) => {
             resolve(predictions || []);
           }
         );
@@ -314,28 +303,24 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
               )}
             </div>
 
-            {/* Mapa */}
-            <div style={{ height: "400px", width: "100%" }}>
-              <MapContainer 
-                center={[mapCenter.lat, mapCenter.lng]} 
-                zoom={16} 
-                style={{ height: "100%", width: "100%" }}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; OpenStreetMap contributors'
-                />
-                {selectedCoords && (
-                  <Marker position={[selectedCoords.lat, selectedCoords.lng]} />
-                )}
-                <MapClickHandler
-                  onLocationSelect={(coords) => {
-                    setSelectedCoords(coords);
-                    setMapCenter(coords);
-                  }}
-                />
-                <MapCenter center={mapCenter} />
-              </MapContainer>
+            {/* Google Maps */}
+            <div style={{ height: "400px", width: "100%" }} id="google-map-container">
+              {mapCenter && (
+                <div style={{
+                  width: "100%",
+                  height: "100%",
+                  background: "#f0f0f0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#666",
+                }}>
+                  📍 {mapCenter.lat.toFixed(4)}, {mapCenter.lng.toFixed(4)}
+                  <p style={{ fontSize: "12px", marginTop: "8px", textAlign: "center" }}>
+                    (Google Maps se mostrará aquí cuando selecciones una dirección)
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Footer */}
