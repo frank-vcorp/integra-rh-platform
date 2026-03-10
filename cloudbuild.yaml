@@ -7,14 +7,15 @@ steps:
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
   # 2. Ejecutar migraciones SQL (drizzle)
-  - name: 'node:18-alpine'
+  - name: 'gcr.io/cloud-builders/gke-deploy'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         cd integra-rh-manus
         npm install
-        export DRIZZLE_DATABASE_URL=$${DATABASE_URL}
+        export DATABASE_URL="$$DATABASE_URL"
+        echo "DATABASE configured, running migrations..."
         npm run db:push
     secretEnv: ['DATABASE_URL']
 
