@@ -511,14 +511,19 @@ export const processes = mysqlTable("processes", {
     comentario?: string;
     evidenciasGraficas?: string[]; // Array de URLs de imágenes de semanas
   }>(),
+  antecedentesPenales: json("antecedentesPenales").$type<{
+    evidenciasGraficas?: string[]; // Array de URLs de evidencias gráficas
+  }>(),
   buroCredito: json("buroCredito").$type<{
     pdfUrl?: string; // Archivo PDF del reporte de Buró
+    archivosAdicionales?: string[]; // Array de URLs de archivos adicionales
   }>(),
   visitaDetalle: json("visitaDetalle").$type<{
     tipo?: "virtual" | "presencial";
     comentarios?: string;
     fechaRealizacion?: string;
     enlaceReporteUrl?: string;
+    evidenciasGraficas?: string[]; // Array de URLs de evidencias de visita
   }>(),
   archivoDictamenUrl: varchar("archivoDictamenUrl", { length: 500 }),
   archivoDictamenPath: varchar("archivoDictamenPath", { length: 500 }),

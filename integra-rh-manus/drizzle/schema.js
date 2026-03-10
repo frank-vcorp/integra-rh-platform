@@ -205,6 +205,8 @@ exports.processes = (0, mysql_core_1.mysqlTable)("processes", {
     ]).default("en_proceso").notNull(),
     investigacionLaboral: (0, mysql_core_1.json)("investigacionLaboral").$type(),
     investigacionLegal: (0, mysql_core_1.json)("investigacionLegal").$type(),
+    semanasDetalle: (0, mysql_core_1.json)("semanasDetalle").$type(),
+    antecedentesPenales: (0, mysql_core_1.json)("antecedentesPenales").$type(),
     buroCredito: (0, mysql_core_1.json)("buroCredito").$type(),
     visitaDetalle: (0, mysql_core_1.json)("visitaDetalle").$type(),
     archivoDictamenUrl: (0, mysql_core_1.varchar)("archivoDictamenUrl", { length: 500 }),
