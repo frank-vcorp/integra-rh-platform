@@ -1186,10 +1186,13 @@ export default function ProcesoDetalle() {
                                 } 
                               };
                               const payload = getPanelPayload(newForm);
-                              updatePanelDetail.mutate(payload);
+                              updatePanelDetail.mutateAsync(payload).then(() => {
+                                toast.success("Evidencia guardada");
+                              }).catch((err: any) => {
+                                toast.error("Error al guardar en BD: " + err.message);
+                              });
                               return newForm;
                             });
-                            toast.success("Evidencia guardada");
                           } catch (err: any) {
                             console.error('Error al subir Antecedentes Penales:', err);
                             toast.error("Error al subir: " + err.message);
@@ -1393,10 +1396,13 @@ export default function ProcesoDetalle() {
                                   } 
                                 };
                                 const payload = getPanelPayload(newForm);
-                                updatePanelDetail.mutate(payload);
+                                updatePanelDetail.mutateAsync(payload).then(() => {
+                                  toast.success("Archivo guardado");
+                                }).catch((err: any) => {
+                                  toast.error("Error al guardar en BD: " + err.message);
+                                });
                                 return newForm;
                               });
-                              toast.success("Archivo guardado");
                             } catch (err: any) {
                               console.error('Error al subir Buró Crédito:', err);
                               toast.error("Error al subir: " + err.message);
@@ -1494,11 +1500,14 @@ export default function ProcesoDetalle() {
                       };
                       
                       const payload = getPanelPayload(newForm);
-                      updatePanelDetail.mutate(payload);
+                      updatePanelDetail.mutateAsync(payload).then(() => {
+                        toast.success("Foto guardada");
+                      }).catch((err: any) => {
+                        toast.error("Error al guardar en BD: " + err.message);
+                      });
                       
                       return newForm;
                     });
-                    toast.success("Foto guardada");
                   } catch (err: any) {
                     console.error('[IMPL-20260309-02] Error en onPaste Visita:', err);
                     toast.error("Error al subir: " + err.message);
