@@ -439,39 +439,7 @@ export default function CandidatoSelfService() {
     return `Tienes ${hours} h ${minutes} min para completar tu registro.`;
   }, [data?.expiresAt]);
 
-  // Calcular porcentaje de llenado del formulario
-  const formFillPercentage = useMemo(() => {
-    const fields: (string | number | boolean | undefined)[] = [
-      formCandidate.email,
-      formCandidate.telefono,
-      perfil.nss,
-      perfil.puestoSolicitado,
-      perfil.nivelEstudios,
-      perfil.estado,
-      perfil.municipio,
-      perfil.domicilio,
-      perfil.telefonoAlternativo,
-      perfil.esEstudiante,
-      perfil.modalidadEstudios,
-      perfil.carrera,
-      perfil.estadoCarrera,
-      perfil.licenciaConducir,
-      perfil.claseLicencia,
-      perfil.tieneVehiculo,
-      perfil.tieneDeudas,
-      perfil.haSidoSindicalizado,
-      perfil.haEstadoAfianzado,
-      jobs.length > 0,
-    ];
 
-    const filledCount = fields.filter((f) => {
-      if (f === undefined || f === null || f === "") return false;
-      if (f === false) return false;
-      return true;
-    }).length;
-
-    return Math.round((filledCount / fields.length) * 100);
-  }, [formCandidate, perfil, jobs]);
 
   const getDraftPayload = () => {
     // CAMBIO 1: Enviar TODOS los campos explícitamente (incluyendo vacíos)
@@ -757,24 +725,6 @@ export default function CandidatoSelfService() {
           {timeLeftLabel && (
             <p className="text-xs text-gray-500">{timeLeftLabel}</p>
           )}
-
-          {/* Barra de progreso de llenado */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-700">
-                Formulario completado
-              </span>
-              <span className="text-xs font-semibold text-sky-700">
-                {formFillPercentage}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-sky-600 transition-all duration-300"
-                style={{ width: `${formFillPercentage}%` }}
-              />
-            </div>
-          </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <section className="space-y-3">
