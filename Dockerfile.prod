@@ -30,9 +30,9 @@ COPY integra-rh-manus ./integra-rh-manus
 # Las variables ARG están disponibles porque se declararon al inicio del Dockerfile
 WORKDIR /app/integra-rh-manus
 
-# Crear .env.production con valores de ARGs
-RUN echo "VITE_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}" > .env.production && \
-    echo "DEBUG: VITE_GOOGLE_MAPS_API_KEY=$(cat .env.production)" && \
+# Crear .env.production con valores de ARGs (¡Usar >> para no borrar configuración existente!)
+RUN echo "VITE_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}" >> .env.production && \
+    echo "DEBUG: .env.production content:" && \
     cat .env.production
 
 # BUILD
