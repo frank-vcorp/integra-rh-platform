@@ -26,7 +26,7 @@ steps:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # 4. Deploy a Cloud Run usando update-secrets para no borrar las variables existentes
+  # 4. Deploy a Cloud Run usando set-env-vars y set-secrets para asegurar que todas las variables estén
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -37,7 +37,10 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
       - '--region'
       - 'us-central1'
-      - '--update-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
+      - '--max-instances'
+      - '25'
+      - '--set-env-vars=PSICOMETRICAS_TOKEN=5a5a55afa959cd7ea1e0,PSICOMETRICAS_PASSWORD=Marin102691@,SENDGRID_FROM_EMAIL=frank@vcorp.mx,FIREBASE_PROJECT_ID=integra-rh,FIREBASE_STORAGE_BUCKET=integra-rh.firebasestorage.app'
+      - '--set-secrets=DATABASE_URL=DATABASE_URL:latest,VITE_GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
 
   # 5. Deploy Firebase & Functions
   - name: 'gcr.io/cloud-builders/firebase'
