@@ -6,29 +6,42 @@ steps:
       - '-c'
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
-  # 2. NO compilar - usar la imagen previa ya compilada de api-00158-rgb
+  # 2. Construir Docker CON BASH para asegurar que se expandan las variables y se inyecten en el código cliente
   - name: 'gcr.io/cloud-builders/docker'
-    entrypoint: 'echo'
+    entrypoint: 'bash'
     args:
-      - 'Skipping Docker build - using existing image from api-00158-rgb'
+      - '-c'
+      - |
+        docker build \
+          -t us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
+          --cache-from us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
+          --build-arg DATABASE_URL="$$DATABASE_URL" \
+          --build-arg GOOGLE_MAPS_API_KEY="$$GOOGLE_MAPS_API_KEY" \
+          -f Dockerfile.prod .
+    secretEnv: ['DATABASE_URL', 'GOOGLE_MAPS_API_KEY']
 
-  # 3. NO hacer push - la imagen ya existe
+  # 3. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    entrypoint: 'echo'
     args:
-      - 'Skipping push - image already in Artifact Registry'
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # 4. Deploy a Cloud Run - SOLO agregar VITE_GOOGLE_MAPS_API_KEY a la revisión estable
+  # 4. Deploy a Cloud Run - update-secrets y update-env-vars para NO TOCAR las variables existentes (Psicométricas, Firebase...)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
       - 'run'
-      - 'services'
-      - 'update'
+      - 'deploy'
       - 'api'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
       - '--region'
       - 'us-central1'
-      - '--update-secrets=VITE_GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
+      - '--max-instances'
+      - '25'
+      - '--update-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
+      - '--update-env-vars=VITE_GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY'
+    secretEnv: ['GOOGLE_MAPS_API_KEY']
 
   # 5. Deploy Firebase & Functions
   - name: 'gcr.io/cloud-builders/firebase'
