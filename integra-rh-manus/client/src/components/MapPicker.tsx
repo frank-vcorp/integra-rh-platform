@@ -32,28 +32,47 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
 
   // Cargar Google Maps API
   useEffect(() => {
-    if (isOpen && !window.google) {
-      const script = document.createElement('script');
+    // Debug de variables de entorno (solo keys seguros)
+    console.log('MapPicker Debug:', {
+      hasGoogle: !!window.google,
+      envKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? 'Simulada (Presente)' : 'Faltante',
+      mode: import.meta.env.MODE
+    });
+
+    if (!window.google) {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
       
       if (!apiKey) {
-        console.error('VITE_GOOGLE_MAPS_API_KEY no está configurada');
-        setSearchError('Error: API Key de Google Maps no configurada');
+        console.error('VITE_GOOGLE_MAPS_API_KEY no está configurada en import.meta.env');
+        setSearchError('Error de configuración: API Key faltante. Contacte a soporte.');
         return;
       }
       
+      // Evitar inyectar script duplicado si ya existe en DOM
+      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+         console.log('Script de Google Maps ya presente en DOM, esperando carga...');
+         return;
+      }
+
+      const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
       script.async = true;
       script.defer = true;
       script.onload = () => {
         if (window.google?.maps) {
           geocoderRef.current = new window.google.maps.Geocoder();
+          // Forzar re-render si es necesario
+          setIsOpen(prev => prev); 
         }
       };
-      script.onerror = () => {
-        setSearchError('Error al cargar Google Maps API');
+      script.onerror = (e) => {
+        console.error('Error cargando script Google Maps:', e);
+        setSearchError('Error de red al cargar Google Maps API');
       };
       document.head.appendChild(script);
+    } else if (window.google?.maps && !geocoderRef.current) {
+        // Si ya está cargado pero no tenemos geocoder
+        geocoderRef.current = new window.google.maps.Geocoder();
     }
   }, [isOpen]);
 
