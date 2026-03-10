@@ -6,21 +6,18 @@ steps:
       - '-c'
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
-  # 2. Construir Docker con API Key y DATABASE_URL desde Cloud Build secretEnv
+  # 2. Construir Docker con variables inyectadas usando bash para expandir $$
   - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
-      - '--cache-from'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
-      - '--build-arg'
-      - 'DATABASE_URL=$$DATABASE_URL'
-      - '--build-arg'
-      - 'GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY'
-      - '-f'
-      - 'Dockerfile.prod'
-      - '.'
+      - '-c'
+      - |
+        docker build \
+          -t us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
+          --cache-from us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
+          --build-arg DATABASE_URL="$$DATABASE_URL" \
+          --build-arg GOOGLE_MAPS_API_KEY="$$GOOGLE_MAPS_API_KEY" \
+          -f Dockerfile.prod .
     secretEnv: ['DATABASE_URL', 'GOOGLE_MAPS_API_KEY']
 
   # 3. Push a Artifact Registry
@@ -29,7 +26,7 @@ steps:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # 4. Deploy a Cloud Run
+  # 4. Deploy a Cloud Run usando update-secrets para no borrar las variables existentes
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -40,7 +37,7 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
       - '--region'
       - 'us-central1'
-      - '--set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
+      - '--update-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
 
   # 5. Deploy Firebase & Functions
   - name: 'gcr.io/cloud-builders/firebase'
@@ -51,20 +48,6 @@ steps:
         gcloud secrets versions access latest --secret="FIREBASE_SA_KEY" > /tmp/firebase-sa.json
         export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
         firebase deploy --project=$PROJECT_ID --only hosting,functions
-
-availableSecrets:
-  secretManager:
-  - versionName: projects/$PROJECT_ID/secrets/FIREBASE_SA_KEY/versions/latest
-    env: 'FIREBASE_SA_KEY'
-  - versionName: projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest
-    env: 'DATABASE_URL'
-  - versionName: projects/$PROJECT_ID/secrets/GOOGLE_MAPS_API_KEY/versions/latest
-    env: 'GOOGLE_MAPS_API_KEY'
-
-images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
-
-timeout: '3600s'
 
 availableSecrets:
   secretManager:
