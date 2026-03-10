@@ -19,7 +19,20 @@ steps:
         npm run db:push
     secretEnv: ['DATABASE_URL']
 
-  # 3. Construir imagen Docker usando caché
+  # 3. Construir frontend con API Key desde Secret Manager
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd integra-rh-manus
+        # Crear .env.production con API Key del Secret Manager
+        echo "VITE_GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY" > .env.production
+        echo "Build frontend con VITE_GOOGLE_MAPS_API_KEY..."
+        npm run build
+    secretEnv: ['GOOGLE_MAPS_API_KEY']
+
+  # 4. Construir imagen Docker usando caché
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -31,13 +44,13 @@ steps:
       - 'Dockerfile.prod'
       - '.'
 
-  # 4. Push a Artifact Registry
+  # 5. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # 5. Deploy a Cloud Run (Servicio 'api' conectado a Firebase Hosting)
+  # 6. Deploy a Cloud Run (Servicio 'api' conectado a Firebase Hosting)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -50,7 +63,7 @@ steps:
       - 'us-central1'
       - '--set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
 
-  # 6. Deploy Firebase Hosting + Cloud Functions (AUTOMATIZADO)
+  # 7. Deploy Firebase Hosting + Cloud Functions (AUTOMATIZADO)
   - name: 'gcr.io/cloud-builders/firebase'
     entrypoint: 'bash'
     args:
