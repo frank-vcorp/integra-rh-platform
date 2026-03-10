@@ -6,19 +6,20 @@ steps:
       - '-c'
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
-  # 2. Obtener Secret Manager y construir Docker con --build-arg
+  # 2. Construir Docker con API Key desde Cloud Build secretEnv
   - name: 'gcr.io/cloud-builders/docker'
-    entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        API_KEY=$(gcloud secrets versions access latest --secret="GOOGLE_MAPS_API_KEY")
-        docker build \
-          -t us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
-          --cache-from us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
-          --build-arg GOOGLE_MAPS_API_KEY="$API_KEY" \
-          -f Dockerfile.prod \
-          .
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+      - '--cache-from'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+      - '--build-arg'
+      - 'GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY'
+      - '-f'
+      - 'Dockerfile.prod'
+      - '.'
+    secretEnv: ['GOOGLE_MAPS_API_KEY']
 
   # 3. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
