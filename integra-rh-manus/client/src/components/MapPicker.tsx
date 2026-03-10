@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Map as MapIcon, X } from "lucide-react";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 // Fijar ícono predeterminado de Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -46,10 +52,31 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
     lat: 19.4326,
     lng: -99.1332,
-  }); // Centro en Ciudad de México por defecto
+  });
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(value);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchInput, setSearchInput] = useState(address);
+  const autocompleteRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  // Cargar Google Maps API
+  useEffect(() => {
+    if (isOpen && !window.google) {
+      const script = document.createElement('script');
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.onload = () => {
+        if (window.google?.maps) {
+          autocompleteRef.current = new window.google.maps.places.AutocompleteService();
+          geocoderRef.current = new window.google.maps.Geocoder();
+        }
+      };
+      document.head.appendChild(script);
+    }
+  }, [isOpen]);
 
   // Si hay coordenadas guardadas, usar esas
   useEffect(() => {
@@ -59,10 +86,77 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
     }
   }, [value]);
 
-  // Geocodificar dirección
+  // Autocompletar mientras escribe
+  const handleSearchChange = async (query: string) => {
+    setSearchInput(query);
+    if (!query || query.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    if (!autocompleteRef.current) return;
+
+    try {
+      const results = await new Promise((resolve) => {
+        autocompleteRef.current?.getPlacePredictions(
+          {
+            input: query,
+            componentRestrictions: { country: 'mx' },
+          },
+          (predictions) => {
+            resolve(predictions || []);
+          }
+        );
+      });
+      setSuggestions(results as any[]);
+    } catch (error) {
+      console.error('Autocomplete error:', error);
+      setSuggestions([]);
+    }
+  };
+
+  // Geocodificar cuando selecciona una sugerencia
+  const handleSelectSuggestion = async (placeId: string) => {
+    if (!geocoderRef.current) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      const results = await new Promise<google.maps.GeocoderResult[]>((resolve) => {
+        geocoderRef.current?.geocode({ placeId }, (results) => {
+          resolve(results || []);
+        });
+      });
+
+      if (results && results.length > 0) {
+        const location = results[0].geometry.location;
+        const coords = { lat: location.lat(), lng: location.lng() };
+        setMapCenter(coords);
+        setSelectedCoords(coords);
+        setSearchError(null);
+        setSuggestions([]);
+        setSearchInput(results[0].formatted_address);
+      } else {
+        setSearchError('No se encontró la ubicación');
+      }
+    } catch (error) {
+      setSearchError('Error al geocodificar: ' + (error as Error).message);
+      console.error(error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Geocodificar dirección completa
   const handleGeocodeAddress = async () => {
-    if (!address || address.trim().length < 5) {
+    if (!searchInput || searchInput.trim().length < 5) {
       setSearchError("Por favor, completa la dirección");
+      return;
+    }
+
+    if (!geocoderRef.current) {
+      setSearchError("Google Maps no está listo");
       return;
     }
 
@@ -70,50 +164,30 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
     setSearchError(null);
 
     try {
-      // Limpiar la dirección para mejorar la búsqueda
-      const cleanAddress = address
-        .replace(/#/g, " ")  // Quitar #
-        .replace(/\s+/g, " ") // Normalizar espacios
-        .trim();
-      
-      // Agregar México para dar contexto geográfico
-      const searchQuery = `${cleanAddress}, México`;
-      
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=mx`
-      );
-      const data = await response.json();
+      const results = await new Promise<google.maps.GeocoderResult[]>((resolve) => {
+        geocoderRef.current?.geocode(
+          {
+            address: searchInput,
+            componentRestrictions: { country: 'mx' },
+          },
+          (results) => {
+            resolve(results || []);
+          }
+        );
+      });
 
-      if (data.length > 0) {
-        const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      if (results && results.length > 0) {
+        const location = results[0].geometry.location;
+        const coords = { lat: location.lat(), lng: location.lng() };
         setMapCenter(coords);
         setSelectedCoords(coords);
         setSearchError(null);
+        setSearchInput(results[0].formatted_address);
       } else {
-        // Si no encuentra, intentar con solo colonia, municipio, estado
-        const parts = cleanAddress.split(",").map(p => p.trim());
-        if (parts.length >= 3) {
-          // Tomar los últimos 3 elementos (colonia, municipio, estado)
-          const fallbackQuery = parts.slice(-3).join(", ") + ", México";
-          const fallbackResponse = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1&countrycodes=mx`
-          );
-          const fallbackData = await fallbackResponse.json();
-          
-          if (fallbackData.length > 0) {
-            const coords = { lat: parseFloat(fallbackData[0].lat), lng: parseFloat(fallbackData[0].lon) };
-            setMapCenter(coords);
-            setSelectedCoords(coords);
-            setSearchError("Ubicación aproximada. Ajusta el pin a tu dirección exacta.");
-          } else {
-            setSearchError("No se encontró la dirección. Haz clic en el mapa para ubicar manualmente.");
-          }
-        } else {
-          setSearchError("No se encontró la dirección. Haz clic en el mapa para ubicar manualmente.");
-        }
+        setSearchError('No se encontró la dirección. Verifica que sea una dirección válida en México.');
       }
     } catch (error) {
-      setSearchError("Error al buscar la dirección");
+      setSearchError('Error al buscar: ' + (error as Error).message);
       console.error(error);
     } finally {
       setIsSearching(false);
@@ -192,21 +266,46 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
 
             {/* Search bar */}
             <div className="border-b p-4 space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {address || "Completa la dirección para localizarla en el mapa"}
-              </p>
-              {address && (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleGeocodeAddress}
-                    disabled={isSearching}
-                  >
-                    {isSearching ? "Buscando..." : "Buscar dirección"}
-                  </Button>
-                </div>
+              <div className="relative">
+                <Input
+                  placeholder="Busca tu dirección..."
+                  value={searchInput}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGeocodeAddress();
+                  }}
+                  disabled={isSearching}
+                  className="pr-10"
+                />
+                {suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.place_id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(suggestion.place_id)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b last:border-b-0 text-sm"
+                      >
+                        <p className="font-medium">{suggestion.main_text}</p>
+                        <p className="text-xs text-gray-500">{suggestion.secondary_text}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {searchInput && !suggestions.length && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleGeocodeAddress}
+                  disabled={isSearching}
+                  className="w-full"
+                >
+                  {isSearching ? "Buscando..." : "Buscar dirección exacta"}
+                </Button>
               )}
+
               {searchError && (
                 <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
                   <AlertCircle className="h-4 w-4" />
