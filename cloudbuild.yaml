@@ -1,56 +1,32 @@
 steps:
-  # 1. Pull de la imagen previa para usarla como caché (mejora velocidad de build)
+  # 1. Pull de la imagen previa para usarla como caché
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
     args:
       - '-c'
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
-  # 2. Ejecutar migraciones SQL (drizzle)
-  - name: 'gcr.io/cloud-builders/gke-deploy'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        cd integra-rh-manus
-        npm install
-        export DATABASE_URL="$$DATABASE_URL"
-        echo "DATABASE configured, running migrations..."
-        npm run db:push
-    secretEnv: ['DATABASE_URL']
-
-  # 3. Construir frontend con API Key desde Secret Manager
-  - name: 'gcr.io/cloud-builders/gke-deploy'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        cd integra-rh-manus
-        # Crear .env.production con API Key del Secret Manager
-        echo "VITE_GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY" > .env.production
-        echo "Build frontend con VITE_GOOGLE_MAPS_API_KEY..."
-        npm run build
-    secretEnv: ['GOOGLE_MAPS_API_KEY']
-
-  # 4. Construir imagen Docker usando caché
+  # 2. Obtener Secret Manager y construir Docker con --build-arg
   - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
-      - '--cache-from'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
-      - '-f'
-      - 'Dockerfile.prod'
-      - '.'
+      - '-c'
+      - |
+        API_KEY=$(gcloud secrets versions access latest --secret="GOOGLE_MAPS_API_KEY")
+        docker build \
+          -t us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
+          --cache-from us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest \
+          --build-arg GOOGLE_MAPS_API_KEY="$API_KEY" \
+          -f Dockerfile.prod \
+          .
 
-  # 5. Push a Artifact Registry
+  # 3. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # 6. Deploy a Cloud Run (Servicio 'api' conectado a Firebase Hosting)
+  # 4. Deploy a Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -63,20 +39,29 @@ steps:
       - 'us-central1'
       - '--set-secrets=DATABASE_URL=DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest'
 
-  # 7. Deploy Firebase Hosting + Cloud Functions (AUTOMATIZADO)
+  # 5. Deploy Firebase & Functions
   - name: 'gcr.io/cloud-builders/firebase'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Obtener Service Account JSON del Secret Manager
         gcloud secrets versions access latest --secret="FIREBASE_SA_KEY" > /tmp/firebase-sa.json
-        
-        # Establecer variable de entorno para autenticación
         export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-        
-        # Deploy Firebase (hosting + functions)
         firebase deploy --project=$PROJECT_ID --only hosting,functions
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/FIREBASE_SA_KEY/versions/latest
+    env: 'FIREBASE_SA_KEY'
+  - versionName: projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest
+    env: 'DATABASE_URL'
+  - versionName: projects/$PROJECT_ID/secrets/GOOGLE_MAPS_API_KEY/versions/latest
+    env: 'GOOGLE_MAPS_API_KEY'
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
+
+timeout: '3600s'
 
 availableSecrets:
   secretManager:
