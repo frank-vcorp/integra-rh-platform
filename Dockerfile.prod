@@ -1,6 +1,11 @@
 # Etapa de construcción
 FROM node:18-alpine AS builder
 
+# Declarar variables de construcción desde Cloud Build
+# Permite que --build-arg GOOGLE_MAPS_API_KEY y --build-arg DATABASE_URL se expandan
+ARG GOOGLE_MAPS_API_KEY
+ARG DATABASE_URL
+
 WORKDIR /app
 
 # Instalar pnpm
@@ -21,6 +26,8 @@ WORKDIR /app
 COPY integra-rh-manus ./integra-rh-manus
 
 # Exportar variables de Firebase para que Vite las compile en el bundle
+# FIX REFERENCE: FIX-20260310-01
+# Las variables ARG están disponibles porque se declararon al inicio del Dockerfile
 WORKDIR /app/integra-rh-manus
 
 # Crear .env.production con valores de ARGs
