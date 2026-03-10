@@ -6,7 +6,19 @@ steps:
       - '-c'
       - 'docker pull us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest || exit 0'
 
-  # 2. Construir imagen Docker usando caché
+  # 2. Ejecutar migraciones SQL (drizzle)
+  - name: 'node:18-alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd integra-rh-manus
+        npm install
+        export DRIZZLE_DATABASE_URL=$${DATABASE_URL}
+        npm run db:push
+    secretEnv: ['DATABASE_URL']
+
+  # 3. Construir imagen Docker usando caché
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -18,13 +30,13 @@ steps:
       - 'Dockerfile.prod'
       - '.'
 
-  # 3. Push a Artifact Registry
+  # 4. Push a Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
 
-  # 4. Deploy a Cloud Run (Servicio 'api' conectado a Firebase Hosting)
+  # 5. Deploy a Cloud Run (Servicio 'api' conectado a Firebase Hosting)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -37,7 +49,7 @@ steps:
       - 'us-central1'
       - '--set-secrets=DATABASE_URL=DATABASE_URL:latest'
 
-  # 5. Deploy Firebase Hosting + Cloud Functions (AUTOMATIZADO)
+  # 6. Deploy Firebase Hosting + Cloud Functions (AUTOMATIZADO)
   - name: 'gcr.io/cloud-builders/firebase'
     entrypoint: 'bash'
     args:
@@ -56,6 +68,8 @@ availableSecrets:
   secretManager:
   - versionName: projects/$PROJECT_ID/secrets/FIREBASE_SA_KEY/versions/latest
     env: 'FIREBASE_SA_KEY'
+  - versionName: projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest
+    env: 'DATABASE_URL'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest'
