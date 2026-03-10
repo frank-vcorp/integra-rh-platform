@@ -43,7 +43,29 @@ steps:
       - '--update-env-vars=VITE_GOOGLE_MAPS_API_KEY=$$GOOGLE_MAPS_API_KEY'
     secretEnv: ['GOOGLE_MAPS_API_KEY']
 
-  # 5. Deploy Firebase & Functions
+  # 5. Extract dist from Docker Image for Firebase Hosting
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Crear contenedor temporal
+        docker create --name extract us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/integra-rh-backend:latest
+        
+        # Eliminar dist viejo si existe y crear directorio
+        rm -rf integra-rh-manus/dist
+        mkdir -p integra-rh-manus/dist
+        
+        # Copiar assets construidos (que YA tienen la API Key quemada)
+        docker cp extract:/app/dist/. integra-rh-manus/dist/
+        
+        # Limpiar
+        docker rm extract
+        
+        echo "✅ Frontend extraído correctamente para Firebase Hosting"
+        ls -R integra-rh-manus/dist
+
+  # 6. Deploy Firebase & Functions
   - name: 'gcr.io/cloud-builders/firebase'
     entrypoint: 'bash'
     args:
