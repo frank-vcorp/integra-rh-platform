@@ -23,9 +23,11 @@ COPY integra-rh-manus ./integra-rh-manus
 # Exportar variables de Firebase para que Vite las compile en el bundle
 WORKDIR /app/integra-rh-manus
 
-# Forzar rebuild invalidando caché (comentario cambia cada build)
-# BUILD_ID: 2026-02-18T05:59:09Z
-RUN set -a && source .env.production && set +a && npm run build
+# Crear .env.production con valores de ARGs
+RUN echo "VITE_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}" > .env.production
+
+# BUILD
+RUN npm run build
 
 # Etapa de producción
 FROM node:18-alpine
