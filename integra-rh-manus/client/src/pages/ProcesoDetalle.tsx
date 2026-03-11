@@ -583,10 +583,23 @@ export default function ProcesoDetalle() {
                   </select>
                 )}
 
-                <p className="text-xs text-muted-foreground">
-                  Valor actual en BD:{" "}
-                  <span className="font-mono">{process.tipoProducto}</span>
-                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Valor actual en BD:{" "}
+                    <span className="font-mono">{process.tipoProducto}</span>
+                  </p>
+                  {!isClientAuth && canEditProcess && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-7 text-xs px-2"
+                      disabled={updatePanelDetail.isPending}
+                      onClick={handleSavePanel}
+                    >
+                      <Save className="h-3 w-3 mr-1" /> Actualizar
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
             <div>
@@ -608,12 +621,12 @@ export default function ProcesoDetalle() {
                   </select>
                   <Button 
                     size="sm" 
-                    disabled={updateCalif.isPending || !canEditProcess} 
+                    disabled={updateCalif.isPending || !canEditProcess}
                     onClick={() => {
                        updateCalif.mutate({ 
                          id: processId, 
                          calificacionFinal: calificacion as any,
-                         comentarioCalificacion: (calificacion === 'recomendable' || calificacion === 'con_reservas') ? comentarioCalificacion : undefined
+                         comentarioCalificacion: calificacion !== 'pendiente' ? comentarioCalificacion : undefined
                        });
                     }}
                   >
