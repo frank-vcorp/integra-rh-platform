@@ -29,6 +29,7 @@ import { CAUSALES_SALIDA, CausalSalidaType, ESTATUS_INVESTIGACION, EstatusInvest
 import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 import { ReviewAndCompleteDialog } from "@/components/ReviewAndCompleteDialog";
 import { AuditTrailViewer } from "@/components/AuditTrailViewer";
+import { getCalificacionLabel } from "@/lib/dictamen";
 
 const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
   en_revision: "bg-yellow-100 text-yellow-800",
@@ -1793,9 +1794,9 @@ export default function CandidatoDetalle() {
                             Estatus de la verificación laboral de este empleo.
                           </TooltipContent>
                         </Tooltip>
-                        {item.resultadoVerificacion && (
+                        {item.resultadoVerificacion && item.resultadoVerificacion !== "pendiente" && (
                           <span className="text-xs text-muted-foreground">
-                            Dictamen: {item.resultadoVerificacion.replace(/_/g, " ")}
+                            Dictamen: {getCalificacionLabel(item.resultadoVerificacion)}
                           </span>
                         )}
                       </div>

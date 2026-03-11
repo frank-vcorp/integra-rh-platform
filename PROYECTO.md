@@ -178,6 +178,16 @@
   - `CHK_20260309-CI-CD-FINAL.md` (pipeline inicial)
   - `CHK_20260309-FIX-DATABASE-URL-CLOUDRUN.md` (fix del error 500)
 
+**Mantenimiento y Correcciones (10/03/2026)**
+
+- **Google Maps Picker (FIX-20260310-04):**
+  - **Problema:** Crash `Node.removeChild` al desmontar componente y error `importLibrary` con API Key.
+  - **Solución:** 
+    - Separación de DOM: El contenedor del mapa `div` ahora es estático y ajeno a las actualizaciones de React, evitando conflictos de limpieza de nodos.
+    - Downgrade a Legacy API: Uso de `new google.maps.Map` y carga de script síncrona/defer para máxima compatibilidad.
+    - Corrección de inyección de API Keys en Dockerfile.
+  - **Estado:** ✅ Desplegado y Validado.
+
 **Desarrollo - Session Persistence (09/03/2026) ✅**
 
 - **Problema:** Durante desarrollo local, al revisar deploys o pasar tiempo revisando código, la sesión de Firebase expirab o se desconectaba sin aviso, requiriendo re-login manual.

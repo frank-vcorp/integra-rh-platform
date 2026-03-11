@@ -18,9 +18,12 @@ export const CALIFICACION_LABELS: Record<CalificacionFinalType, string> = {
 
 export function getCalificacionLabel(value?: string | null): string {
   if (!value) return CALIFICACION_LABELS.pendiente;
+  const normalizedValue = value.toLowerCase() as CalificacionFinalType;
   return (
-    CALIFICACION_LABELS[value as CalificacionFinalType] ??
-    CALIFICACION_LABELS.pendiente
+    CALIFICACION_LABELS[normalizedValue] ??
+    CALIFICACION_LABELS[value as CalificacionFinalType] ?? // Fallback to original value check just in case
+    // Si no encuentra, y tiene guiones bajos, intenta formatearlo bonito
+    value.replace(/_/g, " ")
   );
 }
 
