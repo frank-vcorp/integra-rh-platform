@@ -51,11 +51,21 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
       script.async = true;
       script.defer = true;
-      script.onload = () => {
+      script.onload = async () => {
         if (window.google?.maps) {
-          geocoderRef.current = new window.google.maps.Geocoder();
-          // Forzar re-render si es necesario
-          setIsOpen(prev => prev); 
+          try {
+            // FIX: FIX-20260310-02 - Usar importLibrary para inicializar Geocoder
+            // Esto evita "TypeError: window.google.maps.Geocoder is not a constructor"
+            const { Geocoder } = await window.google.maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
+            geocoderRef.current = new Geocoder();
+            setIsOpen(prev => prev);
+          } catch (e: any) {
+             console.error('Error inicializando Geocoder via importLibrary:', e);
+             // Fallback legacy (probablemente fallará si importLibrary es el estándar)
+             if (window.google.maps.Geocoder) {
+                geocoderRef.current = new window.google.maps.Geocoder();
+             }
+          }
         }
       };
       script.onerror = (e) => {
@@ -64,8 +74,17 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
       };
       document.head.appendChild(script);
     } else if (window.google?.maps && !geocoderRef.current) {
-        // Si ya está cargado pero no tenemos geocoder
-        geocoderRef.current = new window.google.maps.Geocoder();
+        // Cargar geocoder asíncronamente
+        window.google.maps.importLibrary("geocoding").then((lib: any) => {
+           const { Geocoder } = lib;
+           geocoderRef.current = new Geocoder();
+        }).catch(err => {
+           console.error("Error loading geocoding library dynamically", err);
+           // Try legacy fallback
+           if (window.google.maps.Geocoder) {
+             geocoderRef.current = new window.google.maps.Geocoder();
+           }
+        });
     }
   }, [isOpen]);
 
