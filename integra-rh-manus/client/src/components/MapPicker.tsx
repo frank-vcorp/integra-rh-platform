@@ -32,13 +32,6 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
 
   // Cargar Google Maps API
   useEffect(() => {
-    // Debug de variables de entorno (solo keys seguros)
-    console.log('MapPicker Debug:', {
-      hasGoogle: !!window.google,
-      envKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? 'Simulada (Presente)' : 'Faltante',
-      mode: import.meta.env.MODE
-    });
-
     if (!window.google) {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
       
@@ -50,12 +43,12 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
       
       // Evitar inyectar script duplicado si ya existe en DOM
       if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-         console.log('Script de Google Maps ya presente en DOM, esperando carga...');
          return;
       }
 
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      // Adding loading=async based on best practices
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
       script.async = true;
       script.defer = true;
       script.onload = () => {
@@ -111,7 +104,13 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
             componentRestrictions: { country: 'mx' },
             sessionToken: sessionToken,
           },
-          (predictions: any) => {
+          (predictions: any, status: any) => {
+            if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
+              console.error('Error Google Places API:', status);
+              setSearchError(`Error de autocompletado: ${status}. Revisa que la API Key en GCP tenga habilitado 'Places API'`);
+              resolve([]);
+              return;
+            }
             resolve(predictions || []);
           }
         );
