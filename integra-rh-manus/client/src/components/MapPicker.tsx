@@ -85,37 +85,35 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
       return;
     }
 
-    if (!window.google?.maps?.places) {
-      console.warn('Google Places API no está listo');
+    if (!window.google?.maps) {
+      console.warn('Google Maps API no está listo');
       return;
     }
 
     try {
       // Usar la nueva API AutocompleteSuggestion (recomendado desde Mar 2025)
-      const sessionToken = new (window.google.maps as any).places.AutocompleteSessionToken();
-      const service = new (window.google.maps as any).places.AutocompleteService({
-        sessionToken: sessionToken,
-      });
+      // Utilizar window.google para evitar errores de tipo si no existen las definiciones globales
+      const { AutocompleteSuggestion, AutocompleteSessionToken } = await window.google.maps.importLibrary("places") as any;
+      const sessionToken = new AutocompleteSessionToken();
       
-      const results = await new Promise((resolve) => {
-        service.getPlacePredictions(
-          {
-            input: query,
-            componentRestrictions: { country: 'mx' },
-            sessionToken: sessionToken,
-          },
-          (predictions: any, status: any) => {
-            if (status !== window.google.maps.places.PlacesServiceStatus.OK) {
-              console.error('Error Google Places API:', status);
-              setSearchError(`Error de autocompletado: ${status}. Revisa que la API Key en GCP tenga habilitado 'Places API'`);
-              resolve([]);
-              return;
-            }
-            resolve(predictions || []);
-          }
-        );
-      });
-      setSuggestions(results as any[]);
+      const request = {
+        input: query,
+        sessionToken,
+        includedRegionCodes: ["mx"], // Restringir a México
+        language: "es-419", // Español latinoamericano
+      };
+
+      const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+      
+      // Mapear resultado al formato esperado por el componente
+      const mappedSuggestions = suggestions.map((s: any) => ({
+        place_id: s.placePrediction.placeId,
+        main_text: s.placePrediction.mainText.text,
+        secondary_text: s.placePrediction.secondaryText.text,
+        description: s.placePrediction.text.text
+      }));
+
+      setSuggestions(mappedSuggestions);
     } catch (error) {
       console.error('Autocomplete error:', error);
       setSuggestions([]);
