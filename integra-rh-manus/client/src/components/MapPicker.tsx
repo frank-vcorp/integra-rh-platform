@@ -306,10 +306,13 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
                 </div>
               )}
 
-              {/* Mapa */}
-              <div ref={mapContainerRef} className="w-full h-[400px] rounded-lg border border-gray-200 bg-gray-100 relative">
+              {/* Mapa - wrapper con overlay separado del contenedor que Google Maps controla */}
+              <div className="w-full h-[400px] rounded-lg border border-gray-200 bg-gray-100 relative overflow-hidden">
+                {/* Contenedor exclusivo para Google Maps - SIN hijos React */}
+                <div ref={mapContainerRef} className="absolute inset-0" />
+                {/* Overlay de carga - hermano, no hijo del contenedor del mapa */}
                 {!isMapReady && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2 bg-gray-100 z-10 pointer-events-none">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <p className="text-sm font-medium text-gray-600">Cargando mapa interactivo...</p>
                   </div>
