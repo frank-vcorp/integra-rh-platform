@@ -1,8 +1,14 @@
+/*
+ * ID: FIX-20251218-02
+ * Archivo: client/src/components/MapPicker.tsx
+ * Descripción: Corrección crítica de visualización de mapa interactivo, inicialización de Marker y versión de API.
+ */
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Map as MapIcon, X } from "lucide-react";
+import { AlertCircle, Map as MapIcon, X, Loader2, Search } from "lucide-react";
 
 declare global {
   interface Window {
@@ -13,7 +19,7 @@ declare global {
 interface MapPickerProps {
   value: { lat: number; lng: number } | null;
   onChange: (coords: { lat: number; lng: number } | null) => void;
-  address: string; // dirección para geocodificación
+  address: string;
   disabled?: boolean;
 }
 
@@ -27,68 +33,14 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [searchInput, setSearchInput] = useState(address);
+  const [searchInput, setSearchInput] = useState(address || "");
+  const [isMapReady, setIsMapReady] = useState(false);
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markerInstanceRef = useRef<google.maps.Marker | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
-  // Cargar Google Maps API
-  useEffect(() => {
-    if (!window.google) {
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-      
-      if (!apiKey) {
-        console.error('VITE_GOOGLE_MAPS_API_KEY no está configurada en import.meta.env');
-        setSearchError('Error de configuración: API Key faltante. Contacte a soporte.');
-        return;
-      }
-      
-      // Evitar inyectar script duplicado si ya existe en DOM
-      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-         return;
-      }
-
-      const script = document.createElement('script');
-      // Adding loading=async based on best practices
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
-      script.async = true;
-      script.defer = true;
-      script.onload = async () => {
-        if (window.google?.maps) {
-          try {
-            // FIX: FIX-20260310-02 - Usar importLibrary para inicializar Geocoder
-            // Esto evita "TypeError: window.google.maps.Geocoder is not a constructor"
-            const { Geocoder } = await window.google.maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
-            geocoderRef.current = new Geocoder();
-            setIsOpen(prev => prev);
-          } catch (e: any) {
-             console.error('Error inicializando Geocoder via importLibrary:', e);
-             // Fallback legacy (probablemente fallará si importLibrary es el estándar)
-             if (window.google.maps.Geocoder) {
-                geocoderRef.current = new window.google.maps.Geocoder();
-             }
-          }
-        }
-      };
-      script.onerror = (e) => {
-        console.error('Error cargando script Google Maps:', e);
-        setSearchError('Error de red al cargar Google Maps API');
-      };
-      document.head.appendChild(script);
-    } else if (window.google?.maps && !geocoderRef.current) {
-        // Cargar geocoder asíncronamente
-        window.google.maps.importLibrary("geocoding").then((lib: any) => {
-           const { Geocoder } = lib;
-           geocoderRef.current = new Geocoder();
-        }).catch(err => {
-           console.error("Error loading geocoding library dynamically", err);
-           // Try legacy fallback
-           if (window.google.maps.Geocoder) {
-             geocoderRef.current = new window.google.maps.Geocoder();
-           }
-        });
-    }
-  }, [isOpen]);
-
-  // Si hay coordenadas guardadas, usar esas
   useEffect(() => {
     if (value) {
       setSelectedCoords(value);
@@ -96,172 +48,245 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
     }
   }, [value]);
 
-  // Autocompletar mientras escribe (usando nueva API AutocompleteSuggestion)
-  const handleSearchChange = async (query: string) => {
+  useEffect(() => {
+    if (isOpen && address && !searchInput) {
+      setSearchInput(address);
+    }
+  }, [isOpen, address]);
+
+  // Cleanup map instance when modal closes to force re-init on reopen
+  useEffect(() => {
+    if (!isOpen) {
+        mapInstanceRef.current = null;
+        markerInstanceRef.current = null;
+        setIsMapReady(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (!window.google?.maps) {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        setSearchError("API Key no configurada.");
+        return;
+      }
+      
+      if (!document.querySelector("script[src*=\"maps.googleapis.com\"]")) {
+        const script = document.createElement("script");
+        script.src = "https://maps.googleapis.com/maps/api/js?key=" + apiKey + "&libraries=places,marker&v=weekly&loading=async";
+        script.async = true;
+        document.head.appendChild(script);
+      }
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    // Only init if open and container is mounted
+    if (!isOpen || !mapContainerRef.current) return;
+
+    const initMap = async () => {
+      try {
+        if (!window.google?.maps) {
+            await new Promise((resolve) => {
+               const check = setInterval(() => {
+                   if (window.google?.maps) {
+                       clearInterval(check);
+                       resolve(null);
+                   }
+               }, 100);
+            });
+        }
+
+        const { Map } = await window.google.maps.importLibrary("maps");
+        const { Marker } = await window.google.maps.importLibrary("marker");
+        const { Geocoder } = await window.google.maps.importLibrary("geocoding");
+
+        geocoderRef.current = new Geocoder();
+
+        if (!mapInstanceRef.current && mapContainerRef.current) {
+            const map = new Map(mapContainerRef.current, {
+                center: mapCenter,
+                zoom: 15,
+                mapId: "INTEGRA_RH_MAP_ID",
+                disableDefaultUI: false,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+            });
+
+            map.addListener("click", (e) => {
+                if (e.latLng) {
+                    updateMarker(e.latLng);
+                }
+            });
+
+            mapInstanceRef.current = map;
+        }
+
+        if (mapInstanceRef.current && !markerInstanceRef.current) {
+            const marker = new Marker({
+                position: mapCenter,
+                map: mapInstanceRef.current,
+                draggable: true,
+                title: "Ubicación seleccionada",
+                animation: google.maps.Animation.DROP
+            });
+
+            marker.addListener("dragend", () => {
+                const pos = marker.getPosition();
+                if (pos) {
+                    updateMarker(pos);
+                }
+            });
+
+            markerInstanceRef.current = marker;
+        }
+
+        setIsMapReady(true);
+
+      } catch (e) {
+        console.error("Error al inicializar mapa:", e);
+        setSearchError("No se pudo cargar el mapa interactivo");
+      }
+    };
+
+    initMap();
+  }, [isOpen]); // Depend on isOpen to trigger validation of refs
+
+  useEffect(() => {
+      if (mapInstanceRef.current && markerInstanceRef.current && mapCenter) {
+          mapInstanceRef.current.panTo(mapCenter);
+          markerInstanceRef.current.setPosition(mapCenter);
+          mapInstanceRef.current.setZoom(17);
+      }
+  }, [mapCenter]);
+
+  const updateMarker = (latLng) => {
+      const newCoords = { lat: latLng.lat(), lng: latLng.lng() };
+      setSelectedCoords(newCoords);
+      markerInstanceRef.current?.setPosition(latLng);
+  };
+
+  const handleSearchChange = async (query) => {
     setSearchInput(query);
     if (!query || query.trim().length < 3) {
       setSuggestions([]);
       return;
     }
 
-    if (!window.google?.maps) {
-      console.warn('Google Maps API no está listo');
-      return;
-    }
+    if (!window.google?.maps) return;
 
     try {
-      // Usar la nueva API AutocompleteSuggestion (recomendado desde Mar 2025)
-      // Utilizar window.google para evitar errores de tipo si no existen las definiciones globales
-      const { AutocompleteSuggestion, AutocompleteSessionToken } = await window.google.maps.importLibrary("places") as any;
+      const { AutocompleteSuggestion, AutocompleteSessionToken } = await window.google.maps.importLibrary("places");
       const sessionToken = new AutocompleteSessionToken();
       
       const request = {
         input: query,
         sessionToken,
-        includedRegionCodes: ["mx"], // Restringir a México
-        language: "es-419", // Español latinoamericano
+        includedRegionCodes: ["mx"],
+        language: "es-419",
       };
 
-      const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+      const { suggestions: results } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
       
-      // Mapear resultado al formato esperado por el componente
-      const mappedSuggestions = suggestions.map((s: any) => ({
+      const mapped = results.map((s) => ({
         place_id: s.placePrediction.placeId,
         main_text: s.placePrediction.mainText.text,
         secondary_text: s.placePrediction.secondaryText.text,
         description: s.placePrediction.text.text
       }));
 
-      setSuggestions(mappedSuggestions);
+      setSuggestions(mapped);
     } catch (error) {
-      console.error('Autocomplete error:', error);
+      console.warn("Error en autocomplete:", error);
       setSuggestions([]);
     }
   };
 
-  // Geocodificar cuando selecciona una sugerencia
-  const handleSelectSuggestion = async (placeId: string) => {
-    // Si geocoder no existe, inicializarlo de manera robusta
+  const handleSelectSuggestion = async (placeId) => {
     if (!geocoderRef.current) {
-      if (window.google?.maps) {
-        try {
-          // Intentar primero con importLibrary
-          const { Geocoder } = await window.google.maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
-          geocoderRef.current = new Geocoder();
-        } catch (e: any) {
-          console.warn('Fallback a legacy Geocoder en handleSelectSuggestion:', e);
-          if (window.google.maps.Geocoder) {
-            geocoderRef.current = new window.google.maps.Geocoder();
-          }
-        }
-      }
+        setSearchError("El servicio de geocodificación no está listo.");
+        return;
     }
-
-    if (!geocoderRef.current) return;
 
     setIsSearching(true);
     setSearchError(null);
 
     try {
-      const results = await new Promise<google.maps.GeocoderResult[]>((resolve) => {
-        geocoderRef.current?.geocode({ placeId }, (results) => {
-          resolve(results || []);
-        });
-      });
+       const results = await new Promise((resolve, reject) => {
+           geocoderRef.current.geocode({ placeId }, (res, status) => {
+               if (status === "OK" && res) resolve(res);
+               else reject(new Error(status));
+           });
+       });
 
-      if (results && results.length > 0) {
-        const location = results[0].geometry.location;
-        const coords = { lat: location.lat(), lng: location.lng() };
-        setMapCenter(coords);
-        setSelectedCoords(coords);
-        setSearchError(null);
-        setSuggestions([]);
-        setSearchInput(results[0].formatted_address);
-        
-        // Ajustar el mapa al centro si está visible y en su modal
-        // (El renderizado de React podría retrasarse, así que un pequeño timeout puede ayudar)
-        setTimeout(() => {
-           // Forzar re-render de mapa? Realmente no hace falta si se actualiza el estado mapCenter.
-           // Pero quizás el componente GoogleMap (si se usara uno externo) necesite señal
-        }, 100);
-
-      } else {
-        setSearchError('No se encontró la ubicación');
-      }
-    } catch (error) {
-      setSearchError('Error al geocodificar: ' + (error as Error).message);
-      console.error(error);
+       if (results && results.length > 0) {
+           const loc = results[0].geometry.location;
+           const newPos = { lat: loc.lat(), lng: loc.lng() };
+           
+           setMapCenter(newPos);
+           setSelectedCoords(newPos);
+           setSearchInput(results[0].formatted_address);
+           setSuggestions([]);
+       }
+    } catch (e) {
+        setSearchError("Error al obtener detalles del lugar: " + e.message);
     } finally {
-      setIsSearching(false);
+        setIsSearching(false);
     }
   };
 
-  // Geocodificar dirección completa
   const handleGeocodeAddress = async () => {
-    if (!searchInput || searchInput.trim().length < 5) {
-      setSearchError("Por favor, completa la dirección");
-      return;
-    }
+      if (!searchInput || searchInput.length < 4) return;
+      if (!geocoderRef.current) return;
 
-    if (!geocoderRef.current) {
-      setSearchError("Google Maps no está listo");
-      return;
-    }
+      setIsSearching(true);
+      setSearchError(null);
 
-    setIsSearching(true);
-    setSearchError(null);
+      try {
+          const results = await new Promise((resolve, reject) => {
+              geocoderRef.current.geocode({ 
+                  address: searchInput, 
+                  componentRestrictions: { country: "mx" } 
+              }, (res, status) => {
+                  if (status === "OK" && res) resolve(res);
+                  else reject(new Error(status));
+              });
+          });
 
-    try {
-      const results = await new Promise<google.maps.GeocoderResult[]>((resolve) => {
-        geocoderRef.current?.geocode(
-          {
-            address: searchInput,
-            componentRestrictions: { country: 'mx' },
-          },
-          (results) => {
-            resolve(results || []);
+          if (results.length > 0) {
+              const loc = results[0].geometry.location;
+              const newPos = { lat: loc.lat(), lng: loc.lng() };
+              setMapCenter(newPos);
+              setSelectedCoords(newPos);
+              setSearchInput(results[0].formatted_address);
+          } else {
+              setSearchError("No se encontró la dirección especificada.");
           }
-        );
-      });
-
-      if (results && results.length > 0) {
-        const location = results[0].geometry.location;
-        const coords = { lat: location.lat(), lng: location.lng() };
-        setMapCenter(coords);
-        setSelectedCoords(coords);
-        setSearchError(null);
-        setSearchInput(results[0].formatted_address);
-      } else {
-        setSearchError('No se encontró la dirección. Verifica que sea una dirección válida en México.');
+      } catch (e) {
+          setSearchError("Error: " + e.message);
+      } finally {
+          setIsSearching(false);
       }
-    } catch (error) {
-      setSearchError('Error al buscar: ' + (error as Error).message);
-      console.error(error);
-    } finally {
-      setIsSearching(false);
-    }
   };
 
-  // Guardar y cerrar
-  const handleSaveLocation = () => {
-    if (selectedCoords) {
-      onChange(selectedCoords);
-    }
-    setIsOpen(false);
+  const handleSave = () => {
+      if (selectedCoords) onChange(selectedCoords);
+      setIsOpen(false);
   };
 
-  // Limpiar ubicación
-  const handleClearLocation = () => {
-    onChange(null);
-    setSelectedCoords(null);
-    setIsOpen(false);
+  const handleClear = () => {
+      onChange(null);
+      setSelectedCoords(null);
+      setIsOpen(false);
   };
 
   return (
     <div className="space-y-2">
-      <Label>Ubicación en el Mapa</Label>
+      <Label>Ubicación (Google Maps)</Label>
       
-      {/* Botón para abrir mapa */}
       <div className="flex gap-2">
         <Button
           type="button"
@@ -275,126 +300,108 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
           {selectedCoords ? "Ajustar ubicación" : "Seleccionar en mapa"}
         </Button>
         {selectedCoords && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleClearLocation}
-            disabled={disabled}
-            className="text-red-600 hover:text-red-700"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Mostrar coordenadas guardadas */}
-      {selectedCoords && (
-        <p className="text-xs text-muted-foreground">
-          Ubicación guardada: {selectedCoords.lat.toFixed(4)}, {selectedCoords.lng.toFixed(4)}
-        </p>
-      )}
-
-      {/* Modal con mapa */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="border-b p-4 flex items-center justify-between">
-              <h3 className="font-semibold">Localizar dirección en el mapa</h3>
-              <Button
+            <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsOpen(false)}
-              >
+                onClick={handleClear}
+                disabled={disabled}
+                className="text-red-600 hover:bg-red-50"
+            >
                 <X className="h-4 w-4" />
-              </Button>
-            </div>
+            </Button>
+        )}
+      </div>
 
-            {/* Search bar */}
-            <div className="border-b p-4 space-y-3">
-              <div className="relative">
-                <Input
-                  placeholder="Busca tu dirección..."
-                  value={searchInput}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleGeocodeAddress();
-                  }}
-                  disabled={isSearching}
-                  className="pr-10"
-                />
-                {suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-md shadow-lg z-10 max-h-48 overflow-y-auto">
-                    {suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion.place_id}
-                        type="button"
-                        onClick={() => handleSelectSuggestion(suggestion.place_id)}
-                        className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b last:border-b-0 text-sm"
-                      >
-                        <p className="font-medium">{suggestion.main_text}</p>
-                        <p className="text-xs text-gray-500">{suggestion.secondary_text}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+      {selectedCoords && (
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            <MapIcon className="w-3 h-3" />
+            <span>Lat: {selectedCoords.lat.toFixed(5)}, Lng: {selectedCoords.lng.toFixed(5)}</span>
+        </div>
+      )}
 
-              {searchInput && !suggestions.length && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleGeocodeAddress}
-                  disabled={isSearching}
-                  className="w-full"
-                >
-                  {isSearching ? "Buscando..." : "Buscar dirección exacta"}
+      {/* Modal */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            <div className="border-b p-4 flex justify-between items-center bg-gray-50">
+                <div>
+                    <h3 className="font-bold text-lg">Seleccionar Ubicación</h3>
+                    <p className="text-sm text-gray-500">Busca una dirección o arrastra el pin en el mapa</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+                    <X className="h-5 w-5" />
                 </Button>
-              )}
+            </div>
 
-              {searchError && (
-                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-                  <AlertCircle className="h-4 w-4" />
-                  {searchError}
+            <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+                {/* Buscador */}
+                <div className="relative z-10">
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input 
+                                placeholder="Escribe para buscar calle, colonia..." 
+                                value={searchInput}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleGeocodeAddress()}
+                                className="pl-9"
+                            />
+                        </div>
+                        <Button type="button" onClick={handleGeocodeAddress} disabled={isSearching}>
+                            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+                        </Button>
+                    </div>
+
+                    {/* Sugerencias */}
+                    {suggestions.length > 0 && (
+                        <div className="absolute top-12 left-0 right-0 bg-white border rounded-lg shadow-xl max-h-60 overflow-y-auto z-20">
+                            {suggestions.map((s) => (
+                                <button
+                                    key={s.place_id}
+                                    type="button"
+                                    onClick={() => handleSelectSuggestion(s.place_id)}
+                                    className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b last:border-b-0 transition-colors"
+                                >
+                                    <p className="font-medium text-sm text-gray-900">{s.main_text}</p>
+                                    <p className="text-xs text-gray-500">{s.secondary_text}</p>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
-              )}
-            </div>
 
-            {/* Google Maps */}
-            <div style={{ height: "400px", width: "100%" }} id="google-map-container">
-              {mapCenter && (
-                <div style={{
-                  width: "100%",
-                  height: "100%",
-                  background: "#f0f0f0",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#666",
-                }}>
-                  📍 {mapCenter.lat.toFixed(4)}, {mapCenter.lng.toFixed(4)}
-                  <p style={{ fontSize: "12px", marginTop: "8px", textAlign: "center" }}>
-                    (Google Maps se mostrará aquí cuando selecciones una dirección)
-                  </p>
+                {searchError && (
+                    <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        {searchError}
+                    </div>
+                )}
+
+                {/* Mapa Container */}
+                <div 
+                    ref={mapContainerRef} 
+                    className="w-full h-[400px] rounded-lg border border-gray-200 bg-gray-100 relative"
+                >
+                    {!isMapReady && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-sm font-medium text-gray-600">Cargando mapa interactivo...</p>
+                        </div>
+                    )}
                 </div>
-              )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t p-4 flex gap-2 justify-end bg-gray-50">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSaveLocation}
-                disabled={!selectedCoords}
-              >
-                Guardar ubicación
-              </Button>
+            <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setIsOpen(false)}>
+                    Cancelar
+                </Button>
+                <Button onClick={handleSave} disabled={!selectedCoords}>
+                    Confirmar Ubicación
+                </Button>
             </div>
+
           </div>
         </div>
       )}
