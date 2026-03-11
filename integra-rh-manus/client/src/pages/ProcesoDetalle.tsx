@@ -621,7 +621,7 @@ export default function ProcesoDetalle() {
                   </Button>
                 </div>
                 
-                {(calificacion === 'recomendable' || calificacion === 'con_reservas') && (
+                {calificacion !== 'pendiente' && (
                   <Textarea
                     placeholder="Escribe un comentario o justificación del dictamen..."
                     value={comentarioCalificacion}
