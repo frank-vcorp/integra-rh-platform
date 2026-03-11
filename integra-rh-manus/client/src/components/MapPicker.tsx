@@ -67,10 +67,9 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
     if (!isOpen) return;
 
     if (!window.google?.maps) {
-      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
       if (!apiKey) {
-        setSearchError("API Key no configurada.");
-        return;
+        console.warn("API Key de Google Maps no detectada. El mapa podría no cargar correctamente.");
       }
       
       if (!document.querySelector("script[src*=\"maps.googleapis.com\"]")) {
