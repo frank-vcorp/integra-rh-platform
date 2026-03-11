@@ -232,8 +232,10 @@ export default function Visitas() {
             <div className="space-y-3">
               {dayVisits.map((v:any)=> (
                 <div key={v.id} className="border rounded p-3">
-                  <div className="text-sm font-medium">{v.clave} — {v.tipoProducto}</div>
-                  <div className="text-xs text-muted-foreground">Estatus: {v.visitStatus?.status || '-'} | Hora: {new Date(v.visitStatus?.scheduledDateTime).toLocaleString()}</div>
+                  <div className="text-sm font-medium">
+                    {v.clave} — {candidates.find((c:any)=> c.id === v.candidatoId)?.nombreCompleto || 'Candidato Desconocido'} — {v.tipoProducto}
+                  </div>
+                  <div className="text-xs text-muted-foreground uppercase">estatus: {v.visitStatus?.status || '-'} | hora: {new Date(v.visitStatus?.scheduledDateTime).toLocaleString()}</div>
                   <div className="mt-2 flex gap-2">
                     {(() => {
                       const enc = getSurveyorById(v.visitStatus?.encuestadorId);
