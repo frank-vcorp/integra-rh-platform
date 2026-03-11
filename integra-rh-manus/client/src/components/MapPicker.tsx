@@ -141,6 +141,22 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
 
   // Geocodificar cuando selecciona una sugerencia
   const handleSelectSuggestion = async (placeId: string) => {
+    // Si geocoder no existe, inicializarlo de manera robusta
+    if (!geocoderRef.current) {
+      if (window.google?.maps) {
+        try {
+          // Intentar primero con importLibrary
+          const { Geocoder } = await window.google.maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
+          geocoderRef.current = new Geocoder();
+        } catch (e: any) {
+          console.warn('Fallback a legacy Geocoder en handleSelectSuggestion:', e);
+          if (window.google.maps.Geocoder) {
+            geocoderRef.current = new window.google.maps.Geocoder();
+          }
+        }
+      }
+    }
+
     if (!geocoderRef.current) return;
 
     setIsSearching(true);
@@ -161,6 +177,14 @@ export function MapPicker({ value, onChange, address, disabled }: MapPickerProps
         setSearchError(null);
         setSuggestions([]);
         setSearchInput(results[0].formatted_address);
+        
+        // Ajustar el mapa al centro si está visible y en su modal
+        // (El renderizado de React podría retrasarse, así que un pequeño timeout puede ayudar)
+        setTimeout(() => {
+           // Forzar re-render de mapa? Realmente no hace falta si se actualiza el estado mapCenter.
+           // Pero quizás el componente GoogleMap (si se usara uno externo) necesite señal
+        }, 100);
+
       } else {
         setSearchError('No se encontró la ubicación');
       }
