@@ -446,8 +446,8 @@ export default function Usuarios() {
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
                 <Label htmlFor="name">Nombre Completo *</Label>
                 <Input
                   id="name"
@@ -456,7 +456,7 @@ export default function Usuarios() {
                   required
                 />
               </div>
-              <div className="col-span-2">
+              <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -500,7 +500,7 @@ export default function Usuarios() {
                 </div>
               )}
               {roles.length > 0 && (
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-2">
                   <Label>Roles de permisos</Label>
                   <div className="mt-1 flex flex-wrap gap-2">
                     {roles.map((role: any) => (

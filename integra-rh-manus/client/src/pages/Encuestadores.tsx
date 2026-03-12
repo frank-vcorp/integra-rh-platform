@@ -487,8 +487,8 @@ export default function Encuestadores() {
             </SheetTitle>
           </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
                 <Label htmlFor="nombre">Nombre *</Label>
                 <Input
                   id="nombre"
@@ -546,11 +546,11 @@ export default function Encuestadores() {
                 <Label>Tarifa foránea (MXN)</Label>
                 <Input type="number" min="0" step="0.01" value={tarifaForanea} onChange={e=> setTarifaForanea(e.target.value)} placeholder="Ej. 800.00" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 md:col-span-2">
                 <Label>Comentarios</Label>
                 <Textarea value={notas} onChange={e=> setNotas(e.target.value)} placeholder="Información adicional (horarios, restricciones, etc.)" rows={3} />
               </div>
-              <div className="col-span-2">
+              <div>
                 <Label htmlFor="activo">Estatus</Label>
                 <Select 
                   value={selectedActivo ? "true" : "false"} 
