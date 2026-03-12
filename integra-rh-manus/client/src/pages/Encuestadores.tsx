@@ -13,11 +13,11 @@ import { Plus, UserCheck, Pencil, Trash2, Phone, Eye } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -477,15 +477,15 @@ export default function Encuestadores() {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
+      {/* Sheet */}
       {!isClient && canEditSurveyor && (
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-xl lg:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>
               {editingSurveyor ? "Editar Encuestador" : "Nuevo Encuestador"}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -585,8 +585,8 @@ export default function Encuestadores() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
       )}
     </div>
   );
