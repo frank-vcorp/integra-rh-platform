@@ -524,6 +524,8 @@ export const processes = mysqlTable("processes", {
     fechaRealizacion?: string;
     enlaceReporteUrl?: string;
     evidenciasGraficas?: string[]; // Array de URLs de evidencias de visita
+    /** IMPL-20260311-04: Evaluación final del encuestador de campo */
+    evaluacionEncuestador?: "aprobado" | "riesgoso" | "rechazado" | "visita_no_realizada";
   }>(),
   archivoDictamenUrl: varchar("archivoDictamenUrl", { length: 500 }),
   archivoDictamenPath: varchar("archivoDictamenPath", { length: 500 }),

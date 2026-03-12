@@ -326,6 +326,8 @@ export const processesRouter = router({
         fechaRealizacion: z.string().optional(),
         enlaceReporteUrl: z.string().trim().optional(),
         evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs para galerías
+        // IMPL-20260311-04: Evaluación final del encuestador de campo
+        evaluacionEncuestador: z.enum(["aprobado","riesgoso","rechazado","visita_no_realizada"]).optional(),
       }).partial().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
