@@ -1,9 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Building2, Users, FileText, CheckCircle2, Clock, AlertCircle, Zap, TrendingUp } from "lucide-react";
+import { Building2, Users, FileText, CheckCircle2, Clock, AlertCircle, Zap, TrendingUp, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -86,7 +86,63 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Acciones Rápidas - IMPL-20260312-05 */}
+      {isAdmin && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Acciones Rápidas</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Link href="/flujo-completo" className="block">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer hover:-translate-y-1">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Flujo Completo</h3>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary">Cliente</Badge>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant="secondary">Candidato</Badge>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant="secondary">Puesto</Badge>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant="secondary">Proceso</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Ideal para iniciar operaciones con un cliente nuevo
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/flujo-candidato" className="block">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer hover:-translate-y-1">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Flujo Rápido</h3>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary">Candidato</Badge>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant="secondary">Puesto</Badge>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Badge variant="secondary">Proceso</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Para asignar candidatos a clientes existentes
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Resumen General */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isAdmin && (
           <Card>
@@ -168,53 +224,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions - Solo para admin */}
-      {isAdmin && (
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              <div>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  Flujo Completo
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Cliente → Candidato → Puesto → Proceso
-                </p>
-              </div>
-              <Link href="/flujo-completo">
-                <Button size="lg" className="w-full">
-                  Iniciar Flujo Completo
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              <div>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  Flujo Rápido
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Candidato → Puesto → Proceso
-                </p>
-              </div>
-              <Link href="/flujo-candidato">
-                <Button size="lg" className="w-full">
-                  Iniciar Flujo Rápido
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      )}
 
       {/* Completed Processes Analytics - IMPL-20260219-04 */}
       <Card>
