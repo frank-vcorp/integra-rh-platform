@@ -61,64 +61,51 @@ export default function Dashboard() {
     .reverse();
 
   return (
-    <div className="space-y-6">
+    // IMPL-20260312-11: Compactación HUD — sin scroll, todo en 1 pantalla
+    <div className="space-y-3">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Bienvenido, {user?.name || user?.email}
-        </p>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Dashboard</h1>
+        <span className="text-xs text-muted-foreground">Bienvenido, {user?.name || user?.email}</span>
       </div>
 
       {/* Acciones Rápidas - IMPL-20260312-05 */}
       {isAdmin && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Acciones Rápidas</p>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2">
             <Link href="/flujo-completo" className="block">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer hover:-translate-y-1">
-                <CardContent className="pt-6">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Flujo Completo</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="secondary">Cliente</Badge>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Badge variant="secondary">Candidato</Badge>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Badge variant="secondary">Puesto</Badge>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Badge variant="secondary">Proceso</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Ideal para iniciar operaciones con un cliente nuevo
-                    </p>
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                    <h3 className="text-sm font-semibold shrink-0">Flujo Completo</h3>
+                    <Badge variant="secondary" className="text-xs">Cliente</Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary" className="text-xs">Candidato</Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary" className="text-xs">Puesto</Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary" className="text-xs">Proceso</Badge>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">Ideal para iniciar operaciones con un cliente nuevo</p>
                 </CardContent>
               </Card>
             </Link>
 
             <Link href="/flujo-candidato" className="block">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer hover:-translate-y-1">
-                <CardContent className="pt-6">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Flujo Rápido</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="secondary">Candidato</Badge>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Badge variant="secondary">Puesto</Badge>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      <Badge variant="secondary">Proceso</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Para asignar candidatos a clientes existentes
-                    </p>
+                <CardContent className="pt-3 pb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                    <h3 className="text-sm font-semibold shrink-0">Flujo Rápido</h3>
+                    <Badge variant="secondary" className="text-xs">Candidato</Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary" className="text-xs">Puesto</Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary" className="text-xs">Proceso</Badge>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">Para asignar candidatos a clientes existentes</p>
                 </CardContent>
               </Card>
             </Link>
@@ -129,17 +116,17 @@ export default function Dashboard() {
       {/* KPIs Operativos — IMPL-20260312-10 */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Métricas del Día</p>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
           {/* KPI 1: Procesos Activos */}
           <Link href="/procesos">
             <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-blue-200 hover:border-blue-400">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
                 <CardTitle className="text-sm font-medium">Procesos Activos</CardTitle>
                 <Clock className="h-4 w-4 text-blue-500" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pb-3 pt-0">
                 <div className="text-2xl font-bold text-blue-600">{stats.procesosActivos}</div>
-                <p className="text-xs text-muted-foreground mt-1">En flujo de trabajo</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">En flujo de trabajo</p>
               </CardContent>
             </Card>
           </Link>
@@ -147,13 +134,13 @@ export default function Dashboard() {
           {/* KPI 2: Procesos Completados */}
           <Link href="/procesos">
             <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-green-200 hover:border-green-400">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Procesos Completados</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
+                <CardTitle className="text-sm font-medium">Completados</CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pb-3 pt-0">
                 <div className="text-2xl font-bold text-green-600">{stats.procesosCompletados}</div>
-                <p className="text-xs text-muted-foreground mt-1">Finalizados / Entregados</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Finalizados / Entregados</p>
               </CardContent>
             </Card>
           </Link>
@@ -161,13 +148,13 @@ export default function Dashboard() {
           {/* KPI 3: Pendientes en Recepción */}
           <Link href="/procesos">
             <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-amber-200 hover:border-amber-400">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
                 <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
                 <AlertCircle className="h-4 w-4 text-amber-500" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pb-3 pt-0">
                 <div className="text-2xl font-bold text-amber-600">{stats.procesosPendientes}</div>
-                <p className="text-xs text-muted-foreground mt-1">En recepción sin asignar</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">En recepción sin asignar</p>
               </CardContent>
             </Card>
           </Link>
@@ -175,13 +162,13 @@ export default function Dashboard() {
           {/* KPI 4: Ingresados Hoy */}
           <Link href="/procesos">
             <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-purple-200 hover:border-purple-400">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3">
                 <CardTitle className="text-sm font-medium">Ingresados Hoy</CardTitle>
                 <CalendarPlus className="h-4 w-4 text-purple-500" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pb-3 pt-0">
                 <div className="text-2xl font-bold text-purple-600">{stats.procesosIngresadosHoy}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {today.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "short" })}
                 </p>
               </CardContent>
@@ -193,7 +180,7 @@ export default function Dashboard() {
 
 
       {/* Tabla de Monitoreo Rápido — IMPL-20260312-10 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
 
         {/* Columna 1: Candidatos Recientes */}
         <Card>
@@ -208,26 +195,24 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {candidatosRecientes.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Sin candidatos registrados</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Sin candidatos registrados</p>
             ) : (
-              <div className="space-y-2">
+              <div>
                 {candidatosRecientes.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border hover:bg-accent transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{c.nombreCompleto}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(c.createdAt).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2">
+                  <div key={c.id} className="flex items-center justify-between py-1.5 border-b last:border-0 hover:bg-accent/50 transition-colors px-1">
+                    <p className="font-medium text-xs truncate flex-1">{c.nombreCompleto}</p>
+                    <span className="text-[10px] text-muted-foreground mx-2 shrink-0">
+                      {new Date(c.createdAt).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
                       <Badge
                         variant={c.selfFilledStatus === "revisado" ? "default" : c.selfFilledStatus === "recibido" ? "secondary" : "outline"}
-                        className="text-xs capitalize"
+                        className="text-[10px] capitalize py-0 px-1.5"
                       >
                         {c.selfFilledStatus ?? "pendiente"}
                       </Badge>
                       <Link href={`/candidatos/${c.id}`}>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
                       </Link>
                     </div>
                   </div>
@@ -250,26 +235,24 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {procesosAtascados.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No hay procesos en recepción</p>
+              <p className="text-sm text-muted-foreground text-center py-4">No hay procesos en recepción</p>
             ) : (
-              <div className="space-y-2">
+              <div>
                 {procesosAtascados.map((p) => (
                   <Link
                     key={p.id}
                     href={`/procesos/${p.id}`}
-                    className="flex items-center justify-between p-2.5 rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors"
+                    className="flex items-center justify-between py-1.5 border-b last:border-0 hover:bg-amber-50/50 transition-colors px-1"
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{p.clave}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Recibido: {new Date(p.fechaRecepcion).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                        En Recepción
+                    <p className="font-medium text-xs flex-1">{p.clave}</p>
+                    <span className="text-[10px] text-muted-foreground mx-2 shrink-0">
+                      {new Date(p.fechaRecepcion).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 py-0 px-1.5">
+                        Recepción
                       </Badge>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                   </Link>
                 ))}
