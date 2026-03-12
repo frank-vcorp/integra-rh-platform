@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft } from "lucide-react";
 import { Link, useParams } from "wouter";
+import AnalistaStepper from "@/components/AnalistaStepper";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
 import { useHasPermission } from "@/_core/hooks/usePermission";
@@ -282,6 +283,8 @@ export default function ProcesoDetalle() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxSection, setLightboxSection] = useState<"legal" | "semanas" | "penales" | "buro" | "visita">("legal");
+  /** IMPL-20260311-01: Modo de visualización — Stepper Flujo Guiado vs. Vista Clásica */
+  const [modoGuiado, setModoGuiado] = useState(false);
 
   useEffect(() => {
     if (process) {
@@ -488,7 +491,26 @@ export default function ProcesoDetalle() {
           <h1 className="text-3xl font-bold">Proceso {process.clave}</h1>
           <p className="text-muted-foreground mt-1">Detalle del proceso</p>
         </div>
+        {/** IMPL-20260311-01: Toggle Flujo Guiado vs. Vista Clásica */}
+        {!isClientAuth && (
+          <Button
+            variant={modoGuiado ? "default" : "outline"}
+            size="sm"
+            onClick={() => setModoGuiado((v) => !v)}
+          >
+            {modoGuiado ? "Vista Clásica" : "⚡ Flujo Guiado"}
+          </Button>
+        )}
       </div>
+
+      {/** IMPL-20260311-01: Stepper visual — Flujo Guiado del Analista (SPEC-003) */}
+      {modoGuiado && (
+        <Card>
+          <CardContent className="pt-6">
+            <AnalistaStepper process={process} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
