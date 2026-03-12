@@ -92,13 +92,17 @@
  - `[✓]` UI-REF-01: Implementar Sistema de Diseño (shadcn/ui + Tremor) — SPEC: `context/SPEC-UI-REF-01.md`
  - `[✓]` UI-REF-02: Normalización visual a MAYÚSCULAS (global)
  - `[✓]` UI-REF-03: Ajuste etiqueta ILA → “INVESTIGACIÓN LABORAL”
- - `[X]` UI-REF-04: Borrador local en Investigación Laboral (localStorage) — SPEC: `context/SPEC-INVESTIGACION-LOCALSTORAGE.md`
- - `[X]` UI-REF-05: Incidencias duplicadas (candidato/empresa) — SPEC: `context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md`
- - `[X]` UI-REF-06: Semanas Cotizadas (Bloque 2 Investigación Laboral) — SPEC: `context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md`
+ - `[✓]` UI-REF-07: Stepper UX Analista (Recepción, Buró, Laboral, Visita, Dictamen) — SPEC: `context/SPEC-UI-REF-07.md`
 
-### PVM - Dashboard Clientes (Nuevo)
- - `[✓]` PVM-DASH-01 (Backend): Extender modelo proceso/candidato con especialista de atracción, estatus visual y bloques JSON de detalle (inv. laboral/legal, buró, visita). Migración Drizzle + tRPC.
- - `[✓]` PVM-DASH-02 (Frontend): Tarjeta semáforo + detalle expandible con los bloques nuevos (cliente). UI basada en `context/SPEC-DASHBOARD.md`. Incluye portal de cliente por enlace con branding Sinergia RH.
+### PVM - Dashboard del Cliente
+ - `[✓]` PVM-DASH-01: Dashboard del Cliente (Modelo Híbrido)
+
+### Siguientes Pasos
+- Pruebas integrales de flujo con data pesada (llenar un proceso completo desde Analista y verlo como Cliente)
+- Fase de QA de UI / Mejoras visuales
+
+**Checkpoint Final:**
+- Se subió la rama `feat/dashboard-cliente-hibrido` con los cambios completos del Dashboard del Cliente (Modelo Híbrido).
 
 **Estado Actual (28/01/2026)**
 
