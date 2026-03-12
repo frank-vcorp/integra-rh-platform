@@ -5,7 +5,6 @@ import "react-day-picker/style.css";
 import { useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -175,7 +174,7 @@ export default function Visitas() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className={`grid grid-cols-1 gap-6 transition-all duration-200 ${scheduleOpen ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
       <Card>
         <CardHeader>
           <CardTitle>Calendario de visitas</CardTitle>
@@ -304,13 +303,14 @@ export default function Visitas() {
         </CardContent>
       </Card>
 
-      {/* Dialogo programar visita */}
-      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-        <DialogContent className="max-w-xl" aria-describedby="schedule-desc">
-          <DialogHeader>
-            <DialogTitle>Programar visita</DialogTitle>
-          </DialogHeader>
-          <p id="schedule-desc" className="sr-only">Formulario para programar una visita y compartirla por WhatsApp o agregarla al calendario.</p>
+      {/* Panel lateral — programar / reagendar visita | IMPL-20260312-03 */}
+      {scheduleOpen && !isClient && (
+        <Card className="border-primary/40 shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">{mode === 'schedule' ? 'Programar visita' : 'Reagendar visita'}</CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setScheduleOpen(false)} aria-label="Cerrar panel">✕</Button>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-3">
             <div>
               <Label>Proceso</Label>
@@ -396,8 +396,9 @@ export default function Visitas() {
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
