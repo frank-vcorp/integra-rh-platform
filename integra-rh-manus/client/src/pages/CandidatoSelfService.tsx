@@ -237,6 +237,17 @@ export default function CandidatoSelfService() {
   const [aceptoAviso, setAceptoAviso] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [hasAttemptedLocalStorage, setHasAttemptedLocalStorage] = useState(false);
+  // IMPL-20260312-04: Estado wizard multi-paso
+  const [currentStep, setCurrentStep] = useState(0);
+  const TOTAL_STEPS = 6;
+  const STEP_TITLES = [
+    "Datos personales",
+    "Domicilio y redes",
+    "Entorno familiar",
+    "Situación económica",
+    "Documentos",
+    "Historial y consentimiento",
+  ];
 
   // Recuperar estado guardado en localStorage
   useEffect(() => {
@@ -727,6 +738,7 @@ export default function CandidatoSelfService() {
           )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {currentStep === 0 && (
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">
                 1. Datos personales y de contacto
@@ -891,7 +903,9 @@ export default function CandidatoSelfService() {
                 </div>
               </div>
             </section>
+            )}
 
+            {currentStep === 1 && (<>
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">2. Domicilio</h2>
               <p className="text-xs text-gray-500">
@@ -1026,7 +1040,9 @@ export default function CandidatoSelfService() {
                 </div>
               </div>
             </section>
+            </>)}
 
+            {currentStep === 2 && (<>
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">
                 4. Entorno familiar
@@ -1304,7 +1320,9 @@ export default function CandidatoSelfService() {
                 </div>
               </div>
             </section>
+            </>)}
 
+            {currentStep === 3 && (<>
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">
                 6. Situación económica y antecedentes
@@ -1501,7 +1519,9 @@ export default function CandidatoSelfService() {
                 </div>
               </div>
             </section>
+            </>)}
 
+            {currentStep === 4 && (
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">
                 8. Documentos a preparar
@@ -1653,7 +1673,9 @@ export default function CandidatoSelfService() {
                 </div>
               </div>
             </section>
+            )}
 
+            {currentStep === 5 && (<>
             <section className="space-y-3">
               <h2 className="text-sm font-semibold">
                 9. Historial laboral (básico)
@@ -1785,13 +1807,33 @@ export default function CandidatoSelfService() {
               </div>
             </section>
 
-            <div className="flex justify-end">
+            </>)}
+
+            {/* IMPL-20260312-04: Botones de navegación wizard */}
+            <div className="flex justify-between pt-4 border-t mt-2">
               <Button
-                type="submit"
-                disabled={submitMutation.isPending || !aceptoAviso}
+                type="button"
+                variant="outline"
+                onClick={() => { setCurrentStep((s) => Math.max(0, s - 1)); window.scrollTo(0, 0); }}
+                disabled={currentStep === 0}
               >
-                {submitMutation.isPending ? "Enviando..." : "Enviar datos"}
+                ← Anterior
               </Button>
+              {currentStep < TOTAL_STEPS - 1 ? (
+                <Button
+                  type="button"
+                  onClick={() => { setCurrentStep((s) => Math.min(TOTAL_STEPS - 1, s + 1)); window.scrollTo(0, 0); }}
+                >
+                  Siguiente →
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={submitMutation.isPending || !aceptoAviso}
+                >
+                  {submitMutation.isPending ? "Enviando..." : "Enviar datos"}
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>
