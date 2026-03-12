@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Building2, Users, FileText, CheckCircle2, Clock, AlertCircle, Zap, TrendingUp, ArrowRight } from "lucide-react";
+import { Building2, Users, CheckCircle2, Clock, AlertCircle, Zap, TrendingUp, ArrowRight, ChevronRight, CalendarPlus, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 
@@ -23,58 +23,42 @@ export default function Dashboard() {
     ? allProcesses.filter(p => p.clienteId === user?.clientId)
     : allProcesses;
 
-  // Calcular estadísticas
+  // ============================================================================
+  // IMPL-20260312-10: Lógica Local Diaria — Centro de Mando Operativo
+  // ============================================================================
+  const today = new Date();
+  const todayStr = today.toDateString();
+
+  // Procesos ingresados hoy (por fechaRecepcion)
+  const procesosIngresadosHoy = processes.filter(
+    (p) => new Date(p.fechaRecepcion).toDateString() === todayStr
+  );
+
+  // KPIs operativos
   const stats = {
     totalClients: clients.length,
-    totalCandidates: candidates.length,
-    totalProcesses: processes.length,
-    activeProcesses: processes.filter(p => 
-      !["finalizado", "entregado"].includes(p.estatusProceso)
+    // Activos = en flujo de trabajo (excl. recepción y finalizados)
+    procesosActivos: processes.filter(
+      (p) => !["en_recepcion", "finalizado", "entregado"].includes(p.estatusProceso)
     ).length,
-    completedProcesses: processes.filter(p => 
-      p.estatusProceso === "finalizado" || p.estatusProceso === "entregado"
+    procesosCompletados: processes.filter(
+      (p) => p.estatusProceso === "finalizado" || p.estatusProceso === "entregado"
     ).length,
-    pendingProcesses: processes.filter(p => 
-      p.estatusProceso === "en_recepcion"
+    procesosPendientes: processes.filter(
+      (p) => p.estatusProceso === "en_recepcion"
     ).length,
+    procesosIngresadosHoy: procesosIngresadosHoy.length,
   };
 
-  // Procesos recientes
-  const recentProcesses = processes.slice(0, 5);
+  // Candidatos recientes (últimos 5, en reversa)
+  // TODO: Filtrar por createdAt === hoy cuando el volumen diario sea significativo
+  const candidatosRecientes = [...candidates].reverse().slice(0, 5);
 
-  // Calcular procesos concluidos por día (últimos 30 días)
-  const last30DaysData = (() => {
-    const data: Record<string, number> = {};
-    const today = new Date();
-    
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateKey = date.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
-      data[dateKey] = 0;
-    }
-    
-    processes.forEach(p => {
-      if (p.estatusProceso === 'finalizado' || p.estatusProceso === 'entregado') {
-        if (p.fechaCierre) {
-          const closeDate = new Date(p.fechaCierre);
-          const today = new Date();
-          const daysDiff = Math.floor((today.getTime() - closeDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (daysDiff >= 0 && daysDiff < 30) {
-            const dateKey = closeDate.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
-            if (data[dateKey] !== undefined) {
-              data[dateKey]++;
-            }
-          }
-        }
-      }
-    });
-    
-    return Object.entries(data).map(([date, count]) => ({ date, count }));
-  })();
-
-  const maxValue = Math.max(...last30DaysData.map(d => d.count), 1);
+  // Procesos atascados en recepción (los más recientes primero)
+  const procesosAtascados = processes
+    .filter((p) => p.estatusProceso === "en_recepcion")
+    .slice(-5)
+    .reverse();
 
   return (
     <div className="space-y-6">
@@ -142,170 +126,159 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Resumen General */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isAdmin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clientes</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalClients}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Empresas registradas
-              </p>
-            </CardContent>
-          </Card>
-        )}
+      {/* KPIs Operativos — IMPL-20260312-10 */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Métricas del Día</p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* KPI 1: Procesos Activos */}
+          <Link href="/procesos">
+            <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-blue-200 hover:border-blue-400">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Procesos Activos</CardTitle>
+                <Clock className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{stats.procesosActivos}</div>
+                <p className="text-xs text-muted-foreground mt-1">En flujo de trabajo</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Candidatos</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCandidates}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Candidatos en sistema
-            </p>
-          </CardContent>
-        </Card>
+          {/* KPI 2: Procesos Completados */}
+          <Link href="/procesos">
+            <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-green-200 hover:border-green-400">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Procesos Completados</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.procesosCompletados}</div>
+                <p className="text-xs text-muted-foreground mt-1">Finalizados / Entregados</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Procesos</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProcesses}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Procesos de evaluación
-            </p>
-          </CardContent>
-        </Card>
+          {/* KPI 3: Pendientes en Recepción */}
+          <Link href="/procesos">
+            <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-amber-200 hover:border-amber-400">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">{stats.procesosPendientes}</div>
+                <p className="text-xs text-muted-foreground mt-1">En recepción sin asignar</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Procesos Activos</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeProcesses}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              En progreso
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Procesos Completados</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completedProcesses}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Finalizados
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingProcesses}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              En recepción
-            </p>
-          </CardContent>
-        </Card>
+          {/* KPI 4: Ingresados Hoy */}
+          <Link href="/procesos">
+            <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer border-purple-200 hover:border-purple-400">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresados Hoy</CardTitle>
+                <CalendarPlus className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">{stats.procesosIngresadosHoy}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {today.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "short" })}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
 
-      {/* Completed Processes Analytics - IMPL-20260219-04 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Procesos Concluidos (Últimos 30 días)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-center items-end gap-1 h-48 bg-gray-50 p-6 rounded-lg">
-              {last30DaysData.map((item, idx) => {
-                const height = maxValue > 0 ? (item.count / maxValue) * 160 : 0;
-                return (
-                  <div
-                    key={idx}
-                    className="flex-1 flex flex-col items-center gap-2 group"
-                  >
-                    <div className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-semibold">
-                      {item.count}
-                    </div>
-                    <div
-                      className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600 cursor-pointer"
-                      style={{ height: `${height}px`, minHeight: item.count > 0 ? '4px' : '1px' }}
-                      title={`${item.date}: ${item.count} proceso${item.count !== 1 ? 's' : ''}`}
-                    />
-                    <div className="text-xs text-muted-foreground hidden sm:block">
-                      {item.date}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                Total concluidos: <strong className="text-foreground">{last30DaysData.reduce((sum, d) => sum + d.count, 0)}</strong>
-              </span>
-              <span>
-                Promedio diario: <strong className="text-foreground">{(last30DaysData.reduce((sum, d) => sum + d.count, 0) / 30).toFixed(1)}</strong>
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Recent Processes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Procesos Recientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentProcesses.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No hay procesos registrados
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentProcesses.map((process) => (
-                <Link
-                  key={process.id}
-                  href={`/procesos/${process.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium">{process.clave}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(process.fechaRecepcion).toLocaleDateString()}
-                    </p>
+
+      {/* Tabla de Monitoreo Rápido — IMPL-20260312-10 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Columna 1: Candidatos Recientes */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Candidatos Recientes
+            </CardTitle>
+            <Link href="/candidatos" className="text-xs text-primary hover:underline">
+              Ver todos
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {candidatosRecientes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Sin candidatos registrados</p>
+            ) : (
+              <div className="space-y-2">
+                {candidatosRecientes.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg border hover:bg-accent transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{c.nombreCompleto}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(c.createdAt).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2">
+                      <Badge
+                        variant={c.selfFilledStatus === "revisado" ? "default" : c.selfFilledStatus === "recibido" ? "secondary" : "outline"}
+                        className="text-xs capitalize"
+                      >
+                        {c.selfFilledStatus ?? "pendiente"}
+                      </Badge>
+                      <Link href={`/candidatos/${c.id}`}>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" />
+                      </Link>
+                    </div>
                   </div>
-                  <div>
-                    <span className={`badge ${getStatusBadgeClass(process.estatusProceso)}`}>
-                      {getStatusLabel(process.estatusProceso)}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Columna 2: Procesos Atascados en Recepción */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Procesos Atascados
+            </CardTitle>
+            <Link href="/procesos" className="text-xs text-primary hover:underline">
+              Ver todos
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {procesosAtascados.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No hay procesos en recepción</p>
+            ) : (
+              <div className="space-y-2">
+                {procesosAtascados.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/procesos/${p.id}`}
+                    className="flex items-center justify-between p-2.5 rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{p.clave}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Recibido: {new Date(p.fechaRecepcion).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                        En Recepción
+                      </Badge>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+      </div>
     </div>
   );
 }
