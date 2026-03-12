@@ -106,7 +106,7 @@ export default function EncuestadorDetalle() {
           <CardTitle>Detalles del encuestador</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
             <div>
               <span className="text-muted-foreground">Cobertura</span>
               <div className="font-medium capitalize">{surveyor.cobertura || 'local'}</div>
@@ -135,9 +135,12 @@ export default function EncuestadorDetalle() {
               <span className="text-muted-foreground">Tarifa foránea</span>
               <div className="font-medium">{surveyor.tarifaForanea != null ? new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(surveyor.tarifaForanea/100) : '-'}</div>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 md:col-span-3">
               <span className="text-muted-foreground">Comentarios</span>
-              <div className="font-medium whitespace-pre-wrap">{surveyor.notas || '-'}</div>
+              <details className="border rounded-md p-2 bg-blue-50/50 mt-1">
+                <summary className="cursor-pointer text-sm mb-1 text-sky-800">Ver información...</summary>
+                <div className="font-medium whitespace-pre-wrap mt-2">{surveyor.notas || '-'}</div>
+              </details>
             </div>
           </div>
         </CardContent>

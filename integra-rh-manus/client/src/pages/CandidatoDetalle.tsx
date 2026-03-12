@@ -976,7 +976,7 @@ export default function CandidatoDetalle() {
                   </div>
                 </form>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <p className="text-sm text-muted-foreground">Email</p>
                     <p className="font-medium">{candidate.email || "-"}</p>
@@ -1114,7 +1114,7 @@ export default function CandidatoDetalle() {
         </CardHeader>
         <CardContent>
           {perfilFilledCount > 0 && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
               {hasIdentificacion && (
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-700">Identificación</p>

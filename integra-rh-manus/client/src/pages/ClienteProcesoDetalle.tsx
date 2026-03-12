@@ -185,7 +185,7 @@ export default function ClienteProcesoDetalle() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-sm text-gray-600">Clave del Proceso</p>
                 <p className="font-semibold text-lg">{process.clave}</p>
@@ -292,27 +292,32 @@ export default function ClienteProcesoDetalle() {
                   {iaDictamenCliente.resumenEjecutivoCliente}
                 </p>
               )}
-              {Array.isArray(iaDictamenCliente.recomendacionesCliente) &&
-                iaDictamenCliente.recomendacionesCliente.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800 mb-1">
-                      Recomendaciones para su seguimiento:
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
-                      {iaDictamenCliente.recomendacionesCliente.map(
-                        (rec: string, idx: number) => (
-                          <li key={idx}>{rec}</li>
-                        )
-                      )}
-                    </ul>
-                  </div>
-                )}
-              <p className="text-xs text-gray-500">
-                Este resumen fue generado automáticamente a partir de la
-                información revisada por el equipo de Integra RH y está pensado
-                como apoyo para interpretar el dictamen humano, no para
-                reemplazarlo.
-              </p>
+              <details className="border rounded-md p-2 bg-blue-50/50">
+                <summary className="cursor-pointer text-sm mb-1 text-sky-800">Ver información...</summary>
+                <div className="mt-2 space-y-2">
+                  {Array.isArray(iaDictamenCliente.recomendacionesCliente) &&
+                    iaDictamenCliente.recomendacionesCliente.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 mb-1">
+                          Recomendaciones para su seguimiento:
+                        </p>
+                        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+                          {iaDictamenCliente.recomendacionesCliente.map(
+                            (rec: string, idx: number) => (
+                              <li key={idx}>{rec}</li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  <p className="text-xs text-gray-500">
+                    Este resumen fue generado automáticamente a partir de la
+                    información revisada por el equipo de Integra RH y está pensado
+                    como apoyo para interpretar el dictamen humano, no para
+                    reemplazarlo.
+                  </p>
+                </div>
+              </details>
             </CardContent>
           </Card>
         )}
@@ -389,23 +394,25 @@ export default function ClienteProcesoDetalle() {
                 Información del Candidato
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600">Nombre Completo</p>
-                <p className="font-semibold">{candidate.nombreCompleto}</p>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-sm text-gray-600">Nombre Completo</p>
+                  <p className="font-semibold">{candidate.nombreCompleto}</p>
+                </div>
+                {candidate.email && (
+                  <div>
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="font-semibold">{candidate.email}</p>
+                  </div>
+                )}
+                {candidate.telefono && (
+                  <div>
+                    <p className="text-sm text-gray-600">Teléfono</p>
+                    <p className="font-semibold">{candidate.telefono}</p>
+                  </div>
+                )}
               </div>
-              {candidate.email && (
-                <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-semibold">{candidate.email}</p>
-                </div>
-              )}
-              {candidate.telefono && (
-                <div>
-                  <p className="text-sm text-gray-600">Teléfono</p>
-                  <p className="font-semibold">{candidate.telefono}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
@@ -419,17 +426,22 @@ export default function ClienteProcesoDetalle() {
                 Puesto Solicitado
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600">Nombre del Puesto</p>
-                <p className="font-semibold">{post.nombreDelPuesto}</p>
-              </div>
-              {post.descripcion && (
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <p className="text-sm text-gray-600">Descripción</p>
-                  <p className="text-gray-700">{post.descripcion}</p>
+                  <p className="text-sm text-gray-600">Nombre del Puesto</p>
+                  <p className="font-semibold">{post.nombreDelPuesto}</p>
                 </div>
-              )}
+                {post.descripcion && (
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-gray-600">Descripción</p>
+                    <details className="border rounded-md p-2 bg-blue-50/50 mt-1">
+                      <summary className="cursor-pointer text-sm mb-1 text-sky-800">Ver información...</summary>
+                      <p className="text-gray-700 mt-2">{post.descripcion}</p>
+                    </details>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
