@@ -1049,20 +1049,29 @@ export default function ProcesoDetalle() {
                   {(panelForm.semanasDetalle as any).evidenciasGraficas?.length > 0 ? (
                     <div className="w-full">
                       <div className="grid grid-cols-3 gap-2">
-                        {(panelForm.semanasDetalle as any).evidenciasGraficas.map((url: string, idx: number) => (
-                          <div key={idx} className="relative group">
-                            <img 
-                              src={url} 
-                              alt={`Semanas ${idx + 1}`} 
-                              className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                              onClick={() => { setLightboxSection("semanas"); setLightboxIndex(idx); setLightboxOpen(true); }}
-                            />
-                            <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
-                              e.stopPropagation();
-                              setPanelForm(f => ({ ...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: (f.semanasDetalle as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
-                            }}>×</Button>
-                          </div>
-                        ))}
+                        {(panelForm.semanasDetalle as any).evidenciasGraficas.map((url: string, idx: number) => {
+                          const isPdf = url && url.toLowerCase().includes('.pdf');
+                          return (
+                            <div key={idx} className="relative group">
+                              {isPdf ? (
+                                <a href={url} target="_blank" rel="noopener noreferrer" className="h-20 w-20 flex items-center justify-center bg-gray-100 rounded border hover:bg-gray-200 transition-colors">
+                                  <FileText className="h-8 w-8 text-red-500" />
+                                </a>
+                              ) : (
+                                <img 
+                                  src={url} 
+                                  alt={`Semanas ${idx + 1}`} 
+                                  className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => { setLightboxSection("semanas"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                                />
+                              )}
+                              <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
+                                e.stopPropagation();
+                                setPanelForm(f => ({ ...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: (f.semanasDetalle as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
+                              }}>×</Button>
+                            </div>
+                          );
+                        })}
                       </div>
                       <p className="text-xs text-gray-600 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.semanasDetalle as any).evidenciasGraficas?.length || 0})</p>
                     </div>
@@ -1071,6 +1080,66 @@ export default function ProcesoDetalle() {
                       <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
                     </div>
                   )}
+                </div>
+
+                {/* Subida de PDF y adicionales para Semanas Cotizadas */}
+                <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = e.currentTarget.files;
+                      const inputEl = e.currentTarget;
+                      if (files && !isClientAuth && canEditProcess) {
+                        for (let i = 0; i < files.length; i++) {
+                          const file = files[i];
+                          file.arrayBuffer().then(async (arrayBuf) => {
+                            let binary = '';
+                            const bytes = new Uint8Array(arrayBuf);
+                            const len = bytes.byteLength;
+                            for (let j = 0; j < len; j++) {
+                              binary += String.fromCharCode(bytes[j]);
+                            }
+                            const base64 = btoa(binary);
+                            try {
+                              const res = await uploadProcessDoc.mutateAsync({
+                                procesoId: processId,
+                                tipoDocumento: 'SEMANAS_IMSS',
+                                fileName: file.name,
+                                contentType: file.type || 'application/octet-stream',
+                                base64 
+                              } as any);
+                              
+                              setPanelForm(currentForm => {
+                                const newForm = {
+                                  ...currentForm,
+                                  semanasDetalle: {
+                                    ...currentForm.semanasDetalle,
+                                    evidenciasGraficas: [...(currentForm.semanasDetalle as any).evidenciasGraficas, res.url]
+                                  } 
+                                };
+                                const payload = getPanelPayload(newForm);
+                                updatePanelDetail.mutateAsync(payload).then(() => {
+                                  toast.success("Archivo subido y guardado");
+                                }).catch((err: any) => {
+                                  toast.error("Error al guardar en BD: " + err.message);
+                                });
+                                return newForm;
+                              });
+                            } catch (err: any) {
+                              console.error('Error al subir documento de Semanas:', err);
+                              toast.error("Error al subir archivo: " + err.message);
+                            }
+                          });
+                        }
+                        inputEl.value = ''; // Resetear el input
+                      }
+                    }}
+                    disabled={isClientAuth || !canEditProcess}
+                    className="text-xs"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Sube archivos PDF o imágenes si no puedes usar el portapapeles.</p>
                 </div>
               </div>
             </div>
