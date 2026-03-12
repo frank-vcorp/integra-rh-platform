@@ -28,6 +28,13 @@ export default defineConfig({
       "localhost",
       "127.0.0.1",
     ],
+    // [FIX-20260311-01] Proxy tRPC requests to local backend server
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
