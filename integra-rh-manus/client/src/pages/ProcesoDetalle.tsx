@@ -485,7 +485,8 @@ export default function ProcesoDetalle() {
           <CardTitle>Información</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          {/* IMPL-20260312-09: remaquetado a 3 columnas uniformes */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <p className="text-sm text-muted-foreground">Analista asignado</p>
               <p className="text-base font-semibold">
@@ -650,11 +651,11 @@ export default function ProcesoDetalle() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Estatus</p>
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2 mt-1">
                 <select
                   defaultValue={process.estatusProceso}
                   id="estatusProceso"
-                  className="border rounded-md h-9 px-2"
+                  className="border rounded-md h-9 px-2 flex-1"
                   disabled={!canEditProcess}
                 >
                   {ESTATUS.map(e => (
@@ -694,40 +695,36 @@ export default function ProcesoDetalle() {
         </CardContent>
       </Card>
 
-      {/* Guía de pasos para la analista */}
+      {/* Guía de pasos para la analista — IMPL-20260312-09: convertida a <details> accordion */}
       {!isClientAuth && canEditProcess && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-blue-600" />
-              📋 Guía rápida: Qué hacer después de agregar datos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-2 text-sm">
-              <li className="flex gap-2">
-                <span className="font-semibold text-blue-600">1.</span>
-                <span>Completa los <strong>campos de datos</strong> en los apartados de abajo (Investigación Laboral, Investigación Legal, Buró de Crédito, etc.)</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-blue-600">2.</span>
-                <span>Sube <strong>documentos</strong> (PDF, imágenes) en la sección de "Documentos" con su tipo correspondiente</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-blue-600">3.</span>
-                <span>Une vez hayas terminado, haz clic en <strong>"Guardar bloques"</strong> (botón arriba a la derecha)</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-blue-600">4.</span>
-                <span>Verás una notificación <strong>"Bloques actualizados"</strong> cuando se guarde correctamente</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-blue-600">5.</span>
-                <span>Los datos se guardan automáticamente en la base de datos y el cliente podrá verlos en su panel</span>
-              </li>
-            </ol>
-          </CardContent>
-        </Card>
+        <details className="border border-blue-200 rounded-md p-3 bg-blue-50/50">
+          <summary className="cursor-pointer select-none text-sm font-medium text-blue-800 flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-blue-600 shrink-0" />
+            📋 Guía rápida: Qué hacer después de agregar datos
+          </summary>
+          <ol className="space-y-2 text-sm mt-3 pl-1">
+            <li className="flex gap-2">
+              <span className="font-semibold text-blue-600">1.</span>
+              <span>Completa los <strong>campos de datos</strong> en los apartados de abajo (Investigación Laboral, Investigación Legal, Buró de Crédito, etc.)</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-blue-600">2.</span>
+              <span>Sube <strong>documentos</strong> (PDF, imágenes) en la sección de "Documentos" con su tipo correspondiente</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-blue-600">3.</span>
+              <span>Una vez hayas terminado, haz clic en <strong>"Guardar bloques"</strong> (botón arriba a la derecha)</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-blue-600">4.</span>
+              <span>Verás una notificación <strong>"Bloques actualizados"</strong> cuando se guarde correctamente</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-blue-600">5.</span>
+              <span>Los datos se guardan automáticamente en la base de datos y el cliente podrá verlos en su panel</span>
+            </li>
+          </ol>
+        </details>
       )}
 
       {/* Bloques panel cliente (captura interna) */}
