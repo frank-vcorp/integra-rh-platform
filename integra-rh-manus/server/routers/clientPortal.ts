@@ -28,9 +28,11 @@ export const clientPortalRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid or expired token" });
       }
 
+      // IMPL-20260311-06: Usar getCandidatesWithInvestigationProgress para incluir
+      // el porcentaje de avance de historial laboral en la respuesta del portal.
       const [processes, candidates] = await Promise.all([
         db.getProcessesByClient(client.id),
-        db.getCandidatesByClient(client.id),
+        db.getCandidatesWithInvestigationProgress(client.id),
       ]);
 
       const ua = ctx.req.headers["user-agent"] as string | undefined;

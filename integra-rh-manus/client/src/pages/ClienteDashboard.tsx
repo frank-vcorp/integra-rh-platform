@@ -1,3 +1,8 @@
+/**
+ * @intervention: IMPL-20260311-06
+ * @desc: Dashboard del Cliente — Modelo Híbrido con Semáforo de Módulos (Tarea 1 y 2)
+ * @backup: context/SPECs/SPEC-dashboard-cliente.md
+ */
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,14 +17,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { Users, FileText, Eye, LogOut, ShieldCheck } from "lucide-react";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
-import { ESTATUS_INVESTIGACION_LABELS, EstatusInvestigacionType } from "@/lib/constants";
-import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Link } from "wouter";
 import { Loader2 } from "lucide-react";
@@ -72,11 +69,6 @@ export default function ClienteDashboard() {
       </div>
     );
   }
-
-  const getInvestigacionLabel = (estatus?: string) => {
-    if (!estatus) return ESTATUS_INVESTIGACION_LABELS.en_revision;
-    return ESTATUS_INVESTIGACION_LABELS[estatus as EstatusInvestigacionType] ?? ESTATUS_INVESTIGACION_LABELS.en_revision;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -266,11 +258,20 @@ export default function ClienteDashboard() {
           </CardContent>
         </Card>
 
-        {/* Candidatos */}
+        {/* Candidatos en Proceso — Modelo Híbrido con Semáforo */}
         <Card>
           <CardHeader>
-            <CardTitle>Mis Candidatos</CardTitle>
-            <p className="text-sm text-gray-500">Revisa el avance de cada investigación y accede al expediente completo.</p>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-600" />
+              Candidatos en Proceso
+            </CardTitle>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+              <span>Avance por módulo en tiempo real:</span>
+              <span className="flex items-center gap-1"><span className="text-emerald-600 text-base leading-none">●</span> Completado</span>
+              <span className="flex items-center gap-1"><span className="text-amber-500 text-base leading-none">●</span> En progreso</span>
+              <span className="flex items-center gap-1"><span className="text-red-600 text-base leading-none">●</span> Requiere atención</span>
+              <span className="flex items-center gap-1"><span className="text-gray-300 text-base leading-none">●</span> Pendiente / N/A</span>
+            </div>
           </CardHeader>
           <CardContent>
             {candidates.length === 0 ? (
@@ -279,101 +280,153 @@ export default function ClienteDashboard() {
                 <p className="text-gray-500">No hay candidatos registrados</p>
               </div>
             ) : (
-              <Accordion type="single" collapsible className="w-full space-y-3">
-                {candidates.map((candidate) => {
-                  const candidateProcesses = processes
-                    .filter((p) => p.candidatoId === candidate.id)
-                    .sort((a, b) => new Date(b.fechaRecepcion).getTime() - new Date(a.fechaRecepcion).getTime());
-                  const latestProcess = candidateProcesses[0];
-                  const laboral = latestProcess?.investigacionLaboral;
-                  const legal = latestProcess?.investigacionLegal;
-                  const buro = latestProcess?.buroCredito;
-                  
-                  // Determinar qué servicios incluye el tipo de proceso contratado
-                  // La visita es opcional, se muestra solo si hay datos registrados
-                  const servicios = getServiciosIncluidos(latestProcess?.tipoProducto, {
-                    visitStatus: latestProcess?.visitStatus,
-                    visitaDetalle: latestProcess?.visitaDetalle,
-                  });
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Candidato</TableHead>
+                      <TableHead>Proceso</TableHead>
+                      <TableHead>Estatus</TableHead>
+                      <TableHead className="text-center">Laboral</TableHead>
+                      <TableHead className="text-center">Visita</TableHead>
+                      <TableHead className="text-center">Documental</TableHead>
+                      <TableHead>Dictamen</TableHead>
+                      <TableHead className="text-right">Ver</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {candidates.map((candidate) => {
+                      const candidateProcesses = processes
+                        .filter((p) => p.candidatoId === candidate.id)
+                        .sort((a, b) => new Date(b.fechaRecepcion).getTime() - new Date(a.fechaRecepcion).getTime());
+                      const proc = candidateProcesses[0];
 
-                  return (
-                    <AccordionItem key={candidate.id} value={`candidate-${candidate.id}`} className="border rounded-lg px-3">
-                      <AccordionTrigger className="flex flex-col items-start gap-1 py-4 text-left">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-lg">{candidate.nombreCompleto}</span>
-                          {latestProcess && (
-                            <Badge className="bg-blue-100 text-blue-800">
-                              {latestProcess.estatusProceso.replace(/_/g, " ").toUpperCase()}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500 flex flex-wrap gap-3">
-                          {/* Solo mostrar investigaciones que aplican al tipo de proceso */}
-                          {servicios.laboral && laboral && (
-                            <span>Investigación laboral: <strong>{laboral?.resultado || getInvestigacionLabel(laboral?.estatus)}</strong></span>
-                          )}
-                          {servicios.legal && legal && (
-                            <span>Investigación legal: <strong>{legal?.antecedentes || "Sin antecedentes"}</strong></span>
-                          )}
-                          {servicios.buro && buro && (
-                            <span>Buró de crédito: <strong>{buro?.estatus || "Por revisar"}</strong></span>
-                          )}
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-4 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Solo mostrar card de investigaciones si hay al menos un servicio contratado */}
-                          {(servicios.laboral || servicios.legal || servicios.buro) && (
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold">Investigaciones</CardTitle>
-                              </CardHeader>
-                              <CardContent className="space-y-3 text-sm text-gray-600">
-                                {servicios.laboral && (
-                                  <div>
-                                    <p className="font-semibold text-gray-800">Laboral</p>
-                                    <p>{laboral?.detalles || "En investigación"}</p>
-                                  </div>
-                                )}
-                                {servicios.legal && (
-                                  <div>
-                                    <p className="font-semibold text-gray-800">Legal</p>
-                                    <p>{legal?.antecedentes || "Sin antecedentes reportados"}</p>
-                                  </div>
-                                )}
-                                {servicios.buro && (
-                                  <div>
-                                    <p className="font-semibold text-gray-800">Buró de crédito</p>
-                                    <p>{buro?.estatus || "Pendiente"}</p>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          )}
+                      const servicios = getServiciosIncluidos(proc?.tipoProducto, {
+                        visitStatus: proc?.visitStatus,
+                        visitaDetalle: proc?.visitaDetalle,
+                      });
 
-                          {/* El historial laboral siempre se muestra si es ILA o ESE */}
-                          {servicios.laboral && <WorkHistoryPreview candidatoId={candidate.id} />}
-                        </div>
+                      return (
+                        <TableRow key={candidate.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-semibold text-gray-900">{candidate.nombreCompleto}</p>
+                              {proc && (
+                                <p className="text-xs text-gray-400">{proc.tipoProducto}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {proc ? (
+                              <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                                {proc.clave}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">Sin proceso</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {proc ? (
+                              <Badge className={
+                                proc.estatusProceso === 'finalizado' || proc.estatusProceso === 'entregado'
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                  : proc.estatusProceso === 'en_recepcion'
+                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
+                                  : proc.estatusProceso === 'en_dictamen'
+                                  ? 'bg-purple-100 text-purple-800 hover:bg-purple-100'
+                                  : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
+                              }>
+                                {proc.estatusProceso.replace(/_/g, ' ')}
+                              </Badge>
+                            ) : '—'}
+                          </TableCell>
 
-                        <div className="flex flex-wrap gap-3">
-                          <Link href={`/cliente/candidato/${candidate.id}`}>
-                            <Button variant="outline" size="sm">
-                              Ver expediente completo
-                            </Button>
-                          </Link>
-                          {latestProcess && (
-                            <Link href={`/cliente/proceso/${latestProcess.id}`}>
-                              <Button variant="ghost" size="sm">
-                                Detalle del proceso
-                              </Button>
-                            </Link>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
+                          {/* Semáforo Laboral */}
+                          <TableCell className="text-center">
+                            {servicios.laboral ? (
+                              <SemaforoBadge
+                                color={getSemaforoLaboral(proc?.investigacionLaboral)}
+                                label="Laboral"
+                                tooltipVerde="Investigación laboral completada"
+                                tooltipAmarillo="Investigación laboral en progreso"
+                                tooltipGris="Pendiente de iniciar"
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-300">N/A</span>
+                            )}
+                          </TableCell>
+
+                          {/* Semáforo Visita */}
+                          <TableCell className="text-center">
+                            {servicios.visita ? (
+                              <SemaforoBadge
+                                color={getSemaforoVisita(proc?.visitStatus)}
+                                label="Visita"
+                                tooltipVerde="Visita domiciliaria realizada"
+                                tooltipAmarillo="Visita programada / asignada"
+                                tooltipGris="Visita pendiente"
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-300">N/A</span>
+                            )}
+                          </TableCell>
+
+                          {/* Semáforo Documental */}
+                          <TableCell className="text-center">
+                            {servicios.legal ? (
+                              <SemaforoBadge
+                                color={getSemaforoDocumental(proc?.investigacionLegal)}
+                                label="Documental"
+                                tooltipVerde="Antecedentes legales verificados"
+                                tooltipAmarillo="En revisión documental"
+                                tooltipGris="Pendiente"
+                                tooltipRojo="Requiere atención — posible riesgo"
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-300">N/A</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {proc ? (
+                              <span className={`text-sm font-medium ${getCalificacionTextClass(proc.calificacionFinal)}`}>
+                                {getCalificacionLabel(proc.calificacionFinal)}
+                              </span>
+                            ) : '—'}
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Link href={`/cliente/candidato/${candidate.id}`}>
+                                    <Button variant="ghost" size="sm">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver expediente</TooltipContent>
+                              </Tooltip>
+                              {proc && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Link href={`/cliente/proceso/${proc.id}`}>
+                                      <Button variant="ghost" size="sm">
+                                        <FileText className="h-4 w-4" />
+                                      </Button>
+                                    </Link>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Ver proceso</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -382,92 +435,72 @@ export default function ClienteDashboard() {
   );
 }
 
-function WorkHistoryPreview({ candidatoId }: { candidatoId: number }) {
-  const { data: workHistory = [], isLoading } = trpc.workHistory.getByCandidate.useQuery({ candidatoId });
+// ============================================================================
+// SEMÁFORO — IMPL-20260311-06: Modelo Híbrido de Avance por Módulo
+// ============================================================================
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="py-6 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-        </CardContent>
-      </Card>
-    );
-  }
+type SemaforoColor = "verde" | "amarillo" | "rojo" | "gris";
 
-  if (workHistory.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Historial laboral</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-gray-500">
-          No hay historial registrado aún.
-        </CardContent>
-      </Card>
-    );
-  }
+function getSemaforoLaboral(inv?: any): SemaforoColor {
+  if (!inv) return "gris";
+  if (inv.completado) return "verde";
+  if (inv.resultado || inv.detalles) return "amarillo";
+  return "gris";
+}
 
+function getSemaforoVisita(vs?: any): SemaforoColor {
+  if (!vs?.status || vs.status === "no_asignada") return "gris";
+  if (vs.status === "realizada") return "verde";
+  if (vs.status === "programada" || vs.status === "asignada") return "amarillo";
+  return "gris";
+}
+
+function getSemaforoDocumental(leg?: any): SemaforoColor {
+  if (!leg) return "gris";
+  if (leg.flagRiesgo) return "rojo";
+  if (leg.antecedentes) return "verde";
+  return "gris";
+}
+
+interface SemaforoBadgeProps {
+  color: SemaforoColor;
+  label: string;
+  tooltipVerde: string;
+  tooltipAmarillo: string;
+  tooltipGris: string;
+  tooltipRojo?: string;
+}
+
+function SemaforoBadge({ color, label, tooltipVerde, tooltipAmarillo, tooltipGris, tooltipRojo }: SemaforoBadgeProps) {
+  const config: Record<SemaforoColor, { className: string; tooltip: string }> = {
+    verde:    { className: "text-emerald-600", tooltip: tooltipVerde },
+    amarillo: { className: "text-amber-500",   tooltip: tooltipAmarillo },
+    rojo:     { className: "text-red-600",     tooltip: tooltipRojo ?? "Requiere atención" },
+    gris:     { className: "text-gray-300",    tooltip: tooltipGris },
+  };
+  const { className, tooltip } = config[color];
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold">Historial laboral</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible className="w-full space-y-2">
-          {workHistory.slice(0, 3).map((job: any) => (
-            <AccordionItem key={job.id} value={`job-${job.id}`} className="border rounded-md px-3">
-              <AccordionTrigger className="py-2 text-left hover:no-underline">
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{job.empresa}</p>
-                  <p className="text-xs text-gray-500">
-                    {job.puesto || "—"} • {job.tiempoTrabajado || calcularTiempoTrabajado(job.fechaInicio, job.fechaFin) || "Tiempo no disponible"}
-                  </p>
-                </div>
-                <Badge className="bg-indigo-100 text-indigo-800 ml-2">
-                  {job.estatusInvestigacion
-                    ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
-                    : ESTATUS_INVESTIGACION_LABELS.en_revision}
-                </Badge>
-              </AccordionTrigger>
-              <AccordionContent className="pb-3 space-y-3 text-sm text-gray-700">
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1">Fechas</p>
-                  <p className="text-xs">
-                    {job.fechaInicio ? formatearFecha(job.fechaInicio) : "—"} a {job.fechaFin ? formatearFecha(job.fechaFin) : "Actual"}
-                  </p>
-                </div>
-                {job.causalSalidaRH && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Motivo de salida</p>
-                    <p className="text-xs bg-gray-50 p-2 rounded">{job.causalSalidaRH}</p>
-                  </div>
-                )}
-                {job.investigacionDetalle?.incidencias?.motivoSeparacionEmpresa && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Motivo de Separación (Empresa)</p>
-                    <p className="text-xs bg-gray-50 p-2 rounded">{job.investigacionDetalle.incidencias.motivoSeparacionEmpresa}</p>
-                  </div>
-                )}
-                {job.comentarioInvestigacion && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Comentario de investigación</p>
-                    <p className="text-xs bg-gray-50 p-2 rounded">{job.comentarioInvestigacion}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1">Status investigación</p>
-                  <p className="text-xs">
-                    {job.estatusInvestigacion
-                      ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
-                      : "En revisión"}
-                  </p>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-    </Card>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={`text-xl leading-none cursor-default select-none ${className}`}
+          aria-label={`${label}: ${tooltip}`}
+        >
+          ●
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="font-semibold text-xs">{label}</p>
+        <p className="text-xs text-gray-300">{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
   );
+}
+
+// TODO IMPL-20260311-06: WorkHistoryPreview movida a ClienteCandidatoDetalle.
+// Esta implementación reducida evita dependencias no utilizadas en este módulo.
+function WorkHistoryPreview({ candidatoId: _c }: { candidatoId: number }) {
+  // Lógica movida a ClienteCandidatoDetalle para mantener separación de concerns.
+  void _c;
+  return null as any;
 }
