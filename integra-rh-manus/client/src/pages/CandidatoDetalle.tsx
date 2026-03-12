@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
@@ -334,8 +335,26 @@ export default function CandidatoDetalle() {
     onError: (e: any) => toast.error("Error: " + e.message),
   });
 
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
+
+  // Edición inline de datos básicos del candidato
+  // IMPL-20260312-02 | Doc: Micro-Sprint 02 — War Room Refactoring
+  const [editingBasicInfo, setEditingBasicInfo] = useState(false);
+  const [basicInfoForm, setBasicInfoForm] = useState({
+    nombreCompleto: "",
+    email: "",
+    telefono: "",
+  });
+  const updateCandidateMutation = trpc.candidates.update.useMutation({
+    onSuccess: () => {
+      utils.candidates.getById.invalidate({ id: candidateId });
+      setEditingBasicInfo(false);
+      toast.success("Datos de contacto actualizados");
+    },
+    onError: (error: any) => {
+      toast.error("Error al actualizar: " + error.message);
+    },
+  });
 
   // Work History mutations
   const createWorkHistoryMutation = trpc.workHistory.create.useMutation({
@@ -858,62 +877,156 @@ export default function CandidatoDetalle() {
         </div>
       </div>
 
-      {/* Candidate Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Información General</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{candidate.email || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Teléfono</p>
-              <p className="font-medium">{candidate.telefono || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Medio de Recepción</p>
-              <p className="font-medium">{candidate.medioDeRecepcion || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Fecha de Registro</p>
-              <p className="font-medium">
-                {new Date(candidate.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">NSS (IMSS)</p>
-              <p className="font-medium flex items-center gap-1">
-                {hasValue(generales.nss) && (
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                )}
-                {generales.nss || "-"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">CURP</p>
-              <p className="font-medium flex items-center gap-1">
-                {hasValue(generales.curp) && (
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                )}
-                {generales.curp || "-"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Analista Responsable</p>
-              <p className="font-medium">
-                {candidate?.analistaAsignadoId 
-                  ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
-                    analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
-                    "-"
-                  : "-"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* ═══ IMPL-20260312-02 | Doc: Micro-Sprint 02 — War Room Refactoring ═══ */}
+      <Tabs defaultValue="perfil" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="perfil">Perfil</TabsTrigger>
+          <TabsTrigger value="empleos">Empleos</TabsTrigger>
+          <TabsTrigger value="procesos">Procesos</TabsTrigger>
+          <TabsTrigger value="acceso">Acceso</TabsTrigger>
+        </TabsList>
+
+        {/* ════════════ TAB: PERFIL ════════════ */}
+        <TabsContent value="perfil" className="space-y-6 mt-4">
+
+          {/* Información General — edición inline */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Información General</CardTitle>
+              {!isClientAuth && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (!editingBasicInfo) {
+                      setBasicInfoForm({
+                        nombreCompleto: candidate.nombreCompleto || "",
+                        email: candidate.email || "",
+                        telefono: candidate.telefono || "",
+                      });
+                    }
+                    setEditingBasicInfo(!editingBasicInfo);
+                  }}
+                >
+                  {editingBasicInfo ? "Cancelar" : <Pencil className="h-4 w-4" />}
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {editingBasicInfo ? (
+                <form
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    updateCandidateMutation.mutate({
+                      id: candidateId,
+                      data: {
+                        nombreCompleto: basicInfoForm.nombreCompleto,
+                        email: basicInfoForm.email,
+                        telefono: basicInfoForm.telefono,
+                      },
+                    });
+                  }}
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-nombre">Nombre completo</Label>
+                      <Input
+                        id="edit-nombre"
+                        value={basicInfoForm.nombreCompleto}
+                        onChange={(e) =>
+                          setBasicInfoForm({ ...basicInfoForm, nombreCompleto: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-email">Email</Label>
+                      <Input
+                        id="edit-email"
+                        type="email"
+                        value={basicInfoForm.email}
+                        onChange={(e) =>
+                          setBasicInfoForm({ ...basicInfoForm, email: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-tel">Teléfono</Label>
+                      <Input
+                        id="edit-tel"
+                        value={basicInfoForm.telefono}
+                        onChange={(e) =>
+                          setBasicInfoForm({ ...basicInfoForm, telefono: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={updateCandidateMutation.isPending}>
+                      {updateCandidateMutation.isPending ? "Guardando..." : "Guardar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingBasicInfo(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium">{candidate.email || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Teléfono</p>
+                    <p className="font-medium">{candidate.telefono || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Medio de Recepción</p>
+                    <p className="font-medium">{candidate.medioDeRecepcion || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Fecha de Registro</p>
+                    <p className="font-medium">
+                      {new Date(candidate.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">NSS (IMSS)</p>
+                    <p className="font-medium flex items-center gap-1">
+                      {hasValue(generales.nss) && (
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      )}
+                      {generales.nss || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">CURP</p>
+                    <p className="font-medium flex items-center gap-1">
+                      {hasValue(generales.curp) && (
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      )}
+                      {generales.curp || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Analista Responsable</p>
+                    <p className="font-medium">
+                      {candidate?.analistaAsignadoId 
+                        ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
+                          analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
+                          "-"
+                        : "-"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
       {/* Perfil extendido del candidato */}
       <Card>
@@ -1718,6 +1831,11 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        {/* ════════════ TAB: EMPLEOS ════════════ */}
+        <TabsContent value="empleos" className="space-y-6 mt-4">
+
       {/* Work History */}
       <Card className="border-primary/10">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -2056,6 +2174,11 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        {/* ════════════ TAB: PROCESOS ════════════ */}
+        <TabsContent value="procesos" className="space-y-6 mt-4">
+
       {/* Comments */}
       <Card>
         <CardHeader>
@@ -2257,48 +2380,9 @@ export default function CandidatoDetalle() {
           </CardTitle>
           <div className="flex gap-2">
             {!isClientAuth && (
-              <Button size="sm" onClick={() => setCreateProcessOpen(true)}>
+              <Button size="sm" onClick={() => setCreateProcessOpen(!createProcessOpen)}>
               <Plus className="h-4 w-4 mr-2"/> Crear Proceso
               </Button>
-            )}
-            {candidate?.clienteId && !isClientAuth && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => {
-                  setEmailTo(candidate?.email || "");
-                  setEmailDialogOpen(true);
-                }}>
-                  Generar enlace de acceso
-                </Button>
-                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-                  <DialogContent aria-describedby="email-desc">
-                    <DialogHeader>
-                      <DialogTitle>Enviar enlace de acceso al cliente</DialogTitle>
-                    </DialogHeader>
-                    <p id="email-desc" className="sr-only">Formulario para enviar por correo un enlace de acceso temporal para el cliente.</p>
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="emailTo">Correo del cliente</Label>
-                        <Input id="emailTo" type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} placeholder="cliente@empresa.com" />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={()=>setEmailDialogOpen(false)}>Cancelar</Button>
-                        <Button onClick={()=>{
-                          const baseUrl = window.location.origin;
-                          createClientLink.mutate({
-                            clientId: candidate!.clienteId!,
-                            candidatoId: candidateId,
-                            ttlDays: 14,
-                            baseUrl,
-                            sendEmailTo: emailTo || undefined,
-                            emailContext: { nombreCandidato: candidate?.nombreCompleto }
-                          } as any);
-                          setEmailDialogOpen(false);
-                        }}>Generar y enviar</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </>
             )}
           </div>
         </CardHeader>
@@ -2353,33 +2437,6 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
-      {candidate?.clienteId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Enlaces activos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const tokens = (activeTokens.data || []).filter((t:any)=> t.candidatoId === candidateId);
-              if (tokens.length === 0) return <p className="text-sm text-muted-foreground">No hay enlaces activos para este candidato</p>;
-              return (
-                <div className="space-y-2">
-                  {tokens.map((t:any)=> (
-                    <div key={t.token} className="flex items-center justify-between border rounded p-2">
-                      <div className="text-sm">
-                        <div className="font-mono">{t.token.slice(0,8)}…{t.token.slice(-6)}</div>
-                        <div className="text-xs text-muted-foreground">Expira: {new Date(t.expiresAt).toLocaleString()} {t.lastUsedAt && `• Último uso: ${new Date(t.lastUsedAt).toLocaleString()}`}</div>
-                      </div>
-                      <Button size="sm" variant="destructive" onClick={()=> revokeClientLink.mutate({ token: t.token } as any)}>Revocar</Button>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Visitas del candidato */}
       <Card>
         <CardHeader>
@@ -2419,13 +2476,15 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
-      {/* Crear Proceso */}
-      <Dialog open={createProcessOpen} onOpenChange={setCreateProcessOpen}>
-        <DialogContent className="max-w-xl" aria-describedby="crear-proceso-desc">
-          <DialogHeader>
-            <DialogTitle>Crear Proceso</DialogTitle>
-          </DialogHeader>
-          <p id="crear-proceso-desc" className="sr-only">Formulario para crear un nuevo proceso asociado al candidato.</p>
+      {/* Crear Proceso — flat-card inline (IMPL-20260312-02) */}
+      {createProcessOpen && !isClientAuth && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Crear nuevo proceso
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
           {!candidate?.clienteId ? (
             <div className="text-sm text-red-600">
               Este candidato no tiene un cliente asignado. Asigna un cliente para poder crear un proceso.
@@ -2437,7 +2496,6 @@ export default function CandidatoDetalle() {
               const puestoId = parseInt(String(fd.get('puestoId')||'0'));
               const tipoProducto = String(fd.get('tipoProducto')||'');
               const medioDeRecepcion = (fd.get('medioDeRecepcion') as string) || undefined;
-              const fechaRecepcion = (fd.get('fechaRecepcion') as string) || undefined;
               if (!puestoId || !tipoProducto) { toast.error('Completa los campos obligatorios'); return; }
               createProcessMutation.mutate({
                 candidatoId: candidateId,
@@ -2445,7 +2503,6 @@ export default function CandidatoDetalle() {
                 puestoId,
                 tipoProducto: tipoProducto as any,
                 medioDeRecepcion: medioDeRecepcion as any,
-                // fechaRecepcion opcional; el backend pone now si falta
               } as any);
             }}>
               <div>
@@ -2492,8 +2549,9 @@ export default function CandidatoDetalle() {
               </div>
             </form>
           )}
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
       {/* Documents */}
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
@@ -2549,6 +2607,197 @@ export default function CandidatoDetalle() {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        {/* ════════════ TAB: ACCESO ════════════ */}
+        <TabsContent value="acceso" className="space-y-6 mt-4">
+
+          {/* Consentimiento de privacidad — inline */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5" /> Consentimiento de privacidad
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(() => {
+                const consentimiento = (candidate as any)?.perfilDetalle?.consentimiento;
+                if (consentimiento?.aceptoAvisoPrivacidad && consentimiento?.aceptoAvisoPrivacidadAt) {
+                  return (
+                    <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md">
+                      ✅ Aceptó términos ({new Date(consentimiento.aceptoAvisoPrivacidadAt).toLocaleDateString()})
+                    </div>
+                  );
+                }
+                return <p className="text-sm text-muted-foreground">Pendiente de aceptar consentimiento de privacidad.</p>;
+              })()}
+              {consent?.token && (
+                <div className="space-y-1 text-xs">
+                  <Label className="text-xs">URL de consentimiento</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      readOnly
+                      value={buildConsentUrl(consent.token)}
+                      className="text-xs font-mono"
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        try {
+                          navigator.clipboard?.writeText(buildConsentUrl(consent.token));
+                          toast.success("Enlace copiado");
+                        } catch {
+                          toast.error("No se pudo copiar");
+                        }
+                      }}
+                    >
+                      Copiar
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {!isClientAuth && (
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setConsentAction("email"); sendConsentLink.mutate({ candidateId, candidateEmail: candidate?.email || "", candidateName: candidate?.nombreCompleto || "" } as any); }}
+                    disabled={sendConsentLink.isPending}
+                  >
+                    Enviar por correo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setConsentAction("whatsapp"); sendConsentLink.mutate({ candidateId, candidateEmail: candidate?.email || "", candidateName: candidate?.nombreCompleto || "" } as any); }}
+                    disabled={sendConsentLink.isPending}
+                  >
+                    Enviar por WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setConsentAction("copy"); sendConsentLink.mutate({ candidateId, candidateEmail: candidate?.email || "", candidateName: candidate?.nombreCompleto || "" } as any); }}
+                    disabled={sendConsentLink.isPending}
+                  >
+                    Copiar enlace
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Acceso del cliente — inline flat-card (IMPL-20260312-02) */}
+          {candidate?.clienteId && !isClientAuth && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Acceso del cliente</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="emailToAcceso">Correo del cliente</Label>
+                  <Input
+                    id="emailToAcceso"
+                    type="email"
+                    value={emailTo}
+                    onChange={(e) => setEmailTo(e.target.value)}
+                    placeholder="cliente@empresa.com"
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    const baseUrl = window.location.origin;
+                    createClientLink.mutate({
+                      clientId: candidate!.clienteId!,
+                      candidatoId: candidateId,
+                      ttlDays: 14,
+                      baseUrl,
+                      sendEmailTo: emailTo || undefined,
+                      emailContext: { nombreCandidato: candidate?.nombreCompleto },
+                    } as any);
+                  }}
+                  disabled={createClientLink.isPending}
+                >
+                  {createClientLink.isPending ? "Generando..." : "Generar y enviar enlace"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Token de pre-registro */}
+          {selfServiceUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Último enlace de pre-registro</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex gap-2 items-center">
+                  <Input
+                    readOnly
+                    value={selfServiceUrl}
+                    className="text-xs font-mono"
+                    title={selfServiceUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard?.writeText(selfServiceUrl);
+                        toast.success("Enlace copiado");
+                      } catch {
+                        toast.error("No se pudo copiar el enlace");
+                      }
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+                {selfServiceExpiresAt && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Vigente hasta: {selfServiceExpiresAt.toLocaleString()}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Enlaces activos */}
+          {candidate?.clienteId && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Enlaces activos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const tokens = (activeTokens || []).filter((t:any)=> t.candidatoId === candidateId);
+                  if (tokens.length === 0) return <p className="text-sm text-muted-foreground">No hay enlaces activos para este candidato</p>;
+                  return (
+                    <div className="space-y-2">
+                      {tokens.map((t:any)=> (
+                        <div key={t.token} className="flex items-center justify-between border rounded p-2">
+                          <div className="text-sm">
+                            <div className="font-mono">{t.token.slice(0,8)}…{t.token.slice(-6)}</div>
+                            <div className="text-xs text-muted-foreground">Expira: {new Date(t.expiresAt).toLocaleString()} {t.lastUsedAt && `• Último uso: ${new Date(t.lastUsedAt).toLocaleString()}`}</div>
+                          </div>
+                          <Button size="sm" variant="destructive" onClick={()=> revokeClientLink.mutate({ token: t.token } as any)}>Revocar</Button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
+        </TabsContent>
+      </Tabs>
 
       {/* Review and Complete Dialog - NEW UNIFIED DIALOG */}
       <ReviewAndCompleteDialog
