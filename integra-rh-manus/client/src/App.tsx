@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
+import ClienteWizard from "./pages/clientes-steps/ClienteWizard";
 import Puestos from "./pages/Puestos";
 import Candidatos from "./pages/Candidatos";
 import Procesos from "./pages/Procesos";
@@ -62,6 +63,11 @@ function Router() {
       <Route path="/">
         <ProtectedLayout>
           <Dashboard />
+        </ProtectedLayout>
+      </Route>
+      <Route path="/clientes/nuevo">
+        <ProtectedLayout>
+          <ClienteWizard />
         </ProtectedLayout>
       </Route>
       <Route path="/clientes">

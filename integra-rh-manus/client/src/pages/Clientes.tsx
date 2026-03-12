@@ -22,7 +22,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -37,12 +37,11 @@ import { useHasPermission } from "@/_core/hooks/usePermission";
 import { formatTipoProductoDisplay } from "@/lib/procesoTipo";
 
 export default function Clientes() {
+  const [, setLocation] = useLocation();
   const [currentPage, setCurrentPage] = useState(1);
   const [filter, setFilter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
-  const [showContinueFlow, setShowContinueFlow] = useState(false);
-  const [createdClientId, setCreatedClientId] = useState<number | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkClient, setLinkClient] = useState<any>(null);
   const [linkEmail, setLinkEmail] = useState("");
@@ -53,7 +52,6 @@ export default function Clientes() {
   const [newSiteName, setNewSiteName] = useState("");
   const [newSiteCity, setNewSiteCity] = useState("");
   const [newSiteState, setNewSiteState] = useState("");
-  const [newClientPlazasText, setNewClientPlazasText] = useState("");
 
   const { data: clients = [], isLoading } = trpc.clients.list.useQuery();
   const { data: allProcesses = [] } = trpc.processes.list.useQuery();
@@ -70,50 +68,6 @@ export default function Clientes() {
     { clientId: sitesClient?.id ?? 0 },
     { enabled: !!sitesClient }
   );
-
-  const createSiteForNewClientMutation = trpc.clientSites.create.useMutation();
-
-  const createMutation = trpc.clients.create.useMutation({
-    onSuccess: (data) => {
-      utils.clients.list.invalidate();
-      setCreatedClientId(data.id);
-      setShowContinueFlow(true);
-      toast.success("Cliente creado exitosamente");
-
-      const plazas = newClientPlazasText
-        .split(/\r?\n|,/g)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const uniquePlazas = Array.from(new Set(plazas));
-      if (uniquePlazas.length > 0) {
-        void (async () => {
-          try {
-            await Promise.all(
-              uniquePlazas.map((nombrePlaza) =>
-                createSiteForNewClientMutation.mutateAsync({
-                  clientId: data.id,
-                  nombrePlaza,
-                })
-              )
-            );
-            await utils.clientSites.listByClient.invalidate({ clientId: data.id });
-          } catch (e: any) {
-            toast.error(
-              "Cliente creado, pero no se pudieron crear todas las plazas: " +
-                (e?.message || "Error")
-            );
-          } finally {
-            setNewClientPlazasText("");
-          }
-        })();
-      } else {
-        setNewClientPlazasText("");
-      }
-    },
-    onError: (error) => {
-      toast.error("Error al crear cliente: " + error.message);
-    },
-  });
 
   const updateMutation = trpc.clients.update.useMutation({
     onSuccess: () => {
@@ -153,40 +107,22 @@ export default function Clientes() {
     },
   });
 
-  const handleContinueFlow = () => {
-    setDialogOpen(false);
-    setShowContinueFlow(false);
-    // Redirigir al flujo integrado con el cliente pre-seleccionado
-    window.location.href = `/flujo-candidato?clienteId=${createdClientId}`;
-  };
-
-  const handleFinish = () => {
-    setDialogOpen(false);
-    setShowContinueFlow(false);
-    setCreatedClientId(null);
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!editingClient) return;
     const formData = new FormData(e.currentTarget);
     const data = {
       nombreEmpresa: formData.get("nombreEmpresa") as string,
-      reclutador: formData.get("reclutador") as string || undefined,
-      contacto: formData.get("contacto") as string || undefined,
-      telefono: formData.get("telefono") as string || undefined,
-      email: formData.get("email") as string || undefined,
+      reclutador: (formData.get("reclutador") as string) || undefined,
+      contacto: (formData.get("contacto") as string) || undefined,
+      telefono: (formData.get("telefono") as string) || undefined,
+      email: (formData.get("email") as string) || undefined,
     };
-
-    if (editingClient) {
-      updateMutation.mutate({ id: editingClient.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
+    updateMutation.mutate({ id: editingClient.id, data });
   };
 
   const handleEdit = (client: any) => {
     setEditingClient(client);
-    setNewClientPlazasText("");
     setDialogOpen(true);
   };
 
@@ -194,12 +130,6 @@ export default function Clientes() {
     if (confirm("¿Estás seguro de eliminar este cliente?")) {
       deleteMutation.mutate({ id });
     }
-  };
-
-  const handleOpenDialog = () => {
-    setEditingClient(null);
-    setNewClientPlazasText("");
-    setDialogOpen(true);
   };
 
   const openLinkDialog = (client: any) => {
@@ -380,7 +310,7 @@ export default function Clientes() {
           </p>
         </div>
         {canCreateClient && (
-          <Button onClick={handleOpenDialog}>
+          <Button onClick={() => setLocation("/clientes/nuevo")}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Cliente
           </Button>
@@ -415,7 +345,7 @@ export default function Clientes() {
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No hay clientes registrados</p>
               {canCreateClient && (
-                <Button onClick={handleOpenDialog} variant="outline" className="mt-4">
+                <Button onClick={() => setLocation("/clientes/nuevo")} variant="outline" className="mt-4">
                   <Plus className="h-4 w-4 mr-2" />
                   Crear primer cliente
                 </Button>
@@ -983,20 +913,6 @@ export default function Clientes() {
                   defaultValue={editingClient?.email}
                 />
               </div>
-
-              {!editingClient && (
-                <div className="col-span-2">
-                  <Label htmlFor="new-client-plazas">
-                    Plazas / CEDIs (opcional)
-                  </Label>
-                  <Textarea
-                    id="new-client-plazas"
-                    value={newClientPlazasText}
-                    onChange={(e) => setNewClientPlazasText(e.target.value)}
-                    placeholder="Una por línea, o separadas por coma"
-                  />
-                </div>
-              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button
@@ -1005,42 +921,18 @@ export default function Clientes() {
                 onClick={() => {
                   setDialogOpen(false);
                   setEditingClient(null);
-                  setNewClientPlazasText("");
                 }}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
+                disabled={updateMutation.isPending}
               >
-                {editingClient ? "Actualizar" : "Crear"}
+                Actualizar
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de Continuación */}
-      <Dialog open={showContinueFlow} onOpenChange={setShowContinueFlow}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>¡Cliente creado exitosamente!</DialogTitle>
-          </DialogHeader>
-          <p className="sr-only" id="cliente-continuar-description">Elige si continuar con el flujo o finalizar.</p>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              ¿Qué deseas hacer ahora?
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button onClick={handleContinueFlow} className="w-full">
-                Continuar: Agregar Candidato y Proceso
-              </Button>
-              <Button onClick={handleFinish} variant="outline" className="w-full">
-                Terminar aquí
-              </Button>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
 
