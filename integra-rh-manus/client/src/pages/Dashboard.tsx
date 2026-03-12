@@ -78,16 +78,16 @@ export default function Dashboard() {
             <Link href="/flujo-completo" className="block">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer hover:-translate-y-1">
                 <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 md:gap-2">
                     <Zap className="h-4 w-4 text-primary shrink-0" />
                     <h3 className="text-sm font-semibold shrink-0">Flujo Completo</h3>
-                    <span className="text-xs font-medium text-slate-600">Cliente</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Cliente</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-slate-600">Candidato</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Candidato</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-slate-600">Puesto</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Puesto</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-slate-600">Proceso</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Proceso</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Ideal para iniciar operaciones con un cliente nuevo</p>
                 </CardContent>
@@ -97,14 +97,14 @@ export default function Dashboard() {
             <Link href="/flujo-candidato" className="block">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer hover:-translate-y-1">
                 <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 md:gap-2">
                     <Zap className="h-4 w-4 text-primary shrink-0" />
                     <h3 className="text-sm font-semibold shrink-0">Flujo Rápido</h3>
-                    <span className="text-xs font-medium text-slate-600">Candidato</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Candidato</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-slate-600">Puesto</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Puesto</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs font-medium text-slate-600">Proceso</span>
+                    <span className="text-[10px] md:text-xs font-medium text-slate-600">Proceso</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Para asignar candidatos a clientes existentes</p>
                 </CardContent>
