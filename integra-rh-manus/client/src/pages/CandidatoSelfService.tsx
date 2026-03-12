@@ -262,8 +262,8 @@ export default function CandidatoSelfService() {
           setPerfil(p);
           setJobs(j);
         }
-      } catch (e) {
-        console.error("Error recuperando localStorage:", e);
+      } catch (_e) {
+        // localStorage no disponible — continuar sin datos locales
       }
     }
     setHasAttemptedLocalStorage(true);
@@ -538,76 +538,39 @@ export default function CandidatoSelfService() {
 
   const handleManualSave = async () => {
     try {
-      // LOG: Inicio de guardado
-      console.log('🔵 [CLIENT] handleManualSave iniciado', { token });
-      
       // Guardar en localStorage inmediatamente (backup local)
       localStorage.setItem(
         `self-service-${token}`,
         JSON.stringify({ formCandidate, perfil, jobs }),
       );
-      console.log('🟢 [CLIENT] Datos guardados en localStorage', {
-        email: formCandidate.email,
-        telefono: formCandidate.telefono,
-        perfilKeys: Object.keys(perfil),
-        jobCount: jobs.length,
-        aceptoAviso,
-      });
       setLastSavedAt(new Date());
-      
+
       // Guardar TODOS los datos en BD vía REST endpoint
       try {
         const payload = getDraftPayload();
-        console.log('📦 [CLIENT] Payload construido:', {
-          token,
-          candidateKeys: Object.keys(payload.candidate),
-          perfilStructure: Object.keys(payload.perfil),
-          workHistoryCount: payload.workHistory.length,
-          aceptoAvisoPrivacidad: payload.aceptoAvisoPrivacidad,
-          payloadSize: JSON.stringify(payload).length,
-        });
-        
         const requestBody = {
           token,
           candidate: payload.candidate,
           perfil: payload.perfil,
           workHistory: payload.workHistory,
-          aceptoAvisoPrivacidad: aceptoAviso, // Agregar consentimiento
+          aceptoAvisoPrivacidad: aceptoAviso,
         };
-        console.log('🟡 [CLIENT] Enviando POST /api/candidate-save-full-draft', requestBody);
-        
+
         const response = await fetch("/api/candidate-save-full-draft", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
         });
-        console.log('🟠 [CLIENT] Response status:', response.status);
-        
+
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error("❌ [CLIENT] Draft save FAILED:", errorData);
-          console.error('❌ [CLIENT] Response completa:', response.status, response.statusText);
           toast.error("Error al guardar el borrador en la base de datos");
         } else {
-          const result = await response.json();
-          console.log("✅ [CLIENT] Draft saved to BD successfully:", result);
-          console.log('✅ [CLIENT] Respuesta completa:', { status: response.status, data: result });
           toast.success("Borrador guardado correctamente en la base de datos");
         }
-      } catch (syncErr) {
-        console.error("❌ [CLIENT] Draft save network error:", syncErr);
-        console.error('❌ [CLIENT] Error completo:', {
-          message: syncErr instanceof Error ? syncErr.message : String(syncErr),
-          stack: syncErr instanceof Error ? syncErr.stack : undefined,
-        });
+      } catch (_syncErr) {
         toast.error("Error al guardar el borrador");
       }
-    } catch (err: any) {
-      console.error("❌ [CLIENT] Error al guardar borrador:", err);
-      console.error('❌ [CLIENT] Error details:', {
-        message: err.message,
-        stack: err.stack,
-      });
+    } catch (_err) {
       toast.error("Error al guardar el borrador");
     }
   };
@@ -651,8 +614,7 @@ export default function CandidatoSelfService() {
       );
       // Limpiar localStorage tras envío exitoso
       localStorage.removeItem(`self-service-${token}`);
-    } catch (err) {
-      console.error("Error al enviar datos:", err);
+    } catch (_err) {
       toast.error("Error al enviar los datos. Intenta de nuevo.");
     }
   };

@@ -41,8 +41,6 @@ export default function ProcesoDetalle() {
   });
   const updatePanelDetail = trpc.processes.updatePanelDetail.useMutation({
     onSuccess: () => {
-      // FIX-20260220-01: Log de éxito en actualización
-      console.log('[FIX-20260220-01] updatePanelDetail.onSuccess ejecutado - Changes guardados en BD');
       utils.processes.getById.invalidate({ id: processId });
       // También refrescamos la lista para que la columna "Responsable"
       // y los conteos de analista asignado se actualicen al instante.
@@ -50,11 +48,6 @@ export default function ProcesoDetalle() {
       toast.success("Bloques actualizados");
     },
     onError: (e:any) => {
-      // FIX-20260220-01: Log de error en actualización
-      console.error('[FIX-20260220-01] updatePanelDetail.onError:', {
-        errorMessage: e.message,
-        errorData: e
-      });
       toast.error(e.message || "Error al guardar");
     },
   });
@@ -438,9 +431,6 @@ export default function ProcesoDetalle() {
       },
       tipoProducto,
     };
-    
-    // IMPL-20260309-02: Debug log para validar payload con todas las evidenciasGraficas
-    console.log('[IMPL-20260309-02] getPanelPayload resultado:', JSON.stringify({payload: result, investigacionLegal: result.investigacionLegal, semanasDetalle: result.semanasDetalle, antecedentesPenales: result.antecedentesPenales, visitaDetalle: result.visitaDetalle}, null, 2));
     
     return result;
   };
@@ -866,19 +856,7 @@ export default function ProcesoDetalle() {
                       }
                       const base64 = btoa(binary);
 
-                      // FIX-20260220-01: Debug log antes del upload
-                      console.log('[FIX-20260220-01] onPaste Investigación Legal - Antes de upload:', {
-                        procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`,
-                        blobSize: blob.size, base64Length: base64.length
-                      });
-
                       const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-                      
-                      // FIX-20260220-01: Debug log después del upload
-                      console.log('[FIX-20260220-01] onPaste Investigación Legal - Upload completado:', {
-                        respuestaUrl: res.url,
-                        estadoActualEvidencias: (panelForm.investigacionLegal as any).evidenciasGraficas
-                      });
 
                       setPanelForm(currentForm => {
                         const newForm = { 
@@ -889,23 +867,12 @@ export default function ProcesoDetalle() {
                           } 
                         };
                         
-                        // FIX-20260220-01: Debug log antes de guardar
-                        console.log('[FIX-20260220-01] onPaste Investigación Legal - Antes de updatePanelDetail.mutate:', {
-                          evidenciasGraficasEnNuevoForm: (newForm.investigacionLegal as any).evidenciasGraficas,
-                          payloadAEnviar: getPanelPayload(newForm)
-                        });
-
                         const payload = getPanelPayload(newForm);
                         updatePanelDetail.mutate(payload);
-                        
-                        // FIX-20260220-01: Debug log después de setState
-                        console.log('[FIX-20260220-01] onPaste Investigación Legal - SetPanelForm completado, estado local actualizado');
-                        
                         return newForm;
                       });
                       toast.success("Evidencia guardada");
                     } catch (err: any) {
-                      console.error('[FIX-20260220-01] Error en onPaste Investigación Legal:', err);
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
@@ -1002,19 +969,7 @@ export default function ProcesoDetalle() {
                       }
                       const base64 = btoa(binary);
 
-                      // FIX-20260220-01: Debug log antes del upload
-                      console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Antes de upload:', {
-                        procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`,
-                        blobSize: blob.size, base64Length: base64.length
-                      });
-
                       const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-                      
-                      // FIX-20260220-01: Debug log después del upload
-                      console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Upload completado:', {
-                        respuestaUrl: res.url,
-                        estadoActualEvidencias: (panelForm.semanasDetalle as any).evidenciasGraficas
-                      });
 
                       setPanelForm(currentForm => {
                         const newForm = { 
@@ -1025,23 +980,12 @@ export default function ProcesoDetalle() {
                           } 
                         };
                         
-                        // FIX-20260220-01: Debug log antes de guardar
-                        console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - Antes de updatePanelDetail.mutate:', {
-                          evidenciasGraficasEnNuevoForm: (newForm.semanasDetalle as any).evidenciasGraficas,
-                          payloadAEnviar: getPanelPayload(newForm)
-                        });
-
                         const payload = getPanelPayload(newForm);
                         updatePanelDetail.mutate(payload);
-                        
-                        // FIX-20260220-01: Debug log después de setState
-                        console.log('[FIX-20260220-01] onPaste Semanas Cotizadas - SetPanelForm completado, estado local actualizado');
-                        
                         return newForm;
                       });
                       toast.success("Evidencia guardada");
                     } catch (err: any) {
-                      console.error('[FIX-20260220-01] Error en onPaste Semanas Cotizadas:', err);
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
@@ -1128,7 +1072,6 @@ export default function ProcesoDetalle() {
                                 return newForm;
                               });
                             } catch (err: any) {
-                              console.error('Error al subir documento de Semanas:', err);
                               toast.error("Error al subir archivo: " + err.message);
                             }
                           });
@@ -1199,7 +1142,6 @@ export default function ProcesoDetalle() {
                     });
                     toast.success("Evidencia guardada");
                   } catch (err: any) {
-                    console.error('[IMPL-20260309-02] Error en onPaste Antecedentes Penales:', err);
                     toast.error("Error al subir: " + err.message);
                   }
                 }}
@@ -1276,7 +1218,6 @@ export default function ProcesoDetalle() {
                               return newForm;
                             });
                           } catch (err: any) {
-                            console.error('Error al subir Antecedentes Penales:', err);
                             toast.error("Error al subir: " + err.message);
                           }
                         });
@@ -1409,7 +1350,6 @@ export default function ProcesoDetalle() {
                       });
                       toast.success("Evidencia guardada");
                     } catch (err: any) {
-                      console.error('[IMPL-20260309-02] Error en onPaste Buró Adicional:', err);
                       toast.error("Error al subir: " + err.message);
                     }
                   }}
@@ -1486,7 +1426,6 @@ export default function ProcesoDetalle() {
                                 return newForm;
                               });
                             } catch (err: any) {
-                              console.error('Error al subir Buró Crédito:', err);
                               toast.error("Error al subir: " + err.message);
                             }
                           });
@@ -1591,7 +1530,6 @@ export default function ProcesoDetalle() {
                       return newForm;
                     });
                   } catch (err: any) {
-                    console.error('[IMPL-20260309-02] Error en onPaste Visita:', err);
                     toast.error("Error al subir: " + err.message);
                   }
                 }}
@@ -1665,7 +1603,6 @@ export default function ProcesoDetalle() {
                             });
                             toast.success("Foto guardada");
                           } catch (err: any) {
-                            console.error('Error al subir Visita:', err);
                             toast.error("Error al subir: " + err.message);
                           }
                         });

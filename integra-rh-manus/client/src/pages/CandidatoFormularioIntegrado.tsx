@@ -165,20 +165,16 @@ export default function CandidatoFormularioIntegrado() {
       
       // FIX-20260219-04: Actualizar candidato con puestoId después de crear puesto
       if (candidatoId) {
-        console.log("[DEBUG] CandidatoFormularioIntegrado: Actualizando candidato con puestoId:", data.id);
         updateCandidateMutation.mutate({
           id: candidatoId,
           data: {
             puestoId: data.id,
           },
         });
-      } else {
-        console.error("[DEBUG] candidatoId es null, no se puede actualizar candidato");
       }
     },
     onError: (error) => {
       toast.error("Error al crear puesto: " + error.message);
-      console.error("[DEBUG] createPostMutation error:", error);
     },
   });
 
@@ -186,16 +182,13 @@ export default function CandidatoFormularioIntegrado() {
     onSuccess: (result) => {
       // FIX-20260219-04: Solo avanzar a step 3 si candidato fue actualizado
       if (result.candidate?.puestoId) {
-        console.log("[DEBUG] Candidato actualizado con puestoId, avanzando a step 3");
         setStep(3);
       } else {
         toast.error("Error al asignar puesto al candidato");
-        console.error("[DEBUG] Candidato no tiene puestoId:", result.candidate);
       }
     },
     onError: (error) => {
       toast.error("Error al actualizar candidato: " + error.message);
-      console.error("[DEBUG] updateCandidateMutation error:", error);
     },
   });
 

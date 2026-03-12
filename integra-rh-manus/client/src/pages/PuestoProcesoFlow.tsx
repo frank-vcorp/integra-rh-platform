@@ -56,10 +56,7 @@ export default function PuestoProcesoFlow() {
   const urlParams = new URLSearchParams(window.location.search);
   const candidatoId = urlParams.get('candidatoId');
   const clienteId = urlParams.get('clienteId');
-  
-  // FIX-20260219-03: Logs agresivos desde inicio
-  console.log("[DEBUG] PuestoProcesoFlow montado con candidatoId:", candidatoId, "clienteId:", clienteId);
-  
+
   const [puestoId, setPuestoId] = useState<number | null>(null);
   
   // [HOMOGENEIZACIÓN] Estado para Plaza/CEDI - consistente con otros flujos
@@ -91,55 +88,34 @@ export default function PuestoProcesoFlow() {
     onSuccess: (result) => {
       // FIX-20260219-03: Validar que candidato tiene puestoId asignado
       if (result.candidate?.puestoId) {
-        console.log("[DEBUG] Candidato actualizado exitosamente con puestoId:", result.candidate.puestoId);
         utils.candidates.list.invalidate();
         utils.posts.list.invalidate();
-        // Ahora sí avanzar a Step 2
         setStep(2);
       } else {
         toast.error("Error: No se asignó el puestoId al candidato");
-        console.error("[DEBUG] Candidato retornado sin puestoId:", result.candidate);
       }
     },
     onError: (error) => {
       toast.error("Error al actualizar candidato: " + error.message);
-      console.error("[DEBUG] Error en updateCandidateMutation:", error);
     },
   });
 
   const createPostMutation = trpc.posts.create.useMutation({
     onSuccess: (data) => {
-      console.log("[DEBUG] createPostMutation.onSuccess ejecutado, puestoId:", data.id);
       setPuestoId(data.id);
       toast.success("Puesto creado exitosamente");
-      
+
       // FIX-20260219-03: Actualizar candidato con el puestoId recién creado
-      console.log("[DEBUG] candidatoId:", candidatoId, "typeof:", typeof candidatoId);
       if (candidatoId) {
-        console.log("[DEBUG] Iniciando updateCandidateMutation para candidatoId:", candidatoId, "con puestoId:", data.id);
-        updateCandidateMutation.mutate(
-          {
-            id: parseInt(candidatoId),
-            data: {
-              puestoId: data.id,
-            },
-          },
-          {
-            onSuccess: (result) => {
-              console.log("[DEBUG] updateCandidateMutation.onSuccess en createPostMutation callback:", result);
-            },
-            onError: (error) => {
-              console.error("[DEBUG] updateCandidateMutation.onError en createPostMutation callback:", error);
-            }
-          }
-        );
+        updateCandidateMutation.mutate({
+          id: parseInt(candidatoId),
+          data: { puestoId: data.id },
+        });
       } else {
-        console.error("[DEBUG] candidatoId es null/undefined, no se puede actualizar candidato");
         toast.error("Error: No se tiene ID del candidato");
       }
     },
     onError: (error) => {
-      console.error("[DEBUG] createPostMutation.onError:", error);
       toast.error("Error al crear puesto: " + error.message);
     },
   });
