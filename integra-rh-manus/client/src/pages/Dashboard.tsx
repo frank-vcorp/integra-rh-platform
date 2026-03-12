@@ -62,7 +62,8 @@ export default function Dashboard() {
 
   return (
     // IMPL-20260312-11: Compactación HUD — sin scroll, todo en 1 pantalla
-    <div className="space-y-3">
+    // IMPL-20260312-12: space-y responsivo para laptops con escalas 125%-150%
+    <div className="space-y-4 xl:space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Dashboard</h1>
@@ -80,13 +81,13 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Zap className="h-4 w-4 text-primary shrink-0" />
                     <h3 className="text-sm font-semibold shrink-0">Flujo Completo</h3>
-                    <Badge variant="secondary" className="text-xs">Cliente</Badge>
+                    <span className="text-xs font-medium text-slate-600">Cliente</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-xs">Candidato</Badge>
+                    <span className="text-xs font-medium text-slate-600">Candidato</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-xs">Puesto</Badge>
+                    <span className="text-xs font-medium text-slate-600">Puesto</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-xs">Proceso</Badge>
+                    <span className="text-xs font-medium text-slate-600">Proceso</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Ideal para iniciar operaciones con un cliente nuevo</p>
                 </CardContent>
@@ -99,11 +100,11 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Zap className="h-4 w-4 text-primary shrink-0" />
                     <h3 className="text-sm font-semibold shrink-0">Flujo Rápido</h3>
-                    <Badge variant="secondary" className="text-xs">Candidato</Badge>
+                    <span className="text-xs font-medium text-slate-600">Candidato</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-xs">Puesto</Badge>
+                    <span className="text-xs font-medium text-slate-600">Puesto</span>
                     <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-xs">Proceso</Badge>
+                    <span className="text-xs font-medium text-slate-600">Proceso</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Para asignar candidatos a clientes existentes</p>
                 </CardContent>
