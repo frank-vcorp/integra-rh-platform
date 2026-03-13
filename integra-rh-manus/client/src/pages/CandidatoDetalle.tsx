@@ -2115,198 +2115,6 @@ export default function CandidatoDetalle() {
         {/* ════════════ TAB: PROCESOS ════════════ */}
         <TabsContent value="procesos" className="space-y-6 mt-4">
 
-      {/* Comments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Comentarios
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCommentSubmit} className="mb-4 space-y-2">
-            <Textarea
-              name="comentario"
-              placeholder="Agregar un comentario..."
-              required
-              rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
-            />
-            <div className="flex items-center justify-between">
-              <label className="text-sm flex items-center gap-2">
-                <input type="checkbox" name="publico" />
-                Hacer público para el cliente
-              </label>
-              <Button type="submit" disabled={createCommentMutation.isPending}>
-                <Plus className="h-4 w-4 mr-2" /> Agregar
-              </Button>
-            </div>
-          </form>
-
-          {comments.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No hay comentarios
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {comments.map((comment) => (
-                <div key={comment.id} className="border-l-2 border-primary pl-4 py-2">
-                  <p className="text-sm">{comment.text}</p>
-                  <p className="text-xs text-muted-foreground">Por: {comment.author}</p>
-                  {comment.visibility === 'public' ? (
-                    <span className="text-[10px] uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded">Público</span>
-                  ) : (
-                    <span className="text-[10px] uppercase tracking-wide bg-slate-100 text-slate-700 px-2 py-0.5 rounded">Interno</span>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(comment.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Psicométricas */}
-      <Card>
-        <CardHeader className="flex items-center justify-between flex-row">
-          <CardTitle className="flex items-center gap-2">
-            Psicométricas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              const vacante = (fd.get("vacante") as string) || undefined;
-              const tests = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="testId"]:checked')).map(i=>parseInt(i.value));
-              if (tests.length === 0) { toast.error('Selecciona al menos una prueba'); return; }
-              asignarPsico.mutate({ candidatoId: candidateId, tests, vacante } as any);
-            }}
-            className="space-y-3 mb-4"
-          >
-            <div className="grid grid-cols-3 gap-3">
-              {/* UI sin batería: solo selección de pruebas individuales */}
-              <div>
-                <Label htmlFor="vacante">Vacante (opcional)</Label>
-                <input id="vacante" name="vacante" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50" placeholder="Puesto" />
-              </div>
-              <div className="col-span-3">
-                <Label>Pruebas a aplicar</Label>
-                <div className="grid grid-cols-4 gap-2 mt-2 text-sm">
-                  {[{id:1,n:'Cleaver'},{id:2,n:'Kostick'},{id:3,n:'IPV'},{id:4,n:'LIFO'},{id:5,n:'Zavic'},{id:6,n:'Gordon'},{id:7,n:'Terman'},{id:8,n:'Raven'},{id:9,n:'Inglés'},{id:10,n:'16PF'},{id:11,n:'Barsit'},{id:15,n:'Moss'},{id:16,n:'Wonderlic'}].map(t=> (
-                    <label key={t.id} className="flex items-center gap-2"><input type="checkbox" name="testId" value={t.id} /> {t.id}. {t.n}</label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="submit" disabled={asignarPsico.isPending}>
-                    Asignar
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Envía al candidato las pruebas seleccionadas en Psicométricas.
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </form>
-
-          <div className="text-sm text-muted-foreground mb-4">
-            {candidate.psicometricos ? (
-              <div className="space-y-1">
-                <div><span className="font-medium">Estatus:</span> {candidate.psicometricos.estatus || 'pendiente'}</div>
-                {candidate.psicometricos.clavePsicometricas && (
-                  <div><span className="font-medium">Clave:</span> {candidate.psicometricos.clavePsicometricas}</div>
-                )}
-              </div>
-            ) : (
-              <div>Sin información registrada.</div>
-            )}
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const asignacionId = candidate.psicometricos?.clavePsicometricas || "";
-                    if (!asignacionId) {
-                      toast.error("No hay clave de asignación registrada");
-                      return;
-                    }
-                    const existingPdf = documents.find(
-                      (doc: any) => doc.tipoDocumento === "PSICOMETRICO",
-                    );
-                    const existingJson = documents.find(
-                      (doc: any) => doc.tipoDocumento === "PSICOMETRICO_JSON",
-                    );
-                    if (existingPdf && existingJson) {
-                      toast.info("El reporte ya está disponible en Documentos.");
-                      try {
-                        window.open(existingPdf.url, "_blank");
-                      } catch {}
-                      return;
-                    }
-                    guardarReportePsico.mutate({
-                      candidatoId: candidateId,
-                      asignacionId,
-                      fileName: `psicometrico-${candidateId}.pdf`,
-                    });
-                  }}
-                  disabled={
-                    !candidate.psicometricos?.clavePsicometricas ||
-                    guardarReportePsico.isPending ||
-                    (documents.some((d: any) => d.tipoDocumento === "PSICOMETRICO") &&
-                      documents.some((d: any) => d.tipoDocumento === "PSICOMETRICO_JSON"))
-                  }
-                >
-                  Guardar reporte PDF
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Descarga y guarda el reporte psicométrico como documento del candidato.
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const clave = candidate.psicometricos?.clavePsicometricas || "";
-                    if (!clave) {
-                      toast.error("No hay clave de asignación registrada");
-                      return;
-                    }
-                    if (!candidate.email) {
-                      toast.error("El candidato no tiene email registrado");
-                      return;
-                    }
-                    reenviarInvitacion.mutate({ asignacionId: clave });
-                  }}
-                  disabled={
-                    !candidate.psicometricos?.clavePsicometricas ||
-                    !candidate.email ||
-                    reenviarInvitacion.isPending
-                  }
-                >
-                  <RefreshCcw className="h-4 w-4 mr-2" /> Reenviar invitación
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Reenvía el acceso a las pruebas psicométricas al candidato.
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Botón "Ver resultados" eliminado: el flujo se maneja al guardar el reporte */}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Procesos del candidato */}
       <Card>
@@ -2370,45 +2178,6 @@ export default function CandidatoDetalle() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Visitas del candidato */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5"/> Visitas domiciliarias
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(() => {
-            const visitas = (procesos || []).filter((p:any)=> p.visitStatus && (p.visitStatus.status || p.visitStatus.scheduledDateTime));
-            if (visitas.length === 0) {
-              return <p className="text-sm text-muted-foreground">Sin visitas asignadas</p>;
-            }
-            const surv = (surveyors as any).data || [];
-            const nombreEncuestador = (id?: number) => (surv.find((s:any)=> s.id===id)?.nombre) || '-';
-            return (
-              <div className="space-y-2">
-                {visitas.map((p:any)=> (
-                  <div key={p.id} className="border rounded p-2 flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{p.clave} — {p.tipoProducto}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Estatus: {p.visitStatus?.status || 'no_asignada'}
-                        {p.visitStatus?.scheduledDateTime && ` • ${new Date(p.visitStatus.scheduledDateTime).toLocaleString()}`}
-                        {p.visitStatus?.encuestadorId && ` • Encuestador: ${nombreEncuestador(p.visitStatus.encuestadorId)}`}
-                        {p.visitStatus?.direccion && ` • ${p.visitStatus.direccion}`}
-                      </div>
-                    </div>
-                    <Link href={`/procesos/${p.id}`}>
-                      <Button size="sm" variant="outline">Administrar</Button>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
         </CardContent>
       </Card>
 
@@ -2488,58 +2257,94 @@ export default function CandidatoDetalle() {
           </CardContent>
         </Card>
       )}
-      {/* Documents */}
+
+      {/* Visitas del candidato */}
       <Card>
-        <CardHeader className="flex items-center justify-between flex-row">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Paperclip className="h-5 w-5" /> Documentos
+            <Briefcase className="h-5 w-5"/> Visitas domiciliarias
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleDocumentSubmit} className="space-y-2 mb-4">
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-1">
-                <Label htmlFor="tipoDocumento">Tipo</Label>
-                <select name="tipoDocumento" id="tipoDocumento" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50">
-                  <option value="CV">CV</option>
-                  <option value="ACTA_NACIMIENTO">Acta de Nacimiento</option>
-                  <option value="INE">Copia INE</option>
-                  <option value="LICENCIA_CONDUCIR">Licencia de conducir</option>
-                  <option value="COMPROBANTE_DOMICILIO">Comprobante de Domicilio</option>
-                  <option value="RFC">RFC</option>
-                  <option value="CURP">CURP</option>
-                  <option value="OTRO">Otro</option>
-                </select>
+          {(() => {
+            const visitas = (procesos || []).filter((p:any)=> p.visitStatus && (p.visitStatus.status || p.visitStatus.scheduledDateTime));
+            if (visitas.length === 0) {
+              return <p className="text-sm text-muted-foreground">Sin visitas asignadas</p>;
+            }
+            const surv = (surveyors as any).data || [];
+            const nombreEncuestador = (id?: number) => (surv.find((s:any)=> s.id===id)?.nombre) || '-';
+            return (
+              <div className="space-y-2">
+                {visitas.map((p:any)=> (
+                  <div key={p.id} className="border rounded p-2 flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{p.clave} — {p.tipoProducto}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Estatus: {p.visitStatus?.status || 'no_asignada'}
+                        {p.visitStatus?.scheduledDateTime && ` • ${new Date(p.visitStatus.scheduledDateTime).toLocaleString()}`}
+                        {p.visitStatus?.encuestadorId && ` • Encuestador: ${nombreEncuestador(p.visitStatus.encuestadorId)}`}
+                        {p.visitStatus?.direccion && ` • ${p.visitStatus.direccion}`}
+                      </div>
+                    </div>
+                    <Link href={`/procesos/${p.id}`}>
+                      <Button size="sm" variant="outline">Administrar</Button>
+                    </Link>
+                  </div>
+                ))}
               </div>
-              <div className="col-span-2">
-                <Label htmlFor="file">Archivo</Label>
-                <input type="file" name="file" id="file" className="mt-1 block w-full" required />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={uploadDocumentMutation.isPending}>Subir</Button>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      {/* Comentarios (ubicado al final por solicitud del usuario) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Comentarios
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCommentSubmit} className="mb-4 space-y-2">
+            <Textarea
+              name="comentario"
+              placeholder="Agregar un comentario..."
+              required
+              rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
+            />
+            <div className="flex items-center justify-between">
+              <label className="text-sm flex items-center gap-2">
+                <input type="checkbox" name="publico" />
+                Hacer público para el cliente
+              </label>
+              <Button type="submit" disabled={createCommentMutation.isPending}>
+                <Plus className="h-4 w-4 mr-2" /> Agregar
+              </Button>
             </div>
           </form>
 
-          {documents.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Sin documentos</p>
+          {comments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No hay comentarios
+            </p>
           ) : (
-            <ul className="space-y-2">
-              {documents.map((doc) => (
-                <li key={doc.id} className="flex items-center justify-between border rounded p-2">
-                  <div className="flex items-center gap-3">
-                    {(() => { const { Icon, color } = getFileIcon(doc.nombreArchivo); return <Icon className={`h-5 w-5 ${color}`} />; })()}
-                    <div>
-                      <div className="font-medium">{doc.tipoDocumento} — {doc.nombreArchivo}</div>
-                      <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 inline-flex items-center gap-1">
-                        Ver <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">{doc.mimeType || ''} {(doc.tamanio || 0) > 0 ? `• ${(doc.tamanio/1024/1024).toFixed(2)} MB` : ''}</div>
-                </li>
+            <div className="space-y-3">
+              {comments.map((comment) => (
+                <div key={comment.id} className="border-l-2 border-primary pl-4 py-2">
+                  <p className="text-sm">{comment.text}</p>
+                  <p className="text-xs text-muted-foreground">Por: {comment.author}</p>
+                  {comment.visibility === 'public' ? (
+                    <span className="text-[10px] uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded">Público</span>
+                  ) : (
+                    <span className="text-[10px] uppercase tracking-wide bg-slate-100 text-slate-700 px-2 py-0.5 rounded">Interno</span>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(comment.createdAt).toLocaleString()}
+                  </p>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </CardContent>
       </Card>
