@@ -1946,8 +1946,8 @@ export default function CandidatoDetalle() {
           {/* Sheet para Crear Proceso */}
           <Sheet open={createProcessOpen} onOpenChange={setCreateProcessOpen}>
             <SheetContent className="sm:max-w-md overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Crear nuevo proceso</SheetTitle>
+              <SheetHeader className="shrink-0 mb-4">
+                <SheetTitle className="pr-6 leading-tight">Crear nuevo proceso</SheetTitle>
               </SheetHeader>
               <div className="mt-6">
                 {!candidate?.clienteId ? (
@@ -2274,8 +2274,8 @@ export default function CandidatoDetalle() {
           className="overflow-y-auto sm:max-w-xl md:max-w-3xl"
           aria-describedby="investigacion-desc"
         >
-          <SheetHeader>
-            <SheetTitle>
+          <SheetHeader className="shrink-0 mb-4">
+            <SheetTitle className="pr-6 leading-tight">
               Investigación laboral —{" "}
               {investigationTarget?.empresa || "Empleo"}
             </SheetTitle>
