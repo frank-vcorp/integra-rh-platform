@@ -85,7 +85,7 @@ export default function ClienteDashboard() {
         <div className="container mx-auto px-4 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <img
-              src="/sinergia-rh-logo.png"
+              src="/sinergia-rh-logo-2026.png"
               alt="Sinergia RH"
               className="h-12 w-auto"
             />

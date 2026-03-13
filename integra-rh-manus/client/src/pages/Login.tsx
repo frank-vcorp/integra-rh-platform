@@ -110,7 +110,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
       <div className="max-w-md w-full bg-white p-8 border border-gray-200 rounded-lg shadow-sm text-center">
-        <img src="/sinergia-rh-logo.png" alt="Sinergia RH Logo" className="w-56 mx-auto mb-6" />
+        <img src="/sinergia-rh-logo-2026.png" alt="Sinergia RH Logo" className="w-56 mx-auto mb-6" />
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
           Bienvenido
         </h1>
