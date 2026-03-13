@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,10 +180,10 @@ export function ReviewAndCompleteDialog({
   const ESTATUS_INVESTIGACION = ["en_revision", "revisado", "terminado"];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" aria-describedby="review-desc">
-        <DialogHeader>
-          <DialogTitle>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="overflow-y-auto sm:max-w-xl md:max-w-3xl" aria-describedby="review-desc">
+        <SheetHeader>
+          <SheetTitle>
             {isCreateMode ? (
               <span className="flex items-center gap-2">
                 <Plus className="h-5 w-5" />
@@ -192,8 +192,8 @@ export function ReviewAndCompleteDialog({
             ) : (
               `Revisar y Completar — ${formData.empresa || "Sin empresa"}`
             )}
-          </DialogTitle>
-        </DialogHeader>
+          </SheetTitle>
+        </SheetHeader>
         <p id="review-desc" className="sr-only">
           {isCreateMode 
             ? "Formulario para agregar un nuevo empleo al historial laboral."
@@ -515,7 +515,7 @@ export function ReviewAndCompleteDialog({
             {isPending ? "Guardando..." : isCreateMode ? "Agregar empleo" : "Guardar cambios"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

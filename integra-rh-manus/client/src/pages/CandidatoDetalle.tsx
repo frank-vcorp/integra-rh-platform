@@ -11,11 +11,11 @@ import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2767,7 +2767,7 @@ export default function CandidatoDetalle() {
       />
 
       {/* Investigación Laboral Dialog */}
-      <Dialog
+      <Sheet
         open={investigationDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
@@ -2790,16 +2790,16 @@ export default function CandidatoDetalle() {
           setInvestigationDialogOpen(true);
         }}
       >
-        <DialogContent
-          className="max-w-2xl max-h-[80vh] overflow-y-auto"
+        <SheetContent
+          className="overflow-y-auto sm:max-w-xl md:max-w-3xl"
           aria-describedby="investigacion-desc"
         >
-          <DialogHeader>
-            <DialogTitle>
+          <SheetHeader>
+            <SheetTitle>
               Investigación laboral —{" "}
               {investigationTarget?.empresa || "Empleo"}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           <p id="investigacion-desc" className="sr-only">
             Formulario para capturar la evaluación de desempeño de este empleo.
           </p>
@@ -3566,8 +3566,8 @@ export default function CandidatoDetalle() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
