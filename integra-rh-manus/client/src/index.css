@@ -124,7 +124,6 @@
   html,
   body {
     @apply bg-background text-foreground;
-    text-transform: uppercase;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-feature-settings: 'cv11', 'ss01';
   }
@@ -146,7 +145,6 @@
   a,
   select,
   option {
-    text-transform: inherit !important;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold;
@@ -169,11 +167,30 @@
   .lowercase,
   .capitalize,
   .normal-case {
-    text-transform: inherit !important;
   }
 }
 
 @layer components {
+  /* === Mini Badges sutiles (IMPL-20260312-01) === */
+  .badge {
+    @apply inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-normal whitespace-nowrap leading-5;
+  }
+  .badge-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-700;
+  }
+  .badge-info {
+    @apply border-sky-200 bg-sky-50 text-sky-700;
+  }
+  .badge-warning {
+    @apply border-amber-200 bg-amber-50 text-amber-700;
+  }
+  .badge-neutral {
+    @apply border-slate-200 bg-slate-50 text-slate-500;
+  }
+  .badge-primary {
+    @apply border-primary/30 bg-primary/10 text-primary;
+  }
+
   /**
    * Custom container utility that centers content and adds responsive padding.
    *
