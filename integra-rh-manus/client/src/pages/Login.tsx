@@ -110,9 +110,9 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center">
       <div className="max-w-md w-full bg-white p-8 border border-gray-200 rounded-lg shadow-sm text-center">
-        <img src="/integra_rh_logo.png" alt="Integra RH Logo" className="w-32 mx-auto mb-6" />
+        <img src="/sinergia-rh-logo.png" alt="Sinergia RH Logo" className="w-56 mx-auto mb-6" />
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          Bienvenido a Integra RH
+          Bienvenido
         </h1>
         <p className="text-gray-600 mb-8">
           Inicia sesión para acceder a tu panel de control.
@@ -139,7 +139,7 @@ export default function Login() {
         </div>
       </div>
       <p className="mt-6 text-xs text-gray-500">
-        &copy; {new Date().getFullYear()} Integra RH. Todos los derechos reservados.
+        &copy; {new Date().getFullYear()} Sinergia RH. Todos los derechos reservados.
       </p>
     </div>
   );
