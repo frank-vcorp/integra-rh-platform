@@ -9,13 +9,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, UserCheck, Pencil, Trash2, Phone, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, UserCheck } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Eye,
+  PencilSimple,
+  Trash,
+  WhatsappLogo,
+  Power,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -298,55 +299,37 @@ export default function Encuestadores() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-1">
-                          <div className="flex items-center justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Abrir menú</span>
-                                  <MoreHorizontal className="h-4 w-4" />
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" title="Ver" asChild>
+                              <Link href={`/encuestadores/${surveyor.id}?section=visitas`}>
+                                <Eye weight="fill" className="h-4 w-4 text-cyan-600" />
+                              </Link>
+                            </Button>
+                            {surveyor.telefono && (
+                              <Button variant="ghost" size="icon" title="WhatsApp" onClick={() => {
+                                const digits = String(surveyor.telefono).replace(/[^0-9+]/g, "");
+                                const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
+                                const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+                                window.open(url, "_blank");
+                              }}>
+                                <WhatsappLogo weight="fill" className="h-4 w-4 text-green-600" />
+                              </Button>
+                            )}
+                            {!isClient && canEditSurveyor && (
+                              <>
+                                <Button variant="ghost" size="icon" title={surveyor.activo ? "Inactivar" : "Activar"} onClick={() => handleToggleActive(surveyor)}>
+                                  <Power weight="fill" className={`h-4 w-4 ${surveyor.activo ? "text-amber-500" : "text-cyan-600"}`} />
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/encuestadores/${surveyor.id}?section=visitas`} className="flex items-center cursor-pointer">
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    <span>Ver</span>
-                                  </Link>
-                                </DropdownMenuItem>
-                                {surveyor.telefono && (
-                                  <DropdownMenuItem onClick={() => {
-                                    const digits = String(surveyor.telefono).replace(/[^0-9+]/g, "");
-                                    const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
-                                    const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
-                                    window.open(url, "_blank");
-                                  }}>
-                                    <Phone className="mr-2 h-4 w-4" />
-                                    <span>WhatsApp</span>
-                                  </DropdownMenuItem>
-                                )}
-                                {!isClient && canEditSurveyor && (
-                                  <>
-                                    <DropdownMenuItem onClick={() => handleToggleActive(surveyor)}>
-                                      <span className="mr-2 h-4 w-4" />
-                                      <span>{surveyor.activo ? "Inactivar" : "Activar"}</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleEdit(surveyor)}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      <span>Editar</span>
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                                {!isClient && canDeleteSurveyor && (
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => handleDelete(surveyor.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Eliminar</span>
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(surveyor)}>
+                                  <PencilSimple weight="fill" className="h-4 w-4 text-cyan-600" />
+                                </Button>
+                              </>
+                            )}
+                            {!isClient && canDeleteSurveyor && (
+                              <Button variant="ghost" size="icon" title="Eliminar" onClick={() => handleDelete(surveyor.id)}>
+                                <Trash weight="fill" className="h-4 w-4 text-red-500" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -402,55 +385,37 @@ export default function Encuestadores() {
                         {(surveyor as any).notas || "—"}
                       </div>
                     </div>
-                    <div className="mt-2 flex justify-end">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                    <div className="mt-2 flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" title="Ver" asChild>
+                        <Link href={`/encuestadores/${surveyor.id}?section=visitas`}>
+                          <Eye weight="fill" className="h-4 w-4 text-cyan-600" />
+                        </Link>
+                      </Button>
+                      {surveyor.telefono && (
+                        <Button variant="ghost" size="icon" title="WhatsApp" onClick={() => {
+                          const digits = String(surveyor.telefono).replace(/[^0-9+]/g, "");
+                          const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
+                          const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+                          window.open(url, "_blank");
+                        }}>
+                          <WhatsappLogo weight="fill" className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
+                      {!isClient && canEditSurveyor && (
+                        <>
+                          <Button variant="ghost" size="icon" title={surveyor.activo ? "Inactivar" : "Activar"} onClick={() => handleToggleActive(surveyor)}>
+                            <Power weight="fill" className={`h-4 w-4 ${surveyor.activo ? "text-amber-500" : "text-cyan-600"}`} />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/encuestadores/${surveyor.id}?section=visitas`} className="flex items-center cursor-pointer">
-                              <Eye className="mr-2 h-4 w-4" />
-                              <span>Ver</span>
-                            </Link>
-                          </DropdownMenuItem>
-                          {surveyor.telefono && (
-                            <DropdownMenuItem onClick={() => {
-                              const digits = String(surveyor.telefono).replace(/[^0-9+]/g, "");
-                              const msg = `Hola ${surveyor.nombre}, me contacto de Integra RH.`;
-                              const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
-                              window.open(url, "_blank");
-                            }}>
-                              <Phone className="mr-2 h-4 w-4" />
-                              <span>WhatsApp</span>
-                            </DropdownMenuItem>
-                          )}
-                          {!isClient && canEditSurveyor && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleToggleActive(surveyor)}>
-                                <span className="mr-2 h-4 w-4" />
-                                <span>{surveyor.activo ? "Inactivar" : "Activar"}</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEdit(surveyor)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                <span>Editar</span>
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {!isClient && canDeleteSurveyor && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => handleDelete(surveyor.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>Eliminar</span>
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(surveyor)}>
+                            <PencilSimple weight="fill" className="h-4 w-4 text-cyan-600" />
+                          </Button>
+                        </>
+                      )}
+                      {!isClient && canDeleteSurveyor && (
+                        <Button variant="ghost" size="icon" title="Eliminar" onClick={() => handleDelete(surveyor.id)}>
+                          <Trash weight="fill" className="h-4 w-4 text-red-500" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

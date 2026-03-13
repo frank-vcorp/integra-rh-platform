@@ -22,19 +22,21 @@ import {
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
-  LayoutDashboard,
   LogOut,
   PanelLeft,
-  Users,
-  Building2,
-  Briefcase,
-  FileText,
-  UserCheck,
-  DollarSign,
-  UserCog,
-  ScrollText,
   Search,
 } from "lucide-react";
+import {
+  SquaresFour,
+  Buildings,
+  Briefcase,
+  UsersThree,
+  FileText,
+  UserCheck,
+  CurrencyDollar,
+  UserGear,
+  Scroll,
+} from "@phosphor-icons/react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -43,21 +45,21 @@ import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 
 const adminMenuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Building2, label: "Clientes", path: "/clientes" },
+  { icon: SquaresFour, label: "Dashboard", path: "/" },
+  { icon: Buildings, label: "Clientes", path: "/clientes" },
   { icon: Briefcase, label: "Puestos", path: "/puestos" },
-  { icon: Users, label: "Candidatos", path: "/candidatos" },
+  { icon: UsersThree, label: "Candidatos", path: "/candidatos" },
   { icon: FileText, label: "Mis procesos", path: "/procesos" },
   { icon: FileText, label: "Visitas", path: "/visitas" },
   { icon: UserCheck, label: "Encuestadores", path: "/encuestadores" },
-  { icon: DollarSign, label: "Pagos", path: "/pagos" },
-  { icon: UserCog, label: "Usuarios", path: "/usuarios" },
-  { icon: ScrollText, label: "Registros", path: "/usuarios/registros" },
+  { icon: CurrencyDollar, label: "Pagos", path: "/pagos" },
+  { icon: UserGear, label: "Usuarios", path: "/usuarios" },
+  { icon: Scroll, label: "Registros", path: "/usuarios/registros" },
 ];
 
 const clientMenuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Mis Candidatos", path: "/candidatos" },
+  { icon: SquaresFour, label: "Dashboard", path: "/" },
+  { icon: UsersThree, label: "Mis Candidatos", path: "/candidatos" },
   { icon: FileText, label: "Mis procesos", path: "/procesos" },
   { icon: FileText, label: "Visitas", path: "/visitas" },
 ];
@@ -402,7 +404,8 @@ function DashboardLayoutContent({
                       className={`h-10 transition-all font-normal`}
                     >
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                        weight="fill"
+                        className="h-4 w-4 text-cyan-600"
                       />
                       <span>{item.label}</span>
                     </SidebarMenuButton>

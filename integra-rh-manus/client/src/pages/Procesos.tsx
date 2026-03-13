@@ -16,13 +16,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, FileText, Eye, Trash2, ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { Plus, FileText, ArrowUpDown } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Eye,
+  Trash,
+} from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -617,37 +615,27 @@ export default function Procesos() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-1">
-                          <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Abrir menú</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/candidatos/${process.candidatoId}?tab=empleos`} className="flex items-center cursor-pointer">
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    <span>Ver detalle</span>
-                                  </Link>
-                                </DropdownMenuItem>
-                                {!isClient && canDeleteProcess && (
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => {
-                                      const ok = confirm(
-                                        `¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`,
-                                      );
-                                      if (ok) deleteMutation.mutate({ id: process.id });
-                                    }}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Eliminar</span>
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" title="Ver detalle" asChild>
+                              <Link href={`/candidatos/${process.candidatoId}?tab=empleos`}>
+                                <Eye weight="fill" className="h-4 w-4 text-cyan-600" />
+                              </Link>
+                            </Button>
+                            {!isClient && canDeleteProcess && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Eliminar"
+                                onClick={() => {
+                                  const ok = confirm(
+                                    `¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`,
+                                  );
+                                  if (ok) deleteMutation.mutate({ id: process.id });
+                                }}
+                              >
+                                <Trash weight="fill" className="h-4 w-4 text-red-500" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -718,37 +706,27 @@ export default function Procesos() {
                         </span>
                       </div>
                     </div>
-                    <div className="mt-2 flex justify-end">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/candidatos/${process.candidatoId}?tab=empleos`} className="flex items-center cursor-pointer">
-                              <Eye className="mr-2 h-4 w-4" />
-                              <span>Ver detalle</span>
-                            </Link>
-                          </DropdownMenuItem>
-                          {!isClient && canDeleteProcess && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => {
-                                const ok = confirm(
-                                  `¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`,
-                                );
-                                if (ok) deleteMutation.mutate({ id: process.id });
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>Eliminar</span>
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    <div className="mt-2 flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" title="Ver detalle" asChild>
+                        <Link href={`/candidatos/${process.candidatoId}?tab=empleos`}>
+                          <Eye weight="fill" className="h-4 w-4 text-cyan-600" />
+                        </Link>
+                      </Button>
+                      {!isClient && canDeleteProcess && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Eliminar"
+                          onClick={() => {
+                            const ok = confirm(
+                              `¿Seguro que deseas eliminar el proceso ${process.clave}? Esta acción no se puede deshacer.`,
+                            );
+                            if (ok) deleteMutation.mutate({ id: process.id });
+                          }}
+                        >
+                          <Trash weight="fill" className="h-4 w-4 text-red-500" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
