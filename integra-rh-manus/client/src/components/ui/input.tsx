@@ -53,8 +53,8 @@ function Input({
     <input
       type={type}
       data-slot="input"
-      spellCheck={props.spellCheck ?? true}
-      autoCorrect={props.autoCorrect ?? "on"}
+      spellCheck={true}
+      autoCorrect="on"
       lang={props.lang ?? "es"}
       className={cn(
         "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-8 w-full min-w-0 rounded-md border bg-transparent px-2 py-1 text-xs shadow-sm transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
