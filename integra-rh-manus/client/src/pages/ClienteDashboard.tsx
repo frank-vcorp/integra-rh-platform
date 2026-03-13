@@ -21,7 +21,7 @@ import {
 import { ESTATUS_INVESTIGACION_LABELS, EstatusInvestigacionType } from "@/lib/constants";
 import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 import { getServiciosIncluidos } from "@/lib/procesoTipo";
@@ -31,6 +31,7 @@ import { getServiciosIncluidos } from "@/lib/procesoTipo";
  * Muestra solo los procesos y candidatos del cliente autenticado
  */
 export default function ClienteDashboard() {
+  const [, setLocation] = useLocation();
   const { clientId, clientData, isLoading: authLoading, logout } = useClientAuth();
 
   const token = typeof window !== "undefined" ? sessionStorage.getItem("clientAccessToken") : null;
@@ -98,12 +99,12 @@ export default function ClienteDashboard() {
           <div className="flex items-center gap-6">
             <div className="text-right">
               <p className="text-xs text-gray-500">Soportado por</p>
-              <div className="flex items-center gap-2 text-indigo-600 font-semibold">
+              <div className="flex items-center gap-2 text-cyan-700 font-semibold">
                 <ShieldCheck className="h-4 w-4" />
-                Integra RH
+                Sinergia RH
               </div>
             </div>
-            <Button variant="outline" onClick={logout}>
+            <Button variant="outline" onClick={logout} className="border-cyan-200 text-cyan-800 hover:bg-cyan-50">
               <LogOut className="h-4 w-4 mr-2" />
               Cerrar Sesión
             </Button>
@@ -114,9 +115,9 @@ export default function ClienteDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Bienvenida */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
-          <h2 className="text-2xl font-bold mb-2">Bienvenido a INTEGRA-RH</h2>
-          <p className="text-blue-100">
+        <div className="bg-gradient-to-r from-sky-700 to-cyan-600 rounded-lg p-6 text-white shadow-sm">
+          <h2 className="text-2xl font-bold mb-2">Bienvenido a SINERGIA RH</h2>
+          <p className="text-sky-100">
             Aquí puedes consultar el estatus de tus procesos de evaluación y candidatos en tiempo real.
           </p>
         </div>
@@ -206,7 +207,15 @@ export default function ClienteDashboard() {
                     {processes.slice(0, 10).map((process) => {
                       const candidate = candidates.find(c => c.id === process.candidatoId);
                       return (
-                        <TableRow key={process.id}>
+                        <TableRow 
+                          key={process.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => {
+                            if (process.candidatoId) {
+                              setLocation(`/cliente/candidato/${process.candidatoId}?tab=empleos`);
+                            }
+                          }}
+                        >
                           <TableCell className="font-medium">{process.clave}</TableCell>
                           <TableCell>{candidate?.nombreCompleto || 'N/A'}</TableCell>
                           <TableCell>
@@ -265,209 +274,8 @@ export default function ClienteDashboard() {
             )}
           </CardContent>
         </Card>
-
-        {/* Candidatos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Mis Candidatos</CardTitle>
-            <p className="text-sm text-gray-500">Revisa el avance de cada investigación y accede al expediente completo.</p>
-          </CardHeader>
-          <CardContent>
-            {candidates.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No hay candidatos registrados</p>
-              </div>
-            ) : (
-              <Accordion type="single" collapsible className="w-full space-y-3">
-                {candidates.map((candidate) => {
-                  const candidateProcesses = processes
-                    .filter((p) => p.candidatoId === candidate.id)
-                    .sort((a, b) => new Date(b.fechaRecepcion).getTime() - new Date(a.fechaRecepcion).getTime());
-                  const latestProcess = candidateProcesses[0];
-                  const laboral = latestProcess?.investigacionLaboral;
-                  const legal = latestProcess?.investigacionLegal;
-                  const buro = latestProcess?.buroCredito;
-                  
-                  // Determinar qué servicios incluye el tipo de proceso contratado
-                  // La visita es opcional, se muestra solo si hay datos registrados
-                  const servicios = getServiciosIncluidos(latestProcess?.tipoProducto, {
-                    visitStatus: latestProcess?.visitStatus,
-                    visitaDetalle: latestProcess?.visitaDetalle,
-                  });
-
-                  return (
-                    <AccordionItem key={candidate.id} value={`candidate-${candidate.id}`} className="border rounded-lg px-3">
-                      <AccordionTrigger className="flex flex-col items-start gap-1 py-4 text-left">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-lg">{candidate.nombreCompleto}</span>
-                          {latestProcess && (
-                            <Badge className="bg-blue-100 text-blue-800">
-                              {latestProcess.estatusProceso.replace(/_/g, " ").toUpperCase()}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500 flex flex-wrap gap-3">
-                          {/* Solo mostrar investigaciones que aplican al tipo de proceso */}
-                          {servicios.laboral && laboral && (
-                            <span>Investigación laboral: <strong>{laboral?.resultado || getInvestigacionLabel(laboral?.estatus)}</strong></span>
-                          )}
-                          {servicios.legal && legal && (
-                            <span>Investigación legal: <strong>{legal?.antecedentes || "Sin antecedentes"}</strong></span>
-                          )}
-                          {servicios.buro && buro && (
-                            <span>Buró de crédito: <strong>{buro?.estatus || "Por revisar"}</strong></span>
-                          )}
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-4 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Solo mostrar card de investigaciones si hay al menos un servicio contratado */}
-                          {(servicios.laboral || servicios.legal || servicios.buro) && (
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold">Investigaciones</CardTitle>
-                              </CardHeader>
-                              <CardContent className="space-y-3 text-sm text-gray-600">
-                                {servicios.laboral && (
-                                  <div>
-                                    <p className="font-semibold text-gray-800">Laboral</p>
-                                    <p>{laboral?.detalles || "En investigación"}</p>
-                                  </div>
-                                )}
-                                {servicios.legal && (
-                                  <div>
-                                    <p className="font-semibold text-gray-800">Legal</p>
-                                    <p>{legal?.antecedentes || "Sin antecedentes reportados"}</p>
-                                  </div>
-                                )}
-                                {servicios.buro && (
-                                  <div>
-                                    <p className="font-semibold text-gray-800">Buró de crédito</p>
-                                    <p>{buro?.estatus || "Pendiente"}</p>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          )}
-
-                          {/* El historial laboral siempre se muestra si es ILA o ESE */}
-                          {servicios.laboral && <WorkHistoryPreview candidatoId={candidate.id} />}
-                        </div>
-
-                        <div className="flex flex-wrap gap-3">
-                          <Link href={`/cliente/candidato/${candidate.id}`}>
-                            <Button variant="outline" size="sm">
-                              Ver expediente completo
-                            </Button>
-                          </Link>
-                          {latestProcess && (
-                            <Link href={`/cliente/proceso/${latestProcess.id}`}>
-                              <Button variant="ghost" size="sm">
-                                Detalle del proceso
-                              </Button>
-                            </Link>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            )}
-          </CardContent>
-        </Card>
       </main>
     </div>
   );
 }
 
-function WorkHistoryPreview({ candidatoId }: { candidatoId: number }) {
-  const { data: workHistory = [], isLoading } = trpc.workHistory.getByCandidate.useQuery({ candidatoId });
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="py-6 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (workHistory.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Historial laboral</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-gray-500">
-          No hay historial registrado aún.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold">Historial laboral</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible className="w-full space-y-2">
-          {workHistory.slice(0, 3).map((job: any) => (
-            <AccordionItem key={job.id} value={`job-${job.id}`} className="border rounded-md px-3">
-              <AccordionTrigger className="py-2 text-left hover:no-underline">
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{job.empresa}</p>
-                  <p className="text-xs text-gray-500">
-                    {job.puesto || "—"} • {job.tiempoTrabajado || calcularTiempoTrabajado(job.fechaInicio, job.fechaFin) || "Tiempo no disponible"}
-                  </p>
-                </div>
-                <Badge className="bg-indigo-100 text-indigo-800 ml-2">
-                  {job.estatusInvestigacion
-                    ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
-                    : ESTATUS_INVESTIGACION_LABELS.en_revision}
-                </Badge>
-              </AccordionTrigger>
-              <AccordionContent className="pb-3 space-y-3 text-sm text-gray-700">
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1">Fechas</p>
-                  <p className="text-xs">
-                    {job.fechaInicio ? formatearFecha(job.fechaInicio) : "—"} a {job.fechaFin ? formatearFecha(job.fechaFin) : "Actual"}
-                  </p>
-                </div>
-                {job.causalSalidaRH && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Motivo de salida</p>
-                    <p className="text-xs bg-gray-50 p-2 rounded">{job.causalSalidaRH}</p>
-                  </div>
-                )}
-                {job.investigacionDetalle?.incidencias?.motivoSeparacionEmpresa && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Motivo de Separación (Empresa)</p>
-                    <p className="text-xs bg-gray-50 p-2 rounded">{job.investigacionDetalle.incidencias.motivoSeparacionEmpresa}</p>
-                  </div>
-                )}
-                {job.comentarioInvestigacion && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Comentario de investigación</p>
-                    <p className="text-xs bg-gray-50 p-2 rounded">{job.comentarioInvestigacion}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1">Status investigación</p>
-                  <p className="text-xs">
-                    {job.estatusInvestigacion
-                      ? ESTATUS_INVESTIGACION_LABELS[job.estatusInvestigacion as EstatusInvestigacionType]
-                      : "En revisión"}
-                  </p>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-    </Card>
-  );
-}
