@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -1962,59 +1962,39 @@ export default function CandidatoDetalle() {
                               : (periodo.antiguedadTexto || (periodo.fechaIngreso ? `${periodo.fechaIngreso} - ${periodo.fechaSalida || "Actual"}` : "-"));
                             return (
                               <>
-                                <p className="font-semibold text-slate-700 flex items-center gap-1">
-                                  Declarado vs validado
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9px] cursor-help">
-                                        ?
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs text-xs">
-                                      Comparación entre lo que el candidato declaró
-                                      (fechas, puesto y motivo de salida) y lo que
-                                      confirmó la empresa durante la llamada de
-                                      referencia.
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </p>
-                                <p>
-                                  <span className="text-muted-foreground">
-                                    Fechas:
-                                  </span>{" "}
-                                  {declaradoFechas}{" "}
-                                  <span className="text-muted-foreground">
-                                    ⇒
-                                  </span>{" "}
-                                  {validadoFechas}
-                                </p>
-                                <p>
-                                  <span className="text-muted-foreground">
-                                    Puesto:
-                                  </span>{" "}
-                                  {item.puesto || "-"}{" "}
-                                  <span className="text-muted-foreground">
-                                    ⇒
-                                  </span>{" "}
-                                  {puestoInv.puestoFinal ||
-                                    puestoInv.puestoInicial ||
-                                    "-"}
-                                </p>
-                                {incidencias.motivoSeparacionCandidato ||
-                                  incidencias.motivoSeparacionEmpresa ? (
-                                  <p>
-                                    <span className="text-muted-foreground">
-                                      Motivo de salida:
-                                    </span>{" "}
-                                    {incidencias.motivoSeparacionCandidato ||
-                                      "-"}{" "}
-                                    <span className="text-muted-foreground">
-                                      ⇒
-                                    </span>{" "}
-                                      {incidencias.motivoSeparacionEmpresa ||
-                                      "-"}
-                                  </p>
-                                ) : null}
+                                <div className="mt-4 border rounded-md overflow-hidden text-xs">
+                                  <div className="bg-slate-50 flex items-center gap-1 p-2 font-semibold text-slate-700 border-b">
+                                    Comparativa de Referencias
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[9px] cursor-help">?</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs text-xs">
+                                        Compara lo que el candidato declaró en entrevista frente a lo que confirmó RH de la empresa.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                  <div className="grid grid-cols-2 divide-x">
+                                    {/* Declarado (Candidato) */}
+                                    <div className="p-3 space-y-2 bg-white">
+                                      <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wide mb-1">Declarado por el Candidato</div>
+                                      <div><span className="text-slate-400 font-medium block text-[10px] uppercase">Fechas:</span> {declaradoFechas}</div>
+                                      <div><span className="text-slate-400 font-medium block text-[10px] uppercase">Puesto:</span> {item.puesto || "-"}</div>
+                                      {(incidencias.motivoSeparacionCandidato || incidencias.motivoSeparacionEmpresa) && (
+                                        <div><span className="text-slate-400 font-medium block text-[10px] uppercase">Motivo de salida:</span> {incidencias.motivoSeparacionCandidato || "-"}</div>
+                                      )}
+                                    </div>
+                                    {/* Validado (Empresa) */}
+                                    <div className="p-3 space-y-2 bg-blue-50/40">
+                                      <div className="text-[10px] uppercase font-bold text-blue-600 tracking-wide mb-1">Confirmado por RH / Jefe</div>
+                                      <div><span className="text-blue-500/70 font-medium block text-[10px] uppercase">Fechas:</span> {validadoFechas}</div>
+                                      <div><span className="text-blue-500/70 font-medium block text-[10px] uppercase">Puesto:</span> {puestoInv.puestoFinal || puestoInv.puestoInicial || "-"}</div>
+                                      {(incidencias.motivoSeparacionCandidato || incidencias.motivoSeparacionEmpresa) && (
+                                        <div><span className="text-blue-500/70 font-medium block text-[10px] uppercase">Motivo de salida:</span> {incidencias.motivoSeparacionEmpresa || "-"}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
                                 {ia && (
                                   <div className="mt-3 border-t pt-2 space-y-1">
                                     <p className="font-semibold text-slate-700 flex items-center gap-1">
@@ -2091,80 +2071,35 @@ export default function CandidatoDetalle() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditWorkHistory(item)}
-                          >
-                            <Pencil className="h-4 w-4" />
+                    {/* IMPL-20260312-04: Acciones colapsadas en DropdownMenu */}
+                    <div className="flex items-center justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Editar datos del empleo.</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setInvestigationTarget(item);
-                              const existingPeriodos =
-                                item.investigacionDetalle?.periodo?.periodos || [];
-                              setPeriodRowCount(
-                                existingPeriodos && existingPeriodos.length > 0
-                                  ? existingPeriodos.length
-                                  : 1,
-                              );
-                              setInvestigationStep(1);
-                              setInvestigationDialogOpen(true);
-                            }}
-                          >
-                            <ShieldCheck className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Capturar evaluación de desempeño e investigación laboral.
-                        </TooltipContent>
-                      </Tooltip>
-                      {/* Mini Dictamen IA - OCULTO POR AHORA */}
-                      {false && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              generateIaMini.mutate({ id: item.id })
-                            }
-                            disabled={generateIaMini.isPending || item.estatusInvestigacion !== "terminado"}
-                            title={item.estatusInvestigacion !== "terminado" ? "Marca la investigación como 'Finalizado' para generar el mini dictamen IA" : ""}
-                          >
-                            <Sparkles className="h-4 w-4 text-blue-500" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {item.estatusInvestigacion !== "terminado" 
-                            ? "Marca como 'Finalizado' para generar el mini dictamen IA"
-                            : "Generar o actualizar el mini dictamen IA de este empleo."}
-                        </TooltipContent>
-                      </Tooltip>
-                      )}
-                      {/* Fin Mini Dictamen IA Oculto */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteWorkHistory(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Eliminar este registro laboral.</TooltipContent>
-                      </Tooltip>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditWorkHistory(item)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Corregir datos del candidato</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setInvestigationTarget(item);
+                            const existingPeriodos = item.investigacionDetalle?.periodo?.periodos || [];
+                            setPeriodRowCount(existingPeriodos.length > 0 ? existingPeriodos.length : 1);
+                            setInvestigationStep(1);
+                            setInvestigationDialogOpen(true);
+                          }}>
+                            <ShieldCheck className="mr-2 h-4 w-4" />
+                            <span>Capturar Referencia Funcional</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteWorkHistory(item.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Eliminar empleo</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
