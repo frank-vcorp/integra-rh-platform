@@ -46,8 +46,7 @@ const adminMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Building2, label: "Clientes", path: "/clientes" },
   { icon: Briefcase, label: "Puestos", path: "/puestos" },
-  { icon: Users, label: "Candidatos", path: "/candidatos" },
-  { icon: FileText, label: "Procesos", path: "/procesos" },
+  { icon: FileText, label: "Mis procesos", path: "/procesos" },
   { icon: FileText, label: "Visitas", path: "/visitas" },
   { icon: UserCheck, label: "Encuestadores", path: "/encuestadores" },
   { icon: DollarSign, label: "Pagos", path: "/pagos" },
@@ -57,8 +56,7 @@ const adminMenuItems = [
 
 const clientMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Mis Candidatos", path: "/candidatos" },
-  { icon: FileText, label: "Mis Procesos", path: "/procesos" },
+  { icon: FileText, label: "Mis procesos", path: "/procesos" },
   { icon: FileText, label: "Visitas", path: "/visitas" },
 ];
 
