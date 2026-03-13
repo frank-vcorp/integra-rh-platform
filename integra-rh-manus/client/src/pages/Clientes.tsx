@@ -31,11 +31,11 @@ import {
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -582,17 +582,17 @@ export default function Clientes() {
        </CardContent>
      </Card>
 
-      {/* Dialog: procesos del cliente */}
-      <Dialog
+      {/* Sheet: procesos del cliente */}
+      <Sheet
         open={processDialogOpen && !!selectedClientForProcesses}
         onOpenChange={setProcessDialogOpen}
       >
-        <DialogContent className="max-w-5xl w-[95vw]">
-          <DialogHeader>
-            <DialogTitle>
+        <SheetContent className="overflow-y-auto sm:max-w-xl md:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>
               Procesos de {selectedClientForProcesses?.nombreEmpresa || ""}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           {selectedClientForProcesses && (
             <div className="space-y-3">
               {processesBySelectedClient.length === 0 ? (
@@ -678,11 +678,11 @@ export default function Clientes() {
               )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Dialog: plazas / sucursales del cliente */}
-      <Dialog
+      {/* Sheet: plazas / sucursales del cliente */}
+      <Sheet
         open={sitesDialogOpen && !!sitesClient}
         onOpenChange={(open) => {
           setSitesDialogOpen(open);
@@ -694,12 +694,12 @@ export default function Clientes() {
           }
         }}
       >
-        <DialogContent className="max-w-lg w-[95vw]">
-          <DialogHeader>
-            <DialogTitle>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>
               Plazas de {sitesClient?.nombreEmpresa || ""}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           {sitesClient && (
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
@@ -791,17 +791,17 @@ export default function Clientes() {
               </form>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
+      {/* Sheet: editar cliente */}
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-xl lg:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>
               {editingClient ? "Editar Cliente" : "Nuevo Cliente"}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           {/* Descripción accesible para cumplir con Radix (oculta visualmente) */}
           <p className="sr-only" id="cliente-dialog-description">Formulario para capturar o editar datos del cliente.</p>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -868,15 +868,15 @@ export default function Clientes() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Dialogo para compartir enlace */}
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Compartir acceso con el cliente</DialogTitle>
-          </DialogHeader>
+      {/* Sheet: compartir enlace */}
+      <Sheet open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Compartir acceso con el cliente</SheetTitle>
+          </SheetHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Este enlace permite a {linkClient?.nombreEmpresa ?? "el cliente"} dar seguimiento a todos sus procesos y candidatos en Integra RH.
@@ -938,8 +938,8 @@ export default function Clientes() {
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

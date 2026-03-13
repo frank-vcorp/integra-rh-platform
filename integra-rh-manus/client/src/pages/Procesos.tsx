@@ -26,11 +26,11 @@ import {
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -751,12 +751,12 @@ export default function Procesos() {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Nuevo Proceso</DialogTitle>
-          </DialogHeader>
+      {/* Sheet: nuevo proceso */}
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-xl lg:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>Nuevo Proceso</SheetTitle>
+          </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-4">
               <div>
@@ -970,8 +970,8 @@ export default function Procesos() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

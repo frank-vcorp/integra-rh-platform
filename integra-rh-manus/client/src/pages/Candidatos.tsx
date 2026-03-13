@@ -21,11 +21,11 @@ import {
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -588,14 +588,14 @@ export default function Candidatos() {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
+      {/* Sheet: crear / editar candidato */}
+      <Sheet open={dialogOpen} onOpenChange={setDialogOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-xl lg:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>
               {editingCandidate ? "Editar Candidato" : "Nuevo Candidato"}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -744,15 +744,15 @@ export default function Candidatos() {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* Dialog de Continuación */}
-      <Dialog open={showContinueFlow} onOpenChange={setShowContinueFlow}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>¡Candidato creado exitosamente!</DialogTitle>
-          </DialogHeader>
+      {/* Sheet: continuación de flujo */}
+      <Sheet open={showContinueFlow} onOpenChange={setShowContinueFlow}>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>¡Candidato creado exitosamente!</SheetTitle>
+          </SheetHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               ¿Qué deseas hacer ahora?
@@ -766,8 +766,8 @@ export default function Candidatos() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
