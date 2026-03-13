@@ -21,58 +21,54 @@ export function AuditTrailViewer({ entries = [] }: AuditTrailViewerProps) {
   }
 
   return (
-    <div className="space-y-2 text-xs">
+    <div className="space-y-4 text-xs">
       {entries.map((entry, idx) => (
-        <div key={idx} className="border-l-2 border-slate-300 pl-3 py-1">
+        <div key={idx} className="border-l-2 border-slate-300 pl-3 py-1 bg-white">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-slate-700 capitalize">
-              {entry.action}
+            <span className="font-semibold text-slate-700 capitalize">
+              {entry.action === "update" ? "Actualización" : entry.action === "create" ? "Creación" : entry.action}
             </span>
-            <span className="text-muted-foreground">
-              por {entry.changedBy || "sistema"}
+            <span className="text-muted-foreground text-[10px]">
+              por <span className="font-medium">{entry.changedBy || "sistema"}</span>
+            </span>
+            <span className="text-muted-foreground text-[10px] ml-auto">
+              {new Date(entry.timestamp).toLocaleString()}
             </span>
           </div>
-          <div className="text-muted-foreground">
-            {new Date(entry.timestamp).toLocaleString()}
-          </div>
+          
           {entry.changedFields && Object.keys(entry.changedFields).length > 0 && (
-            <div className="mt-1 text-[10px] text-slate-600 space-y-0.5">
+            <div className="mt-2 text-[10px] space-y-2">
               {Object.entries(entry.changedFields).map(([field, value]) => (
-                <Tooltip key={field}>
-                  <TooltipTrigger asChild>
-                    <div className="truncate cursor-help">
-                      <span className="font-mono bg-slate-100 px-1 rounded">
-                        {field}
-                      </span>
+                <div key={field} className="bg-slate-50 border border-slate-100 rounded p-1.5 shadow-sm">
+                  <div className="font-mono text-slate-500 mb-1 font-semibold">{field}</div>
+                  
+                  {value?.old !== undefined && value?.new !== undefined ? (
+                    <div className="flex flex-col sm:flex-row gap-1">
+                      <div className="flex-1 bg-red-50 text-red-700 p-1.5 rounded line-through decoration-red-300/50 break-all whitespace-pre-wrap">
+                        {String(value.old || "(vacío)")}
+                      </div>
+                      <div className="flex-none flex items-center justify-center text-slate-400 sm:rotate-0 rotate-90">
+                        →
+                      </div>
+                      <div className="flex-1 bg-emerald-50 text-emerald-700 font-medium p-1.5 rounded break-all whitespace-pre-wrap">
+                        {String(value.new || "(vacío)")}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
                       {value?.old !== undefined && (
-                        <>
-                          {" "}
-                          <span className="text-slate-500">
-                            {String(value.old || "-").substring(0, 20)}
-                          </span>
-                          <span className="text-muted-foreground"> → </span>
-                        </>
+                        <div className="bg-red-50 text-red-700 p-1 rounded line-through decoration-red-300 break-all whitespace-pre-wrap">
+                          {String(value.old || "(vacío)")}
+                        </div>
                       )}
                       {value?.new !== undefined && (
-                        <span className="text-emerald-600">
-                          {String(value.new || "-").substring(0, 20)}
-                        </span>
+                         <div className="bg-emerald-50 text-emerald-700 p-1 rounded font-medium break-all whitespace-pre-wrap">
+                          {String(value.new || "(vacío)")}
+                        </div>
                       )}
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <div className="space-y-1">
-                      <div>
-                        <span className="text-muted-foreground">Anterior:</span>{" "}
-                        {String(value?.old || "-")}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Nuevo:</span>{" "}
-                        {String(value?.new || "-")}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
+                  )}
+                </div>
               ))}
             </div>
           )}

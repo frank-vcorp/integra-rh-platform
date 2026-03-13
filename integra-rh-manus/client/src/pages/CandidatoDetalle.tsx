@@ -2043,22 +2043,25 @@ export default function CandidatoDetalle() {
                                   const auditTrail = inv.auditTrail;
                                   if (auditTrail && Array.isArray(auditTrail) && auditTrail.length > 0) {
                                     return (
-                                      <div className="mt-3 border-t pt-2 space-y-1">
-                                        <p className="font-semibold text-slate-700 flex items-center gap-1">
-                                          Historial de cambios
+                                      <details className="mt-3 border-t group pt-2">
+                                        <summary className="font-semibold text-slate-500 flex items-center gap-1 text-[11px] cursor-pointer outline-none list-none select-none">
+                                          <span className="group-open:rotate-90 transition-transform text-[8px]">▶</span>
+                                          Historial de ediciones (Auditoría)
                                           <Tooltip>
                                             <TooltipTrigger asChild>
-                                              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9px] cursor-help">
+                                              <span className="inline-flex h-3 w-3 items-center justify-center rounded-full border text-[8px] cursor-help">
                                                 ?
                                               </span>
                                             </TooltipTrigger>
                                             <TooltipContent className="max-w-xs text-xs">
-                                              Registro de quién hizo qué cambios y cuándo en esta investigación laboral.
+                                              Registro de quién hizo qué cambios y cuándo.
                                             </TooltipContent>
                                           </Tooltip>
-                                        </p>
-                                        <AuditTrailViewer entries={auditTrail} />
-                                      </div>
+                                        </summary>
+                                        <div className="mt-2 pl-3 pb-2 cursor-default border-l ml-1 border-slate-200">
+                                          <AuditTrailViewer entries={auditTrail} />
+                                        </div>
+                                      </details>
                                     );
                                   }
                                   return null;
