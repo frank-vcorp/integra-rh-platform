@@ -2128,7 +2128,7 @@ export default function CandidatoDetalle() {
               name="comentario"
               placeholder="Agregar un comentario..."
               required
-              rows={2}
+              rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
             />
             <div className="flex items-center justify-between">
               <label className="text-sm flex items-center gap-2">
@@ -2189,7 +2189,7 @@ export default function CandidatoDetalle() {
               {/* UI sin batería: solo selección de pruebas individuales */}
               <div>
                 <Label htmlFor="vacante">Vacante (opcional)</Label>
-                <input id="vacante" name="vacante" className="mt-1 block w-full border rounded-md h-10 px-3" placeholder="Puesto" />
+                <input id="vacante" name="vacante" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50" placeholder="Puesto" />
               </div>
               <div className="col-span-3">
                 <Label>Pruebas a aplicar</Label>
@@ -2446,7 +2446,7 @@ export default function CandidatoDetalle() {
               </div>
               <div>
                 <Label htmlFor="medioDeRecepcion">¿Cómo llegó el proceso?</Label>
-                <select id="medioDeRecepcion" name="medioDeRecepcion" className="mt-1 block w-full border rounded-md h-10 px-3">
+                <select id="medioDeRecepcion" name="medioDeRecepcion" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50">
                   <option value="">Selecciona una opción</option>
                   <option value="whatsapp">WhatsApp</option>
                   <option value="correo">Correo</option>
@@ -2459,7 +2459,7 @@ export default function CandidatoDetalle() {
               </div>
               <div>
                 <Label htmlFor="puestoId">Puesto</Label>
-                <select id="puestoId" name="puestoId" className="mt-1 block w-full border rounded-md h-10 px-3" required>
+                <select id="puestoId" name="puestoId" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50" required>
                   <option value="">Selecciona un puesto</option>
                   {(postsByClient.data || []).map((p:any)=> (
                     <option key={p.id} value={p.id}>{p.nombreDelPuesto}</option>
@@ -2468,7 +2468,7 @@ export default function CandidatoDetalle() {
               </div>
               <div>
                 <Label htmlFor="tipoProducto">Proceso a realizar</Label>
-                <select id="tipoProducto" name="tipoProducto" className="mt-1 block w-full border rounded-md h-10 px-3" required>
+                <select id="tipoProducto" name="tipoProducto" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50" required>
                   {["ILA","ESE LOCAL","ESE FORANEO","VISITA LOCAL","VISITA FORANEA","ILA CON BURÓ DE CRÉDITO","ESE LOCAL CON BURÓ DE CRÉDITO","ESE FORANEO CON BURÓ DE CRÉDITO","ILA CON INVESTIGACIÓN LEGAL","ESE LOCAL CON INVESTIGACIÓN LEGAL","ESE FORANEO CON INVESTIGACIÓN LEGAL","BURÓ DE CRÉDITO","INVESTIGACIÓN LEGAL","SEMANAS COTIZADAS"].map(t => (
                     <option key={t} value={t}>{t}</option>
                   ))}
@@ -2499,7 +2499,7 @@ export default function CandidatoDetalle() {
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-1">
                 <Label htmlFor="tipoDocumento">Tipo</Label>
-                <select name="tipoDocumento" id="tipoDocumento" className="mt-1 block w-full border rounded-md h-10 px-3">
+                <select name="tipoDocumento" id="tipoDocumento" className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50">
                   <option value="CV">CV</option>
                   <option value="ACTA_NACIMIENTO">Acta de Nacimiento</option>
                   <option value="INE">Copia INE</option>
@@ -2947,7 +2947,7 @@ export default function CandidatoDetalle() {
                   <Textarea
                     id="recursosAsignados"
                     name="recursosAsignados"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.puesto
                         ?.recursosAsignados || ""
@@ -3016,7 +3016,7 @@ export default function CandidatoDetalle() {
                                   defaultValue={periodo.periodoEmpresa || ""}
                                 />
                               </div>
-                              <div className="col-span-2">
+                              <div className="">
                                 <Label htmlFor={`puesto_${index}`}>
                                   Puesto en el periodo {index + 1}
                                 </Label>
@@ -3074,7 +3074,7 @@ export default function CandidatoDetalle() {
             <div className="border rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold">Semanas cotizadas</div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="disposicionSemanasCotizadas">
                     Disposición de semanas cotizadas
                   </Label>
@@ -3088,12 +3088,12 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="motivoDisposicion">Motivo de disposición</Label>
                   <Textarea
                     id="motivoDisposicion"
                     name="motivoDisposicion"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.periodo?.motivoDisposicion ||
                       ""
@@ -3107,56 +3107,56 @@ export default function CandidatoDetalle() {
             <div className="border rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold">Separación e incidencias</div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="motivoSeparacionCandidato">
                     Motivo de separación (candidato)
                   </Label>
                   <Textarea
                     id="motivoSeparacionCandidato"
                     name="motivoSeparacionCandidato"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.motivoSeparacionCandidato || ""
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="motivoSeparacionEmpresa">
                     Motivo de separación (empresa)
                   </Label>
                   <Textarea
                     id="motivoSeparacionEmpresa"
                     name="motivoSeparacionEmpresa"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.motivoSeparacionEmpresa || ""
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="incapacidadesCandidato">
                     Incapacidades reportadas por el candidato (cantidad y causa)
                   </Label>
                   <Textarea
                     id="incapacidadesCandidato"
                     name="incapacidadesCandidato"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.incapacidadesCandidato || ""
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="incapacidadesEmpresa">
                     Incapacidades reportadas por la empresa (cantidad y causa)
                   </Label>
                   <Textarea
                     id="incapacidadesEmpresa"
                     name="incapacidadesEmpresa"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.incapacidadesEmpresa ||
@@ -3166,14 +3166,14 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="inasistenciasCandidato">
                     Inasistencias/Faltas (candidato)
                   </Label>
                   <Textarea
                     id="inasistenciasCandidato"
                     name="inasistenciasCandidato"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.inasistenciasCandidato ||
@@ -3183,14 +3183,14 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="inasistenciasEmpresa">
                     Inasistencias/Faltas (empresa)
                   </Label>
                   <Textarea
                     id="inasistenciasEmpresa"
                     name="inasistenciasEmpresa"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.inasistenciasEmpresa ||
@@ -3198,14 +3198,14 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="antecedentesLegalesCandidato">
                     Antecedentes legales (demandas, conflictos) — candidato
                   </Label>
                   <Textarea
                     id="antecedentesLegalesCandidato"
                     name="antecedentesLegalesCandidato"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.antecedentesLegalesCandidato ||
@@ -3215,14 +3215,14 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="antecedentesLegalesEmpresa">
                     Antecedentes legales (demandas, conflictos) — empresa
                   </Label>
                   <Textarea
                     id="antecedentesLegalesEmpresa"
                     name="antecedentesLegalesEmpresa"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.incidencias
                         ?.antecedentesLegalesEmpresa ||
@@ -3238,13 +3238,13 @@ export default function CandidatoDetalle() {
             {/* Matriz de desempeño */}
             <div className="border rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold">Matriz de desempeño</div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="">
                 <Label htmlFor="evaluacionGeneral">Evaluación general</Label>
                 <select
                   id="evaluacionGeneral"
                   name="evaluacionGeneral"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.evaluacionGeneral || ""
@@ -3262,7 +3262,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="puntualidad"
                   name="puntualidad"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.puntualidad || ""
@@ -3280,7 +3280,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="colaboracion"
                   name="colaboracion"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.colaboracion || ""
@@ -3298,7 +3298,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="responsabilidad"
                   name="responsabilidad"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.responsabilidad || ""
@@ -3316,7 +3316,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="actitudAutoridad"
                   name="actitudAutoridad"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.actitudAutoridad || ""
@@ -3334,7 +3334,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="actitudSubordinados"
                   name="actitudSubordinados"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.actitudSubordinados || ""
@@ -3352,7 +3352,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="honradezIntegridad"
                   name="honradezIntegridad"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.honradezIntegridad || ""
@@ -3370,7 +3370,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="calidadTrabajo"
                   name="calidadTrabajo"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.calidadTrabajo || ""
@@ -3388,7 +3388,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="liderazgo"
                   name="liderazgo"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.liderazgo || ""
@@ -3406,7 +3406,7 @@ export default function CandidatoDetalle() {
                 <select
                   id="conflictividad"
                   name="conflictividad"
-                  className="mt-1 block w-full border rounded-md h-10 px-3"
+                  className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                   defaultValue={
                     investigationTarget?.investigacionDetalle?.desempeno
                       ?.conflictividad || ""
@@ -3417,7 +3417,7 @@ export default function CandidatoDetalle() {
                   <option value="NO">No conflictivo</option>
                 </select>
               </div>
-              <div className="col-span-2">
+              <div className="">
                 <Label htmlFor="conflictividadComentario">
                   Comentario sobre conflictividad (si aplica)
                 </Label>
@@ -3437,13 +3437,13 @@ export default function CandidatoDetalle() {
             {/* Conclusión */}
             <div className="border rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold">Conclusión</div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="esRecomendable">¿Es recomendable?</Label>
                   <select
                     id="esRecomendable"
                     name="esRecomendable"
-                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                    className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.conclusion?.esRecomendable ||
                       ""
@@ -3460,7 +3460,7 @@ export default function CandidatoDetalle() {
                   <select
                     id="loRecontrataria"
                     name="loRecontrataria"
-                    className="mt-1 block w-full border rounded-md h-10 px-3"
+                    className="mt-1 block w-full border rounded-md h-8 px-2 text-xs bg-slate-50/50"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.conclusion
                         ?.loRecontrataria || ""
@@ -3471,14 +3471,14 @@ export default function CandidatoDetalle() {
                     <option value="NO">No</option>
                   </select>
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="razonRecontratacion">
                     Razón de la recomendación/recontratación
                   </Label>
                   <Textarea
                     id="razonRecontratacion"
                     name="razonRecontratacion"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.conclusion
                         ?.razonRecontratacion || ""
@@ -3507,7 +3507,7 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="informanteTelefono">Teléfono/Contacto</Label>
                   <Input
                     id="informanteTelefono"
@@ -3518,7 +3518,7 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="informanteEmail">Correo electrónico del informante</Label>
                   <Input
                     id="informanteEmail"
@@ -3530,12 +3530,12 @@ export default function CandidatoDetalle() {
                     }
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="">
                   <Label htmlFor="comentariosAdicionales">Comentarios adicionales</Label>
                   <Textarea
                     id="comentariosAdicionales"
                     name="comentariosAdicionales"
-                    rows={2}
+                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
                     defaultValue={
                       investigationTarget?.investigacionDetalle?.conclusion
                         ?.comentariosAdicionales || ""
