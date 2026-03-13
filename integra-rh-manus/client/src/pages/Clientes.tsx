@@ -398,14 +398,14 @@ export default function Clientes() {
                       <TableCell className="hidden 2xl:table-cell text-xs py-1.5">
                         {client.reclutador || "-"}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-xs py-1.5 max-w-[150px] truncate">
-                        <span title={client.contacto || ""}>{client.contacto || "-"}</span>
+                      <TableCell className="hidden lg:table-cell text-xs py-1.5 max-w-[150px]">
+                        <div className="truncate" title={client.contacto || ""}>{client.contacto || "-"}</div>
                       </TableCell>
                       <TableCell className="text-xs py-1.5">
                         {client.telefono || "-"}
                       </TableCell>
-                      <TableCell className="text-xs py-1.5 max-w-[200px] truncate">
-                        <span title={client.email || ""}>{client.email || "-"}</span>
+                      <TableCell className="text-xs py-1.5 max-w-[200px]">
+                        <div className="truncate" title={client.email || ""}>{client.email || "-"}</div>
                       </TableCell>
                       <TableCell className="text-xs text-center py-1.5">
                         <button

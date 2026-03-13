@@ -199,6 +199,21 @@ export default function Procesos() {
     return classes[status] || "badge-neutral";
   };
 
+  // FIX-20260312-03: texto minimalista sin badge para evitar desbordamiento
+  const getStatusTextClass = (status: string): string => {
+    const classes: Record<string, string> = {
+      en_recepcion: "text-sky-600",
+      asignado: "text-sky-600",
+      en_verificacion: "text-amber-600",
+      visita_programada: "text-amber-600",
+      visita_realizada: "text-amber-600",
+      en_dictamen: "text-orange-600",
+      finalizado: "text-emerald-600",
+      entregado: "text-emerald-700",
+    };
+    return classes[status] || "text-slate-500";
+  };
+
   const getStatusRowClass = (status: string): string => {
     const classes: Record<string, string> = {
       en_recepcion: "bg-sky-50",
@@ -524,27 +539,48 @@ export default function Procesos() {
                           {process.clave}
                         </TableCell>
                         <TableCell className="py-1.5">
-                          <span className="badge badge-info">
+                          <span
+                            className="text-[10px] uppercase font-medium text-blue-600 block truncate max-w-[80px]"
+                            title={formatTipoProductoDisplay(process.tipoProducto)}
+                          >
                             {formatTipoProductoDisplay(process.tipoProducto)}
                           </span>
                         </TableCell>
                         <TableCell className="max-w-[220px] text-xs py-1.5">
-                          {getCandidateName(process.candidatoId)}
+                          <div className="truncate" title={getCandidateName(process.candidatoId)}>
+                            {getCandidateName(process.candidatoId)}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[220px] text-xs py-1.5">
-                          {(process as any).clientName || "-"}
+                          <div className="truncate" title={(process as any).clientName || "-"}>
+                            {(process as any).clientName || "-"}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[200px] text-xs py-1.5">
-                          {(process as any).siteName || "-"}
+                          <div className="truncate" title={(process as any).siteName || "-"}>
+                            {(process as any).siteName || "-"}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[220px] text-xs py-1.5">
-                          {getPostName(process.puestoId)}
+                          <div className="truncate" title={getPostName(process.puestoId)}>
+                            {getPostName(process.puestoId)}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[200px] text-xs py-1.5">
-                          {(process as any).responsableName ||
-                            (process as any).especialistaAtraccionNombre ||
-                            (process as any).analistaName ||
-                            "-"}
+                          <div
+                            className="truncate"
+                            title={
+                              (process as any).responsableName ||
+                              (process as any).especialistaAtraccionNombre ||
+                              (process as any).analistaName ||
+                              "-"
+                            }
+                          >
+                            {(process as any).responsableName ||
+                              (process as any).especialistaAtraccionNombre ||
+                              (process as any).analistaName ||
+                              "-"}
+                          </div>
                         </TableCell>
                         <TableCell className="text-xs py-1.5">
                           {new Date(
@@ -553,9 +589,8 @@ export default function Procesos() {
                         </TableCell>
                         <TableCell className="py-1.5">
                           <span
-                            className={`badge ${getStatusBadgeClass(
-                              process.estatusProceso,
-                            )}`}
+                            className={`text-[10px] font-medium uppercase block truncate max-w-[110px] ${getStatusTextClass(process.estatusProceso)}`}
+                            title={getStatusLabel(process.estatusProceso)}
                           >
                             {getStatusLabel(process.estatusProceso)}
                           </span>
