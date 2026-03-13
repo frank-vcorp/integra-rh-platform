@@ -260,7 +260,7 @@ function DashboardLayoutContent({
             type: "proceso",
             label: `${p.clave} — ${p.tipoProducto}`,
             secondary: "",
-            href: `/procesos/${p.id}`,
+            href: `/candidatos/${p.candidatoId}?tab=empleos`,
           });
         }
         if (items.length >= 10) break;

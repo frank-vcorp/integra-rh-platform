@@ -617,10 +617,15 @@ export default function Clientes() {
                         {processesBySelectedClient.map((p: any) => (
                           <TableRow
                             key={p.id}
-                            className={getStatusRowClass(p.estatusProceso)}
+                            className={`${getStatusRowClass(p.estatusProceso)} cursor-pointer hover:bg-muted/50`}
+                            onClick={(e) => {
+                              const target = e.target as HTMLElement;
+                              if (target.closest("button") || target.closest("a")) return;
+                              setLocation(`/candidatos/${p.candidatoId}?tab=empleos`);
+                            }}
                           >
                             <TableCell className="font-mono text-xs">
-                              <Link href={`/procesos/${p.id}`}>{p.clave}</Link>
+                              {p.clave}
                             </TableCell>
                             <TableCell>{getCandidateName(p.candidatoId)}</TableCell>
                             <TableCell>{getPostName(p.puestoId)}</TableCell>
@@ -643,9 +648,10 @@ export default function Clientes() {
                     {processesBySelectedClient.map((p: any) => (
                       <div
                         key={p.id}
-                        className={`rounded-md border px-3 py-2 text-xs ${getStatusRowClass(
+                        className={`rounded-md border px-3 py-2 text-xs cursor-pointer hover:bg-muted/50 ${getStatusRowClass(
                           p.estatusProceso
                         )}`}
+                        onClick={() => setLocation(`/candidatos/${p.candidatoId}?tab=empleos`)}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-mono font-semibold">

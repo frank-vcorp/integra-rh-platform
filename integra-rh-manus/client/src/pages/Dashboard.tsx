@@ -242,7 +242,7 @@ export default function Dashboard() {
                 {procesosAtascados.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/procesos/${p.id}`}
+                    href={`/candidatos/${p.candidatoId}?tab=empleos`}
                     className="flex items-center justify-between py-1.5 border-b last:border-0 hover:bg-amber-50/50 transition-colors px-1"
                   >
                     <p className="font-medium text-xs flex-1">{p.clave}</p>

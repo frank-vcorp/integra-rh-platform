@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "wouter";
+import { Link, useParams, useSearch, useLocation } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -151,6 +151,17 @@ const applyInvestigationDraftToForm = (
 };
 
 export default function CandidatoDetalle() {
+  const [location, setLocation] = useLocation();
+  const search = useSearch();
+  const query = new URLSearchParams(search);
+  const currentTab = query.get("tab") || "perfil";
+
+  const handleTabChange = (val: string) => {
+    const newQuery = new URLSearchParams(search); 
+    newQuery.set("tab", val);
+    setLocation(location + "?" + newQuery.toString());
+  };
+
   const [createProcessOpen, setCreateProcessOpen] = useState(false);
   const params = useParams();
   const candidateId = parseInt(params.id || "0");
@@ -878,7 +889,7 @@ export default function CandidatoDetalle() {
       </div>
 
       {/* ═══ IMPL-20260312-02 | Doc: Micro-Sprint 02 — War Room Refactoring ═══ */}
-      <Tabs defaultValue="perfil" className="w-full">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="perfil">Perfil</TabsTrigger>
           <TabsTrigger value="empleos">Empleos</TabsTrigger>
@@ -2146,7 +2157,7 @@ export default function CandidatoDetalle() {
                                 {p.fechaCierre && <span>• Cierre: {new Date(p.fechaCierre).toLocaleDateString()}</span>}
                               </div>
                             </div>
-                            <Link href={`/procesos/${p.id}`}>
+                            <Link href={`/candidatos/${candidateId}?tab=empleos`}>
                               <Button size="sm" variant="outline">Ver</Button>
                             </Link>
                           </div>
@@ -2214,7 +2225,7 @@ export default function CandidatoDetalle() {
                                 {p.visitStatus?.direccion && <div className="truncate w-40" title={p.visitStatus.direccion}>📍 {p.visitStatus.direccion}</div>}
                               </div>
                             </div>
-                            <Link href={`/procesos/${p.id}`}>
+                            <Link href={`/candidatos/${candidateId}?tab=empleos`}>
                               <Button size="icon" variant="ghost" className="h-6 w-6"><ExternalLink className="h-3 w-3"/></Button>
                             </Link>
                           </div>

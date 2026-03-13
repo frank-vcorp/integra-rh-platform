@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMemo, useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Sheet,
   SheetContent,
@@ -55,6 +55,7 @@ import {
 import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 
 export default function Procesos() {
+  const [_, setLocation] = useLocation();
   const { user } = useAuth();
   const isClient = user?.role === "client";
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -539,7 +540,12 @@ export default function Procesos() {
                     {processes.map((process) => (
                       <TableRow
                         key={process.id}
-                        className={`${getStatusRowClass(process.estatusProceso)} h-8`}
+                        className={`${getStatusRowClass(process.estatusProceso)} h-8 cursor-pointer hover:bg-muted/50`}
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (target.closest("button") || target.closest("a")) return;
+                          setLocation(`/candidatos/${process.candidatoId}?tab=empleos`);
+                        }}
                       >
                         <TableCell className="font-medium font-mono text-xs py-1.5">
                           {process.clave}
@@ -611,7 +617,7 @@ export default function Procesos() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-1">
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -621,7 +627,7 @@ export default function Procesos() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link href={`/procesos/${process.id}`} className="flex items-center cursor-pointer">
+                                  <Link href={`/candidatos/${process.candidatoId}?tab=empleos`} className="flex items-center cursor-pointer">
                                     <Eye className="mr-2 h-4 w-4" />
                                     <span>Ver detalle</span>
                                   </Link>
@@ -655,9 +661,10 @@ export default function Procesos() {
                 {processes.map((process) => (
                   <div
                     key={process.id}
-                    className={`rounded-lg border p-3 text-xs shadow-sm ${getStatusRowClass(
+                    className={`rounded-lg border p-3 text-xs shadow-sm cursor-pointer hover:bg-muted/50 ${getStatusRowClass(
                       process.estatusProceso,
                     )}`}
+                    onClick={() => setLocation(`/candidatos/${process.candidatoId}?tab=empleos`)}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-mono font-semibold">
@@ -721,7 +728,7 @@ export default function Procesos() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/procesos/${process.id}`} className="flex items-center cursor-pointer">
+                            <Link href={`/candidatos/${process.candidatoId}?tab=empleos`} className="flex items-center cursor-pointer">
                               <Eye className="mr-2 h-4 w-4" />
                               <span>Ver detalle</span>
                             </Link>

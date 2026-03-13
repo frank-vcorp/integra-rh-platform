@@ -352,7 +352,7 @@ export default function SearchResults() {
                   return (
                     <Link
                       key={p.id}
-                      href={`/procesos/${p.id}`}
+                      href={`/candidatos/${p.candidatoId}?tab=empleos`}
                       className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent"
                     >
                       <div className="min-w-0">
