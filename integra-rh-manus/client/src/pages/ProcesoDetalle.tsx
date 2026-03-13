@@ -595,29 +595,24 @@ export default function ProcesoDetalle() {
                              <span className="text-[10px] uppercase text-gray-400">Completo</span>
                              <input
                                 type="checkbox"
-                                checked={panelForm.investigacionLaboral.completado}
-                                onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, completado: e.target.checked } }))}
-                                disabled={isClientAuth || !canEditProcess}
+                                checked={Boolean((getCandidate() as any)?.dictamenLaboral?.completado)}
+                                disabled={true}
                             />
                          </div>
                     </div>
                     
                     <div>
                         <Label className="text-xs">Resultado Global</Label>
-                        <Input
-                            value={panelForm.investigacionLaboral.resultado}
-                            onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, resultado: e.target.value } }))}
-                            disabled={isClientAuth || !canEditProcess}
-                            placeholder="Ej. RECOMENDABLE"
-                            className="h-9"
-                        />
+                        <div className="h-9 px-3 py-2 border rounded-md bg-gray-50 text-sm font-semibold uppercase text-blue-700 mt-1">
+                          {(getCandidate() as any)?.dictamenLaboral?.resultado || "Pendiente"}
+                        </div>
                     </div>
                     
                     <div className="flex items-center justify-between mt-1">
                         <Label className="text-xs font-semibold text-blue-800">Historial Laboral</Label>
-                        <Link href={`/candidatos/${process.candidatoId}`}>
+                        <Link href={`/candidatos/${process.candidatoId}?tab=empleos`}>
                         <Button variant="link" size="sm" className="h-auto p-0 text-[10px]">
-                            Editar en Candidato
+                            Ver / Editar en Candidato
                         </Button>
                         </Link>
                     </div>

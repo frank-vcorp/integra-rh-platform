@@ -129,6 +129,8 @@ export const candidatesRouter = router({
           clientSiteId: z.number().optional(),
           puestoId: z.number().optional(),
           psicometricos: z.any().optional(),
+          perfilDetalle: z.any().optional(),
+          dictamenLaboral: z.any().optional(),
           // Permitir cambio de analista asignado en cualquier momento
           analistaAsignadoId: z.number().int().positive().optional(),
         }),

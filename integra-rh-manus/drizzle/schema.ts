@@ -226,6 +226,13 @@ export const candidates = mysqlTable("candidates", {
       aceptoAvisoPrivacidadAt?: string;
     };
   }>(),
+  // Dictamen global de investigación laboral (heredable a procesos)
+  dictamenLaboral: json("dictamenLaboral").$type<{
+    resultado?: string;
+    comentariosGenerales?: string;
+    completado?: boolean;
+    completadoAt?: string;
+  }>(),
   // Captura inicial self-service
   selfFilledStatus: mysqlEnum("selfFilledStatus", [
     "pendiente",

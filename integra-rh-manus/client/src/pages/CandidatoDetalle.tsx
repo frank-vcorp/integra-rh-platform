@@ -2121,6 +2121,74 @@ export default function CandidatoDetalle() {
         </CardContent>
       </Card>
 
+      {/* Dictamen Global de Investigación Laboral */}
+      <Card className="border-primary/10 mt-6 bg-slate-50/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ShieldCheck className="h-5 w-5" />
+            Dictamen Global de Historial Laboral
+          </CardTitle>
+          <div className="text-sm text-slate-500">
+            Una vez verificados los empleos individuales, cierra la investigación asignando un estatus global. Este resultado es el que el cliente verá como "Investigación Laboral".
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              updateCandidateMutation.mutate({
+                id: candidateId,
+                data: {
+                  dictamenLaboral: {
+                    resultado: formData.get("resultado") as string,
+                    comentariosGenerales: formData.get("comentarios") as string,
+                    completado: true,
+                    completadoAt: new Date().toISOString()
+                  }
+                }
+              }, {
+                onSuccess: () => {
+                  toast.success("Dictamen global guardado exitosamente");
+                }
+              });
+            }}
+            className="space-y-4"
+          >
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Resultado Global</Label>
+                <select 
+                  name="resultado" 
+                  className="w-full mt-1 border rounded-md h-9 px-2 text-sm bg-white"
+                  defaultValue={(candidate as any)?.dictamenLaboral?.resultado || ""}
+                >
+                  <option value="">Seleccione un resultado...</option>
+                  <option value="Recomendable">Recomendable</option>
+                  <option value="Con reservas">Con reservas</option>
+                  <option value="No recomendable">No recomendable</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <Label>Comentario o Conclusión General</Label>
+              <textarea 
+                name="comentarios"
+                className="w-full mt-1 border rounded-md p-2 text-sm min-h-[100px] bg-white"
+                placeholder="Escribe el resumen general de la investigación laboral..."
+                defaultValue={(candidate as any)?.dictamenLaboral?.comentariosGenerales || ""}
+              />
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={updateCandidateMutation.isPending}>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {(candidate as any)?.dictamenLaboral?.completado ? "Actualizar Dictamen" : "Cerrar Investigación y Dictaminar"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
         </TabsContent>
 
         {/* ════════════ TAB: PROCESOS ════════════ */}
