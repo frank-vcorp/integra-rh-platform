@@ -608,6 +608,13 @@ export default function ProcesoDetalle() {
                         </div>
                     </div>
                     
+                    <div>
+                        <Label className="text-xs">Comentario o Conclusión General</Label>
+                        <div className="min-h-16 px-3 py-2 border rounded-md bg-gray-50 text-xs text-gray-700 mt-1 break-words whitespace-pre-wrap">
+                            {(getCandidate() as any)?.dictamenLaboral?.observaciones || "Sin comentarios."}
+                        </div>
+                    </div>
+                    
                     <div className="flex items-center justify-between mt-1">
                         <Label className="text-xs font-semibold text-blue-800">Historial Laboral</Label>
                         <Link href={`/candidatos/${process.candidatoId}?tab=empleos`}>
