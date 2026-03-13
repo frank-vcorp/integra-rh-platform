@@ -30,7 +30,7 @@ export default function ProcesoDetalle() {
   const processId = parseInt(params.id || "0");
   const { data: process, isLoading } = trpc.processes.getById.useQuery({ id: processId });
   const { data: workHistory = [] } = trpc.workHistory.getByCandidate.useQuery(
-    { candidateId: process?.candidatoId || 0 },
+    { candidatoId: process?.candidatoId || 0 },
     { enabled: !!process?.candidatoId }
   );
   const { isClientAuth } = useClientAuth();
