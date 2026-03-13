@@ -1,16 +1,20 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck, Sparkles, CheckCircle2, Clock, AlertTriangle, Download, ExternalLink } from "lucide-react";
 import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
 import { getCalificacionLabel, getCalificacionTextClass } from "@/lib/dictamen";
 import { getServiciosIncluidos } from "@/lib/procesoTipo";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 /**
  * Vista de detalle de proceso para clientes
- * Solo muestra información si el proceso pertenece al cliente autenticado
+ * Reestructurada con diseño Grid + Tabs (Estilo Dashboard)
  */
 export default function ClienteProcesoDetalle() {
   const params = useParams();
@@ -38,10 +42,12 @@ export default function ClienteProcesoDetalle() {
   if (!process || process.clienteId !== clientId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">No tienes permiso para ver este proceso</p>
+        <div className="text-center max-w-md p-6 bg-white rounded-lg shadow">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Acceso denegado</h2>
+          <p className="text-gray-600 mb-6">No tienes permiso para ver este proceso.</p>
           <Link href="/cliente/dashboard">
-            <Button>Volver al Dashboard</Button>
+            <Button className="w-full">Volver al Dashboard</Button>
           </Link>
         </div>
       </div>
@@ -62,7 +68,6 @@ export default function ClienteProcesoDetalle() {
   };
 
   // Determinar qué servicios incluye este tipo de proceso
-  // La visita es opcional, se muestra solo si hay datos de visita registrados
   const servicios = getServiciosIncluidos(process?.tipoProducto, {
     visitStatus: (process as any)?.visitStatus,
     visitaDetalle: (process as any)?.visitaDetalle,
@@ -73,7 +78,9 @@ export default function ClienteProcesoDetalle() {
     {
       key: "investigacionLaboral",
       label: "Investigación Laboral",
-      icon: <Shield className="h-4 w-4 text-blue-600" />,
+      description: "Validación de referencias y antecedentes laborales",
+      icon: <Briefcase className="h-5 w-5 text-blue-600" />,
+      colorClass: "bg-blue-50 text-blue-700 border-blue-200",
       data: (process as any)?.investigacionLaboral as any,
       render: (d: any) => ({
         estado: d?.resultado || "Sin resultado",
@@ -85,14 +92,16 @@ export default function ClienteProcesoDetalle() {
     {
       key: "investigacionLegal",
       label: "Investigación Legal",
-      icon: <Landmark className="h-4 w-4 text-indigo-600" />,
+      description: "Búsqueda de incidencias legales y administrativas",
+      icon: <Landmark className="h-5 w-5 text-indigo-600" />,
+      colorClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
       data: (process as any)?.investigacionLegal as any,
       render: (d: any) => ({
         estado: d?.antecedentes || "Sin antecedentes registrados",
         detalle:
           d?.flagRiesgo
-            ? "Con riesgo"
-            : d?.notasPeriodisticas || d?.observacionesImss || undefined,
+            ? "Con riesgo detectado"
+            : d?.notasPeriodisticas || d?.observacionesImss || "Sin observaciones adicionales",
         link: d?.archivoAdjuntoUrl,
         flag: d ? "en curso" : "pendiente",
       }),
@@ -101,23 +110,27 @@ export default function ClienteProcesoDetalle() {
     {
       key: "buroCredito",
       label: "Buró de Crédito",
-      icon: <FileText className="h-4 w-4 text-amber-600" />,
+      description: "Historial crediticio y comportamiento financiero",
+      icon: <FileText className="h-5 w-5 text-amber-600" />,
+      colorClass: "bg-amber-50 text-amber-700 border-amber-200",
       data: (process as any)?.buroCredito as any,
       render: (d: any) => ({
         estado: d?.estatus || "Sin registro",
-        detalle: d?.score ? `Score: ${d.score}` : undefined,
+        detalle: d?.score ? `Score crediticio: ${d.score}` : undefined,
         flag: d?.aprobado === true ? "aprobado" : d?.aprobado === false ? "rechazado" : "pendiente",
       }),
       visible: servicios.buro,
     },
     {
       key: "visitaDetalle",
-      label: "Visita Domiciliaria/Virtual",
-      icon: <Home className="h-4 w-4 text-emerald-600" />,
+      label: "Visita Domiciliaria",
+      description: "Verificación socioeconómica en sitio",
+      icon: <Home className="h-5 w-5 text-emerald-600" />,
+      colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
       data: (process as any)?.visitaDetalle || (process as any)?.visitStatus,
       render: (d: any) => ({
         estado: d?.tipo ? d.tipo.toUpperCase() : d?.status || "No asignada",
-        detalle: d?.comentarios || d?.observaciones,
+        detalle: d?.comentarios || d?.observaciones || "Sin comentarios",
         fecha: d?.fechaRealizacion || d?.scheduledDateTime,
         link: d?.enlaceReporteUrl,
       }),
@@ -130,6 +143,7 @@ export default function ClienteProcesoDetalle() {
 
   const calcAvance = () => {
     const considered = blocks.length;
+    if (considered === 0) return 0;
     const completed = blocks.reduce((acc, b) => {
       const d: any = b.data;
       if (!d) return acc;
@@ -153,326 +167,258 @@ export default function ClienteProcesoDetalle() {
     process.calificacionFinal &&
     process.calificacionFinal !== "pendiente" &&
     process.calificacionFinal !== "no_recomendable";
+  
+  const isFinished = process.estatusProceso === 'finalizado' || process.estatusProceso === 'entregado';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Link href="/cliente/dashboard">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver al Dashboard
-            </Button>
-          </Link>
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Header Compacto */}
+      <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href={`/cliente/candidato/${process.candidatoId}`}>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <ArrowLeft className="h-5 w-5 text-gray-500" />
+              </Button>
+            </Link>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">Proceso {process.clave}</h1>
+              <span className="text-xs text-gray-500">Detalle de Investigación</span>
+            </div>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+              {process.tipoProducto}
+            </Badge>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 space-y-6">
-        {/* Título */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Detalle del Proceso</h1>
-          <p className="text-gray-600 mt-1">Información completa del proceso de evaluación</p>
-        </div>
-
-        {/* Información General */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Información General
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <p className="text-sm text-gray-600">Clave del Proceso</p>
-                <p className="font-semibold text-lg">{process.clave}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Tipo de Proceso</p>
-                <p className="font-semibold">{process.tipoProducto}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Fecha de Recepción</p>
-                <p className="font-semibold">
-                  {new Date(process.fechaRecepcion).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-              </div>
-              {process.fechaCierre && (
-                <div>
-                  <p className="text-sm text-gray-600">Fecha de Cierre</p>
-                  <p className="font-semibold">
-                    {new Date(process.fechaCierre).toLocaleDateString('es-MX', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                </div>
-              )}
-              {(process as any)?.especialistaAtraccionNombre && (
-                <div>
-                  <p className="text-sm text-gray-600">Especialista de Atracción</p>
-                  <p className="font-semibold flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-blue-600" />
-                    {(process as any).especialistaAtraccionNombre}
-                  </p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-600">Estatus Actual</p>
-                <p className="font-semibold">
-                  <span className={`inline-block px-3 py-1 rounded text-sm ${
-                    process.estatusProceso === 'finalizado' || process.estatusProceso === 'entregado'
-                      ? 'bg-green-100 text-green-800'
-                      : process.estatusProceso === 'en_recepcion'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-blue-100 text-blue-800'
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Sidebar - Resumen del Proceso (Cols 4) */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Tarjeta de Estatus */}
+            <Card className="border-t-4 border-t-blue-600 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wide">Estatus Actual</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <Badge className={`text-sm px-3 py-1 mb-2 ${
+                    isFinished
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                   }`}>
                     {estatusLabels[process.estatusProceso] || process.estatusProceso}
-                  </span>
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Calificación Final */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5" />
-              Calificación Final
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center py-6">
-              <p
-                className={`text-4xl font-bold ${getCalificacionTextClass(
-                  process.calificacionFinal,
-                )}`}
-              >
-                {getCalificacionLabel(process.calificacionFinal)}
-              </p>
-              {process.calificacionFinal === 'pendiente' && (
-                <p className="text-sm text-gray-500 mt-2">
-                  La calificación estará disponible una vez finalizado el proceso
-                </p>
-              )}
-            </div>
-            {(process as any)?.comentarioCalificacion && (
-              <div className="border-t pt-4">
-                <p className="text-sm text-gray-600 font-semibold mb-2">Observaciones</p>
-                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
-                  {(process as any).comentarioCalificacion}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Resumen IA para el Cliente (opcional) */}
-        {puedeVerIa && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-blue-600" />
-                Sugerencias de IA sobre este proceso
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {iaDictamenCliente.resumenEjecutivoCliente && (
-                <p className="text-sm text-gray-700">
-                  {iaDictamenCliente.resumenEjecutivoCliente}
-                </p>
-              )}
-              <details className="border rounded-md p-2 bg-blue-50/50">
-                <summary className="cursor-pointer text-sm mb-1 text-sky-800">Ver información...</summary>
-                <div className="mt-2 space-y-2">
-                  {Array.isArray(iaDictamenCliente.recomendacionesCliente) &&
-                    iaDictamenCliente.recomendacionesCliente.length > 0 && (
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800 mb-1">
-                          Recomendaciones para su seguimiento:
-                        </p>
-                        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
-                          {iaDictamenCliente.recomendacionesCliente.map(
-                            (rec: string, idx: number) => (
-                              <li key={idx}>{rec}</li>
-                            )
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                  <p className="text-xs text-gray-500">
-                    Este resumen fue generado automáticamente a partir de la
-                    información revisada por el equipo de Integra RH y está pensado
-                    como apoyo para interpretar el dictamen humano, no para
-                    reemplazarlo.
-                  </p>
+                  </Badge>
+                  <div className="space-y-1 mt-2">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Progreso</span>
+                      <span>{avance}%</span>
+                    </div>
+                    <Progress value={avance} className="h-2" />
+                  </div>
                 </div>
-              </details>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Avance y bloques de investigación (solo lectura) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Avance por Bloque (solo lectura)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Estatus visual</p>
-                <p className="font-semibold capitalize">
-                  {(process as any)?.estatusVisual?.replace(/_/g, " ") || "en proceso"}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Avance estimado</p>
-                <p className="text-2xl font-bold">{isNaN(avance) ? "0" : avance}%</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {blocks.map((block) => {
-                const info = block.render(block.data || {});
-                return (
-                  <div key={block.key} className="rounded-lg border p-3 bg-white shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {block.icon}
-                        <p className="font-semibold text-gray-900">{block.label}</p>
-                      </div>
-                      <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
-                        {info.estado || "Sin datos"}
+                <div className="border-t pt-4 mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Fecha Recepción</span>
+                    <span className="text-sm font-medium">
+                       {new Date(process.fechaRecepcion).toLocaleDateString('es-MX')}
+                    </span>
+                  </div>
+                  {process.fechaCierre && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Fecha Cierre</span>
+                      <span className="text-sm font-medium">
+                         {new Date(process.fechaCierre).toLocaleDateString('es-MX')}
                       </span>
                     </div>
-                    {info.detalle && (
-                      <p className="text-sm text-gray-600 mb-1">{info.detalle}</p>
-                    )}
-                    {info.fecha && (
-                      <p className="text-xs text-gray-500">Fecha: {new Date(info.fecha).toLocaleString()}</p>
-                    )}
-                    {info.link && (
-                      <a
-                        href={info.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 underline block mt-1"
-                      >
-                        Ver adjunto
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="text-xs text-gray-500">
-              Vista solo lectura para clientes. La edición se realiza por el equipo de Paula.
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Información del Candidato */}
-        {candidate && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Información del Candidato
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <p className="text-sm text-gray-600">Nombre Completo</p>
-                  <p className="font-semibold">{candidate.nombreCompleto}</p>
+                  )}
                 </div>
-                {candidate.email && (
-                  <div>
-                    <p className="text-sm text-gray-600">Email</p>
-                    <p className="font-semibold">{candidate.email}</p>
-                  </div>
-                )}
-                {candidate.telefono && (
-                  <div>
-                    <p className="text-sm text-gray-600">Teléfono</p>
-                    <p className="font-semibold">{candidate.telefono}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Información del Puesto */}
-        {post && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="h-5 w-5" />
-                Puesto Solicitado
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <p className="text-sm text-gray-600">Nombre del Puesto</p>
-                  <p className="font-semibold">{post.nombreDelPuesto}</p>
+                {isFinished && (
+                  <a href={process.archivoDictamenUrl || "#"} target="_blank" rel="noopener noreferrer" className={!process.archivoDictamenUrl ? "pointer-events-none" : ""}> 
+                    <Button className="w-full mt-6 bg-green-600 hover:bg-green-700" disabled={!process.archivoDictamenUrl}>
+                      <Download className="mr-2 h-4 w-4" /> Descargar Reporte PDF
+                    </Button>
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tarjeta de Candidato */}
+            <Card>
+              <CardHeader className="pb-3 border-b bg-gray-50/50">
+                <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <User className="h-4 w-4" /> Candidato
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border">
+                    <User className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">
+                      {candidate?.nombreCompleto || "Cargando..."}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {post?.nombreDelPuesto || "Puesto no especificado"}
+                    </p>
+                  </div>
                 </div>
-                {post.descripcion && (
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-gray-600">Descripción</p>
-                    <details className="border rounded-md p-2 bg-blue-50/50 mt-1">
-                      <summary className="cursor-pointer text-sm mb-1 text-sky-800">Ver información...</summary>
-                      <p className="text-gray-700 mt-2">{post.descripcion}</p>
-                    </details>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                <Link href={`/cliente/candidato/${process.candidatoId}`}>
+                  <Button variant="outline" size="sm" className="w-full text-xs">
+                    Ver Expediente Completo
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
 
-        {/* Dictamen (si está disponible) */}
-        {process.archivoDictamenUrl && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Dictamen Final
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                El dictamen final está disponible para descarga
-              </p>
-              <a
-                href={process.archivoDictamenUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block"
-              >
-                <Button>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Descargar Dictamen
-                </Button>
-              </a>
-            </CardContent>
-          </Card>
-        )}
+            {/* Calificación Final */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wide">Dictamen Final</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center text-center py-4">
+                  <div className={`text-2xl font-bold px-4 py-2 rounded-lg border-2 mb-2 ${getCalificacionTextClass(process.calificacionFinal)} border-current bg-opacity-10`}>
+                    {getCalificacionLabel(process.calificacionFinal)}
+                  </div>
+                  <p className="text-xs text-gray-500 max-w-[200px]">
+                    {process.calificacionFinal === 'pendiente' 
+                      ? "La calificación se asignará al finalizar la evaluación."
+                      : "Resultado final basado en la investigación integral."}
+                  </p>
+                </div>
+                
+                {(process as any)?.comentarioCalificacion && (
+                   <div className="mt-4 bg-slate-50 p-3 rounded-md border text-sm text-slate-700 italic">
+                     "{(process as any).comentarioCalificacion}"
+                   </div>
+                )}
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* Área Principal (Cols 8) */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            <Tabs defaultValue="resultados" className="w-full">
+               <TabsList className="w-full h-12 p-1 bg-white border shadow-sm rounded-lg grid grid-cols-2 mb-6">
+                 <TabsTrigger value="resultados" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                   <CheckCircle2 className="h-4 w-4 mr-2" /> Resultados de Investigación
+                 </TabsTrigger>
+                 <TabsTrigger value="inteligencia" disabled={!puedeVerIa} className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 disabled:opacity-50">
+                   <Sparkles className="h-4 w-4 mr-2" /> Inteligencia Artificial
+                 </TabsTrigger>
+               </TabsList>
+
+               {/* TAB: RESULTADOS */}
+               <TabsContent value="resultados" className="space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {blocks.map((block) => {
+                      const info = block.render(block.data || {});
+                      return (
+                        <Card key={block.key} className="hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2 bg-gray-50/50 border-b">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {block.icon}
+                                <CardTitle className="text-base font-semibold text-gray-700">{block.label}</CardTitle>
+                              </div>
+                              <Badge variant="outline" className="bg-white">
+                                {info.flag === 'completo' || info.flag === 'aprobado' || info.flag === 'en curso' ? (
+                                  <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
+                                ) : (
+                                  <Clock className="h-3 w-3 text-amber-500 mr-1" />
+                                )}
+                                <span className="text-xs">{info.flag}</span>
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-4 space-y-3">
+                            <div>
+                               <p className="text-xs font-semibold text-gray-500 uppercase">Resultado</p>
+                               <p className="font-medium text-gray-900">{info.estado}</p>
+                            </div>
+                            
+                            {info.detalle && (
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase">Detalles</p>
+                                <p className="text-sm text-gray-700 line-clamp-3">{info.detalle}</p>
+                              </div>
+                            )}
+
+                            {info.link && (
+                              <div className="pt-2">
+                                <a href={info.link} target="_blank" rel="noopener noreferrer">
+                                  <Button variant="outline" size="sm" className="w-full h-8 text-xs">
+                                    <ExternalLink className="h-3 w-3 mr-2" /> Ver Evidencia
+                                  </Button>
+                                </a>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                   })}
+                 </div>
+               </TabsContent>
+
+               {/* TAB: INTELIGENCIA ARTIFICIAL */}
+               <TabsContent value="inteligencia">
+                 <Card className="border-purple-100 shadow-sm">
+                   <CardHeader className="bg-gradient-to-r from-purple-50 to-white border-b border-purple-100">
+                     <CardTitle className="text-purple-800 flex items-center gap-2">
+                       <Sparkles className="h-5 w-5" /> Análisis Impulsado por IA
+                     </CardTitle>
+                     <CardDescription>
+                       Resumen ejecutivo generado automáticamente basado en los hallazgos.
+                     </CardDescription>
+                   </CardHeader>
+                   <CardContent className="pt-6 space-y-6">
+                      {iaDictamenCliente?.resumenEjecutivoCliente && (
+                        <div className="bg-white p-4 rounded-lg border shadow-sm">
+                          <h4 className="font-semibold text-gray-900 mb-2">Resumen Ejecutivo</h4>
+                          <p className="text-gray-700 leading-relaxed">
+                            {iaDictamenCliente.resumenEjecutivoCliente}
+                          </p>
+                        </div>
+                      )}
+
+                      {iaDictamenCliente?.recomendacionesCliente && iaDictamenCliente.recomendacionesCliente.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" /> Puntos clave para la contratación
+                          </h4>
+                          <ul className="space-y-2">
+                            {iaDictamenCliente.recomendacionesCliente.map((rec: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-3 bg-gray-50 p-3 rounded-md text-sm text-gray-700">
+                                <span className="font-bold text-gray-400 select-none">{idx + 1}.</span>
+                                {rec}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-800 rounded-md text-xs">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <p>Este análisis es una herramienta de apoyo y no sustituye la revisión final del reclutador humano.</p>
+                      </div>
+                   </CardContent>
+                 </Card>
+               </TabsContent>
+            </Tabs>
+
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -1,4 +1,4 @@
-# Estado del Proyecto: Integra-RH v2
+ Estado del Proyecto: Integra-RH v2
 
 **Epopeya Actual:** `MIG-V2: Migración a Arquitectura Evolucionada`
 **Fase Actual:** Piloto de Valor Mínimo (PVM)

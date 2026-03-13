@@ -1,0 +1,5 @@
+Archivo ClienteCandidatoDetalle.tsx leido.
+Lineas: 250
+Logica: Muestra Info personal, lista de procesos y historial laboral.
+Estructura: Vertical, cards apiladas.
+Observacion: Es funcional pero basico. "Vomitada" quizas se refiere a que el historial laboral es una lista larga y los procesos tambien.

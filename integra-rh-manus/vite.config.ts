@@ -28,6 +28,23 @@ export default defineConfig({
       "localhost",
       "127.0.0.1",
     ],
+    /**
+     * @fix FIX-20260311-03
+     * @doc context/interconsultas/DICTAMEN_FIX-20260311-03.md
+     * @desc Proxy enrutador dinámico al backend para evitar fallback a index.html
+     */
+    proxy: {
+      "/api": {
+        target: `http://localhost:${process.env.PORT || "3000"}`,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/test-webhook": {
+        target: `http://localhost:${process.env.PORT || "3000"}`,
+        changeOrigin: true,
+        secure: false,
+      }
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

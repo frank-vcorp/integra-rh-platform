@@ -1,0 +1,3 @@
+Archivo ClienteProcesoDetalle.tsx parte final leida.
+Logica IA: Muestra IA suggestions si calificacion no es pendiente.
+Grid actual: Grid de 1 o 2 columnas para los bloques.

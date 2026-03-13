@@ -1,0 +1,5 @@
+Archivo ClienteProcesoDetalle.tsx leido.
+Lineas: 200
+Logica: Muestra Info general, bloques de investigacion (Laboral, Legal, Buro, Visita) si aplican.
+Estructura: Vertical, cards apiladas.
+Observacion: Tambien es funcional pero "vomitada". No tiene la estructura organizada por tabs o grid que hicimos en ProcesoDetalle.tsx.

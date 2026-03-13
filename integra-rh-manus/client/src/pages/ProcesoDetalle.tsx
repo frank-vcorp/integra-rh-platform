@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft } from "lucide-react";
+import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
@@ -26,6 +29,10 @@ export default function ProcesoDetalle() {
   const params = useParams();
   const processId = parseInt(params.id || "0");
   const { data: process, isLoading } = trpc.processes.getById.useQuery({ id: processId });
+  const { data: workHistory = [] } = trpc.workHistory.getByCandidate.useQuery(
+    { candidateId: process?.candidatoId || 0 },
+    { enabled: !!process?.candidatoId }
+  );
   const { isClientAuth } = useClientAuth();
   const utils = trpc.useUtils();
   const updateStatus = trpc.processes.updateStatus.useMutation({
@@ -394,7 +401,6 @@ export default function ProcesoDetalle() {
         archivoAdjuntoUrl: form.investigacionLegal.archivoAdjuntoUrl || undefined,
         notasPeriodisticas: form.investigacionLegal.notasPeriodisticas || undefined,
         observacionesImss: form.investigacionLegal.observacionesImss || undefined,
-        semanasComentario: form.investigacionLegal.semanasComentario || undefined,
         evidenciaImgUrl: (form.investigacionLegal as any).evidenciaImgUrl || undefined,
         evidenciasGraficas: Array.isArray((form.investigacionLegal as any).evidenciasGraficas) 
           ? (form.investigacionLegal as any).evidenciasGraficas.filter((url: string) => !!url)
@@ -467,1159 +473,430 @@ export default function ProcesoDetalle() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/procesos">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">Proceso {process.clave}</h1>
-          <p className="text-muted-foreground mt-1">Detalle del proceso</p>
+    <div className="space-y-4">
+      {/* Header Denso con info del Sidebar */}
+      <div className="bg-white border-b sticky top-0 z-10 p-4 -mx-6 -mt-6 mb-6 shadow-sm">
+        <div className="flex flex-col xl:flex-row gap-4 justify-between xl:items-center">
+            <div className="flex items-start gap-4">
+                <Link href="/procesos">
+                   <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5"/></Button>
+                </Link>
+                <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        {process.clave} <Badge variant="secondary">{process.tipoProducto}</Badge>
+                    </h1>
+                    <div className="text-sm text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 mt-1">
+                        <span className="flex items-center gap-1"><UserCheck className="h-3 w-3"/> {findName(process.candidatoId, candidates, 'nombreCompleto')}</span>
+                        <span className="flex items-center gap-1"><Landmark className="h-3 w-3"/> {findName(process.clienteId, clients, 'nombreEmpresa')}</span>
+                        <span className="flex items-center gap-1"><Briefcase className="h-3 w-3"/> {findName(process.puestoId, posts, 'nombreDelPuesto')}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap bg-gray-50 p-2 rounded-lg border">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Estatus</span>
+                    <select 
+                        value={process.estatusProceso} 
+                        onChange={(e) => updateStatus.mutate({ id: processId, estatusProceso: e.target.value })}
+                        disabled={!canEditProcess}
+                        className="bg-transparent text-sm font-medium border-none p-0 h-auto focus:ring-0 cursor-pointer w-32"
+                    >
+                        {ESTATUS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                    </select>
+                </div>
+                <div className="w-px h-8 bg-gray-300 mx-2"></div>
+                <div className="flex flex-col w-48">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Calif. Final</span>
+                    <div className="flex items-center gap-1">
+                        <select 
+                            value={calificacion} 
+                            onChange={(e) => setCalificacion(e.target.value)}
+                            disabled={!canEditProcess}
+                            className="bg-transparent text-sm font-medium border-none p-0 h-auto focus:ring-0 cursor-pointer flex-1"
+                        >
+                            {CALIF.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                    </div>
+                </div>
+                {calificacion !== 'pendiente' && calificacion !== process.calificacionFinal && (
+                    <Button size="sm" onClick={() => updateCalif.mutate({ id: processId, calificacionFinal: calificacion as any, comentarioCalificacion: calificacion !== 'pendiente' ? comentarioCalificacion : undefined })}>
+                        Guardar Calif.
+                    </Button>
+                )}
+                <div className="w-px h-8 bg-gray-300 mx-2"></div>
+                 {!isClientAuth && canEditProcess && (
+                    <Button onClick={handleSavePanel} disabled={updatePanelDetail.isPending} className="bg-green-600 hover:bg-green-700 text-white shadow-sm">
+                      <Save className="h-4 w-4 mr-2" /> Guardar Todo
+                    </Button>
+                 )}
+            </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Información</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* IMPL-20260312-09: remaquetado a 3 columnas uniformes */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Analista asignado</p>
-              <p className="text-base font-semibold">
-                {(process as any).responsableName || "Sin asignar"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Proceso a realizar</p>
-              <div className="space-y-2">
-                <select
-                  className="border rounded-md h-9 px-2 w-full text-sm"
-                  value={baseTipo}
-                  disabled={!canEditProcess || isClientAuth}
-                  onChange={(e) =>
-                    setBaseTipo(e.target.value as ProcesoBaseType)
-                  }
-                >
-                  {PROCESO_BASE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-12 space-y-6">
+          <Tabs defaultValue="expediente" className="w-full">
+            <TabsList className="w-full justify-start overflow-x-auto">
+              <TabsTrigger value="expediente">Expediente</TabsTrigger>
+              <TabsTrigger value="visitas">Visitas</TabsTrigger>
+              <TabsTrigger value="documentos">Documentos</TabsTrigger>
+            </TabsList>
 
-                {baseTipo === "ILA" && (
-                  <select
-                    className="border rounded-md h-8 px-2 w-full text-xs"
-                    value={ilaModo}
-                    disabled={!canEditProcess || isClientAuth}
-                    onChange={(e) =>
-                      setIlaModo(e.target.value as IlaModoType)
-                    }
-                  >
-                    <option value="NORMAL">
-                      Normal (sin buró ni legal)
-                    </option>
-                    <option value="BURO">Con buró de crédito</option>
-                    <option value="LEGAL">Con investigación legal</option>
-                  </select>
-                )}
-
-                {baseTipo === "ESE" && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      className="border rounded-md h-8 px-2 w-full text-xs"
-                      value={eseAmbito}
-                      disabled={!canEditProcess || isClientAuth}
-                      onChange={(e) =>
-                        setEseAmbito(e.target.value as AmbitoType)
-                      }
-                    >
-                      <option value="LOCAL">Local</option>
-                      <option value="FORANEO">Foráneo</option>
-                    </select>
-                    <select
-                      className="border rounded-md h-8 px-2 w-full text-xs"
-                      value={eseExtra}
-                      disabled={!canEditProcess || isClientAuth}
-                      onChange={(e) =>
-                        setEseExtra(
-                          e.target.value as "NINGUNO" | "BURO" | "LEGAL"
-                        )
-                      }
-                    >
-                      <option value="NINGUNO">Sin complemento</option>
-                      <option value="BURO">Con buró de crédito</option>
-                      <option value="LEGAL">
-                        Con investigación legal
-                      </option>
-                    </select>
+            <TabsContent value="expediente" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              
+                  {/* 1. Control Interno / Config */}
+                  <div className="border rounded-lg bg-white shadow-sm p-4 space-y-4">
+                    <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                        <Shield className="h-4 w-4"/> Control Interno
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground">Estatus visual</p>
+                        <select
+                            className="border rounded-md h-9 px-2 w-full text-sm"
+                            value={panelForm.estatusVisual}
+                            onChange={e => setPanelForm(f => ({ ...f, estatusVisual: e.target.value }))}
+                            disabled={isClientAuth || !canEditProcess}
+                        >
+                            {ESTATUS_VISUAL.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground">Fecha de cierre</p>
+                        <Input
+                            type="date"
+                            className="h-9"
+                            value={panelForm.fechaCierre}
+                            onChange={e => setPanelForm(f => ({ ...f, fechaCierre: e.target.value }))}
+                            disabled={isClientAuth || !canEditProcess}
+                        />
+                    </div>
+                    
+                    {!isClientAuth && canEditProcess && (
+                        <details className="text-xs text-gray-500 pt-2 border-t mt-2">
+                        <summary className="cursor-pointer">Guía rápida</summary>
+                        <ul className="pl-4 list-disc mt-1 space-y-1">
+                            <li>Completa los datos en los bloques.</li>
+                            <li>Sube evidencias.</li>
+                            <li>Clic en "Guardar Todo" arriba.</li>
+                        </ul>
+                        </details>
+                    )}
                   </div>
-                )}
 
-                {baseTipo === "VISITA" && (
-                  <select
-                    className="border rounded-md h-8 px-2 w-full text-xs"
-                    value={visitaAmbito}
-                    disabled={!canEditProcess || isClientAuth}
-                    onChange={(e) =>
-                      setVisitaAmbito(e.target.value as AmbitoType)
-                    }
-                  >
-                    <option value="LOCAL">Local</option>
-                    <option value="FORANEO">Foránea</option>
-                  </select>
-                )}
-
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    Valor actual en BD:{" "}
-                    <span className="font-mono">{process.tipoProducto}</span>
-                  </p>
-                  {!isClientAuth && canEditProcess && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="h-7 text-xs px-2"
-                      disabled={updatePanelDetail.isPending}
-                      onClick={handleSavePanel}
-                    >
-                      <Save className="h-3 w-3 mr-1" /> Actualizar
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Medio de recepción</p>
-              <p className="font-medium">{process.medioDeRecepcion || '-'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Calificación final</p>
-              <div className="flex flex-col gap-2 mt-1">
-                <div className="flex items-center gap-2">
-                  <select
-                    id="calificacionFinal"
-                    value={calificacion}
-                    onChange={(e) => setCalificacion(e.target.value)}
-                    className="border rounded-md h-9 px-2 flex-1"
-                    disabled={!canEditProcess}
-                  >
-                    {CALIF.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                  <Button 
-                    size="sm" 
-                    disabled={updateCalif.isPending || !canEditProcess}
-                    onClick={() => {
-                       updateCalif.mutate({ 
-                         id: processId, 
-                         calificacionFinal: calificacion as any,
-                         comentarioCalificacion: calificacion !== 'pendiente' ? comentarioCalificacion : undefined
-                       });
-                    }}
-                  >
-                    <Save className="h-4 w-4 mr-1"/> Guardar
-                  </Button>
-                </div>
-                
-                {calificacion !== 'pendiente' && (
-                  <Textarea
-                    placeholder="Escribe un comentario o justificación del dictamen..."
-                    value={comentarioCalificacion}
-                    onChange={(e) => setComentarioCalificacion(e.target.value)}
-                    className="mt-2 text-sm"
-                    rows={3}
-                    disabled={!canEditProcess}
-                  />
-                )}
-              </div>
-
-              {!isClientAuth &&
-                iaDictamenCliente?.notaInternaAnalista &&
-                process.calificacionFinal &&
-                process.calificacionFinal !== "pendiente" && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Nota IA para el analista:{" "}
-                    <span className="italic">
-                      {iaDictamenCliente.notaInternaAnalista}
-                    </span>
-                  </p>
-                )}
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Estatus</p>
-              <div className="flex gap-2 mt-1">
-                <select
-                  defaultValue={process.estatusProceso}
-                  id="estatusProceso"
-                  className="border rounded-md h-9 px-2 flex-1"
-                  disabled={!canEditProcess}
-                >
-                  {ESTATUS.map(e => (
-                    <option key={e.value} value={e.value}>{e.label}</option>
-                  ))}
-                </select>
-                <Button
-                  size="sm"
-                  disabled={updateStatus.isPending || !canEditProcess}
-                  onClick={() => {
-                    const el = document.getElementById('estatusProceso') as HTMLSelectElement | null;
-                    const value = el?.value || process.estatusProceso;
-                    updateStatus.mutate({ id: processId, estatusProceso: value });
-                  }}
-                >
-                  <Save className="h-4 w-4 mr-1"/> Guardar
-                </Button>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Cliente</p>
-              <p className="font-medium">{findName(process.clienteId, clients, 'nombreEmpresa')}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Candidato</p>
-              <p className="font-medium">{findName(process.candidatoId, candidates, 'nombreCompleto')}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Puesto</p>
-              <p className="font-medium">{findName(process.puestoId, posts, 'nombreDelPuesto')}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Fecha Recepción</p>
-              <p className="font-medium">{new Date(process.fechaRecepcion).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Guía de pasos para la analista — IMPL-20260312-09: convertida a <details> accordion */}
-      {!isClientAuth && canEditProcess && (
-        <details className="border border-blue-200 rounded-md p-3 bg-blue-50/50">
-          <summary className="cursor-pointer select-none text-sm font-medium text-blue-800 flex items-center gap-2">
-            <UserCheck className="h-4 w-4 text-blue-600 shrink-0" />
-            📋 Guía rápida: Qué hacer después de agregar datos
-          </summary>
-          <ol className="space-y-2 text-sm mt-3 pl-1">
-            <li className="flex gap-2">
-              <span className="font-semibold text-blue-600">1.</span>
-              <span>Completa los <strong>campos de datos</strong> en los apartados de abajo (Investigación Laboral, Investigación Legal, Buró de Crédito, etc.)</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="font-semibold text-blue-600">2.</span>
-              <span>Sube <strong>documentos</strong> (PDF, imágenes) en la sección de "Documentos" con su tipo correspondiente</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="font-semibold text-blue-600">3.</span>
-              <span>Una vez hayas terminado, haz clic en <strong>"Guardar bloques"</strong> (botón arriba a la derecha)</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="font-semibold text-blue-600">4.</span>
-              <span>Verás una notificación <strong>"Bloques actualizados"</strong> cuando se guarde correctamente</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="font-semibold text-blue-600">5.</span>
-              <span>Los datos se guardan automáticamente en la base de datos y el cliente podrá verlos en su panel</span>
-            </li>
-          </ol>
-        </details>
-      )}
-
-      {/* Bloques panel cliente (captura interna) */}
-      <Card>
-        <CardHeader className="flex items-center justify-between flex-row">
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" /> Bloques de detalle (panel cliente)
-          </CardTitle>
-          {!isClientAuth && canEditProcess && (
-            <Button size="sm" onClick={handleSavePanel} disabled={updatePanelDetail.isPending} className="bg-green-600 hover:bg-green-700">
-              <Save className="h-4 w-4 mr-2" /> Guardar bloques
-            </Button>
-          )}
-        </CardHeader>
-	        <CardContent className="space-y-4">
-	          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-	            <div>
-	              <p className="text-sm text-muted-foreground">Estatus visual</p>
-	              <select
-	                className="border rounded-md h-10 px-3 w-full"
-                value={panelForm.estatusVisual}
-                onChange={e => setPanelForm(f => ({ ...f, estatusVisual: e.target.value }))}
-                disabled={isClientAuth || !canEditProcess}
-              >
-                {ESTATUS_VISUAL.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Fecha de cierre</p>
-              <Input
-                type="date"
-                value={panelForm.fechaCierre}
-                onChange={e => setPanelForm(f => ({ ...f, fechaCierre: e.target.value }))}
-                disabled={isClientAuth || !canEditProcess}
-              />
-	            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border rounded p-3 bg-white shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="h-4 w-4 text-blue-600" />
-                <p className="font-semibold">Investigación Laboral</p>
-              </div>
-              <Label className="text-xs">Resultado</Label>
-              <Input
-                value={panelForm.investigacionLaboral.resultado}
-                onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, resultado: e.target.value } }))}
-                disabled={isClientAuth || !canEditProcess}
-              />
-              <Label className="text-xs mt-2">Detalles</Label>
-              <Textarea
-                value={panelForm.investigacionLaboral.detalles}
-                onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, detalles: e.target.value } }))}
-                rows={2}
-                disabled={isClientAuth || !canEditProcess}
-              />
-              <div className="mt-2 flex items-center gap-2 text-sm">
-                <input
-                  id="invLabDone"
-                  type="checkbox"
-                  checked={panelForm.investigacionLaboral.completado}
-                  onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, completado: e.target.checked } }))}
-                  disabled={isClientAuth || !canEditProcess}
-                />
-                <Label htmlFor="invLabDone">Marcado como completo</Label>
-              </div>
-            </div>
-
-            <div className="border rounded p-3 bg-white shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <Landmark className="h-4 w-4 text-indigo-600" />
-                <p className="font-semibold">Investigación legal y documental</p>
-              </div>
-              <Label className="text-xs">Antecedentes</Label>
-              <Input
-                value={panelForm.investigacionLegal.antecedentes}
-                onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, antecedentes: e.target.value } }))}
-                disabled={isClientAuth || !canEditProcess}
-              />
-              
-              <Label className="text-xs mt-2">Notas periodísticas / búsqueda en medios</Label>
-              <Textarea
-                value={panelForm.investigacionLegal.notasPeriodisticas}
-                onChange={e =>
-                  setPanelForm(f => ({
-                    ...f,
-                    investigacionLegal: {
-                      ...f.investigacionLegal,
-                      notasPeriodisticas: e.target.value,
-                    },
-                  }))
-                }
-                rows={2}
-                disabled={isClientAuth || !canEditProcess}
-              />
-
-              <div className="mt-3">
-                <Label className="text-xs">Evidencia Gráfica (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
-                <div
-                  className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-gray-50 mt-1 cursor-pointer hover:bg-gray-100 transition-colors"
-                  tabIndex={0}
-                  onPaste={async (e) => {
-                    if (isClientAuth || !canEditProcess) return;
-                    e.preventDefault();
-                    const items = e.clipboardData.items;
-                    let blob: File | null = null;
-                    for (let i = 0; i < items.length; i++) {
-                      if (items[i].type.indexOf("image") !== -1) {
-                        blob = items[i].getAsFile();
-                        break;
-                      }
-                    }
-                    if (!blob) {
-                      toast.error("No se detectó imagen en el portapapeles");
-                      return;
-                    }
-                    try {
-                      toast.info("Subiendo imagen pegada...");
-                      const arrayBuf = await blob.arrayBuffer();
-                      let binary = '';
-                      const bytes = new Uint8Array(arrayBuf);
-                      const len = bytes.byteLength;
-                      for (let i = 0; i < len; i++) {
-                        binary += String.fromCharCode(bytes[i]);
-                      }
-                      const base64 = btoa(binary);
-
-                      const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-
-                      setPanelForm(currentForm => {
-                        const newForm = { 
-                          ...currentForm, 
-                          investigacionLegal: { 
-                            ...currentForm.investigacionLegal, 
-                            evidenciasGraficas: [...(currentForm.investigacionLegal as any).evidenciasGraficas, res.url]
-                          } 
-                        };
-                        
-                        const payload = getPanelPayload(newForm);
-                        updatePanelDetail.mutate(payload);
-                        return newForm;
-                      });
-                      toast.success("Evidencia guardada");
-                    } catch (err: any) {
-                      toast.error("Error al subir: " + err.message);
-                    }
-                  }}
-                >
-                  {(panelForm.investigacionLegal as any).evidenciasGraficas?.length > 0 ? (
-                    <div className="w-full">
-                      <div className="grid grid-cols-3 gap-2">
-                        {(panelForm.investigacionLegal as any).evidenciasGraficas.map((url: string, idx: number) => (
-                          <div key={idx} className="relative group">
-                            <img 
-                              src={url} 
-                              alt={`Evidencia ${idx + 1}`} 
-                              className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                              onClick={() => { setLightboxSection("legal"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                  {/* 2. Investigación Laboral */}
+                  <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b pb-2">
+                         <div className="flex items-center gap-2 font-semibold text-sm text-gray-700">
+                            <Shield className="h-4 w-4 text-blue-600" /> Investigación Laboral
+                         </div>
+                         <div className="flex items-center gap-2">
+                             <span className="text-[10px] uppercase text-gray-400">Completo</span>
+                             <input
+                                type="checkbox"
+                                checked={panelForm.investigacionLaboral.completado}
+                                onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, completado: e.target.checked } }))}
+                                disabled={isClientAuth || !canEditProcess}
                             />
-                            <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
-                              e.stopPropagation();
-                              setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, evidenciasGraficas: (f.investigacionLegal as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
-                            }}>×</Button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.investigacionLegal as any).evidenciasGraficas?.length || 0})</p>
+                         </div>
                     </div>
-                  ) : (
-                    <div className="text-center text-gray-400">
-                      <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
+                    
+                    <div>
+                        <Label className="text-xs">Resultado Global</Label>
+                        <Input
+                            value={panelForm.investigacionLaboral.resultado}
+                            onChange={e => setPanelForm(f => ({ ...f, investigacionLaboral: { ...f.investigacionLaboral, resultado: e.target.value } }))}
+                            disabled={isClientAuth || !canEditProcess}
+                            placeholder="Ej. RECOMENDABLE"
+                            className="h-9"
+                        />
                     </div>
-                  )}
-                </div>
-              </div>
-              {/* Observaciones IMSS removido - trasladado a semanasDetalle */}
-              <div className="mt-2 flex items-center gap-2 text-sm">
-                <input
-                  id="invLegalRiesgo"
-                  type="checkbox"
-                  checked={panelForm.investigacionLegal.flagRiesgo}
-                  onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, flagRiesgo: e.target.checked } }))}
-                  disabled={isClientAuth || !canEditProcess}
-                />
-                <Label htmlFor="invLegalRiesgo">Con riesgo</Label>
-              </div>
-            </div>
+                    
+                    <div className="flex items-center justify-between mt-1">
+                        <Label className="text-xs font-semibold text-blue-800">Historial Laboral</Label>
+                        <Link href={`/candidatos/${process.candidatoId}`}>
+                        <Button variant="link" size="sm" className="h-auto p-0 text-[10px]">
+                            Editar en Candidato
+                        </Button>
+                        </Link>
+                    </div>
 
-            {/* SEMANAS COTIZADAS - Bloque separado */}
-            <div className="border rounded p-3 bg-white shadow-sm">
-              <h3 className="text-sm font-bold text-blue-900 mb-3">SEMANAS COTIZADAS</h3>
-              
-              <Label className="text-xs">Comentario sobre cotejo de semanas cotizadas</Label>
-              <Textarea
-                value={panelForm.semanasDetalle.comentario}
-                onChange={e =>
-                  setPanelForm(f => ({
-                    ...f,
-                    semanasDetalle: {
-                      ...f.semanasDetalle,
-                      comentario: e.target.value,
-                    },
-                  }))
-                }
-                rows={2}
-                disabled={isClientAuth || !canEditProcess}
-                placeholder="Registra aquí los detalles del cotejo de semanas cotizadas"
-              />
-
-              <div className="mt-3">
-                <Label className="text-xs">Evidencia de Semanas (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
-                <div
-                  className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-blue-50 mt-1 cursor-pointer hover:bg-blue-100 transition-colors"
-                  tabIndex={0}
-                  onPaste={async (e) => {
-                    if (isClientAuth || !canEditProcess) return;
-                    e.preventDefault();
-                    const items = e.clipboardData.items;
-                    let blob: File | null = null;
-                    for (let i = 0; i < items.length; i++) {
-                      if (items[i].type.indexOf("image") !== -1) {
-                        blob = items[i].getAsFile();
-                        break;
-                      }
-                    }
-                    if (!blob) {
-                      toast.error("No se detectó imagen en el portapapeles");
-                      return;
-                    }
-                    try {
-                      toast.info("Subiendo imagen pegada...");
-                      const arrayBuf = await blob.arrayBuffer();
-                      let binary = '';
-                      const bytes = new Uint8Array(arrayBuf);
-                      const len = bytes.byteLength;
-                      for (let i = 0; i < len; i++) {
-                        binary += String.fromCharCode(bytes[i]);
-                      }
-                      const base64 = btoa(binary);
-
-                      const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-
-                      setPanelForm(currentForm => {
-                        const newForm = { 
-                          ...currentForm, 
-                          semanasDetalle: { 
-                            ...currentForm.semanasDetalle, 
-                            evidenciasGraficas: [...(currentForm.semanasDetalle as any).evidenciasGraficas, res.url]
-                          } 
-                        };
-                        
-                        const payload = getPanelPayload(newForm);
-                        updatePanelDetail.mutate(payload);
-                        return newForm;
-                      });
-                      toast.success("Evidencia guardada");
-                    } catch (err: any) {
-                      toast.error("Error al subir: " + err.message);
-                    }
-                  }}
-                >
-                  {(panelForm.semanasDetalle as any).evidenciasGraficas?.length > 0 ? (
-                    <div className="w-full">
-                      <div className="grid grid-cols-3 gap-2">
-                        {(panelForm.semanasDetalle as any).evidenciasGraficas.map((url: string, idx: number) => {
-                          const isPdf = url && url.toLowerCase().includes('.pdf');
-                          return (
-                            <div key={idx} className="relative group">
-                              {isPdf ? (
-                                <a href={url} target="_blank" rel="noopener noreferrer" className="h-20 w-20 flex items-center justify-center bg-gray-100 rounded border hover:bg-gray-200 transition-colors">
-                                  <FileText className="h-8 w-8 text-red-500" />
-                                </a>
-                              ) : (
-                                <img 
-                                  src={url} 
-                                  alt={`Semanas ${idx + 1}`} 
-                                  className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => { setLightboxSection("semanas"); setLightboxIndex(idx); setLightboxOpen(true); }}
-                                />
-                              )}
-                              <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
-                                e.stopPropagation();
-                                setPanelForm(f => ({ ...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: (f.semanasDetalle as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
-                              }}>×</Button>
+                    {workHistory && workHistory.length > 0 ? (
+                        <ScrollArea className="h-[150px] w-full rounded-md border p-2 bg-gray-50/50">
+                        <div className="space-y-3">
+                            {workHistory.map((wh: any) => (
+                            <div key={wh.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                <div className="flex justify-between items-start mb-1">
+                                <span className="font-medium text-xs text-gray-900 line-clamp-1" title={wh.empresa}>
+                                    {wh.empresa}
+                                </span>
+                                <Badge variant="outline" className="text-[10px] px-1 h-4">
+                                    {(wh.resultadoVerificacion || 'PENDIENTE').substring(0, 10)}
+                                </Badge>
+                                </div>
+                                <div className="text-[10px] text-gray-600">
+                                {wh.fechaInicio} - {wh.fechaFin}
+                                </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                      <p className="text-xs text-gray-600 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.semanasDetalle as any).evidenciasGraficas?.length || 0})</p>
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-500">
-                      <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Subida de PDF y adicionales para Semanas Cotizadas */}
-                <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = e.currentTarget.files;
-                      const inputEl = e.currentTarget;
-                      if (files && !isClientAuth && canEditProcess) {
-                        for (let i = 0; i < files.length; i++) {
-                          const file = files[i];
-                          file.arrayBuffer().then(async (arrayBuf) => {
-                            let binary = '';
-                            const bytes = new Uint8Array(arrayBuf);
-                            const len = bytes.byteLength;
-                            for (let j = 0; j < len; j++) {
-                              binary += String.fromCharCode(bytes[j]);
-                            }
-                            const base64 = btoa(binary);
-                            try {
-                              const res = await uploadProcessDoc.mutateAsync({
-                                procesoId: processId,
-                                tipoDocumento: 'SEMANAS_IMSS',
-                                fileName: file.name,
-                                contentType: file.type || 'application/octet-stream',
-                                base64 
-                              } as any);
-                              
-                              setPanelForm(currentForm => {
-                                const newForm = {
-                                  ...currentForm,
-                                  semanasDetalle: {
-                                    ...currentForm.semanasDetalle,
-                                    evidenciasGraficas: [...(currentForm.semanasDetalle as any).evidenciasGraficas, res.url]
-                                  } 
-                                };
-                                const payload = getPanelPayload(newForm);
-                                updatePanelDetail.mutateAsync(payload).then(() => {
-                                  toast.success("Archivo subido y guardado");
-                                }).catch((err: any) => {
-                                  toast.error("Error al guardar en BD: " + err.message);
-                                });
-                                return newForm;
-                              });
-                            } catch (err: any) {
-                              toast.error("Error al subir archivo: " + err.message);
-                            }
-                          });
-                        }
-                        inputEl.value = ''; // Resetear el input
-                      }
-                    }}
-                    disabled={isClientAuth || !canEditProcess}
-                    className="text-xs"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Sube archivos PDF o imágenes si no puedes usar el portapapeles.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Antecedentes Penales */}
-            <div className="border rounded p-3 bg-white shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <p className="font-semibold">Antecedentes Penales</p>
-              </div>
-
-              <Label className="text-xs">Evidencia (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
-              <div
-                className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-red-50 mt-1 cursor-pointer hover:bg-red-100 transition-colors"
-                tabIndex={0}
-                onPaste={async (e) => {
-                  if (isClientAuth || !canEditProcess) return;
-                  e.preventDefault();
-                  const items = e.clipboardData.items;
-                  let blob: File | null = null;
-                  for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf("image") !== -1) {
-                      blob = items[i].getAsFile();
-                      break;
-                    }
-                  }
-                  if (!blob) {
-                    toast.error("No se detectó imagen en el portapapeles");
-                    return;
-                  }
-                  try {
-                    toast.info("Subiendo imagen pegada...");
-                    const arrayBuf = await blob.arrayBuffer();
-                    let binary = '';
-                    const bytes = new Uint8Array(arrayBuf);
-                    const len = bytes.byteLength;
-                    for (let i = 0; i < len; i++) {
-                      binary += String.fromCharCode(bytes[i]);
-                    }
-                    const base64 = btoa(binary);
-
-                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'ANTECEDENTES_PENALES', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-                    
-                    setPanelForm(currentForm => {
-                      const newForm = { 
-                        ...currentForm, 
-                        antecedentesPenales: { 
-                          ...currentForm.antecedentesPenales, 
-                          evidenciasGraficas: [...(currentForm.antecedentesPenales as any).evidenciasGraficas, res.url]
-                        } 
-                      };
-                      
-                      const payload = getPanelPayload(newForm);
-                      updatePanelDetail.mutate(payload);
-                      
-                      return newForm;
-                    });
-                    toast.success("Evidencia guardada");
-                  } catch (err: any) {
-                    toast.error("Error al subir: " + err.message);
-                  }
-                }}
-              >
-                {(panelForm.antecedentesPenales as any).evidenciasGraficas?.length > 0 ? (
-                  <div className="w-full">
-                    <div className="grid grid-cols-3 gap-2">
-                      {(panelForm.antecedentesPenales as any).evidenciasGraficas.map((url: string, idx: number) => (
-                        <div key={idx} className="relative group">
-                          <img 
-                            src={url} 
-                            alt={`Antecedentes ${idx + 1}`} 
-                            className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                            onClick={() => { setLightboxSection("penales"); setLightboxIndex(idx); setLightboxOpen(true); }}
-                          />
-                          <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
-                            e.stopPropagation();
-                            setPanelForm(f => ({ ...f, antecedentesPenales: { ...f.antecedentesPenales, evidenciasGraficas: (f.antecedentesPenales as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
-                          }}>×</Button>
+                            ))}
                         </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.antecedentesPenales as any).evidenciasGraficas?.length || 0})</p>
+                        </ScrollArea>
+                    ) : (
+                        <div className="text-xs text-muted-foreground p-3 border border-dashed rounded bg-gray-50 text-center">
+                        Sin historial.
+                        </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
-                  </div>
-                )}
-              </div>
 
-              <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => {
-                    const files = e.currentTarget.files;
-                    const inputEl = e.currentTarget;
-                    if (files && !isClientAuth && canEditProcess) {
-                      for (let i = 0; i < files.length; i++) {
-                        const file = files[i];
-                        file.arrayBuffer().then(async (arrayBuf) => {
-                          let binary = '';
-                          const bytes = new Uint8Array(arrayBuf);
-                          const len = bytes.byteLength;
-                          for (let j = 0; j < len; j++) {
-                            binary += String.fromCharCode(bytes[j]);
-                          }
-                          const base64 = btoa(binary);
-                          try {
-                            const res = await uploadProcessDoc.mutateAsync({ 
-                              procesoId: processId, 
-                              tipoDocumento: 'ANTECEDENTES_PENALES', 
-                              fileName: file.name, 
-                              contentType: file.type || 'application/octet-stream', 
-                              base64 
-                            } as any);
-                            
-                            setPanelForm(currentForm => {
-                              const newForm = { 
-                                ...currentForm, 
-                                antecedentesPenales: { 
-                                  ...currentForm.antecedentesPenales, 
-                                  evidenciasGraficas: [...(currentForm.antecedentesPenales as any).evidenciasGraficas, res.url]
-                                } 
-                              };
-                              const payload = getPanelPayload(newForm);
-                              updatePanelDetail.mutateAsync(payload).then(() => {
-                                toast.success("Evidencia guardada");
-                              }).catch((err: any) => {
-                                toast.error("Error al guardar en BD: " + err.message);
-                              });
-                              return newForm;
-                            });
-                          } catch (err: any) {
-                            toast.error("Error al subir: " + err.message);
-                          }
-                        });
-                      }
-                      inputEl.value = '';
-                    }
-                  }}
-                  disabled={isClientAuth || !canEditProcess}
-                  className="block w-full text-sm"
-                />
-                <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
-              </div>
-            </div>
-
-            <div className="border rounded p-3 bg-white shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="h-4 w-4 text-amber-600" />
-                <p className="font-semibold">Buró de Crédito</p>
-              </div>
-
-              {(panelForm.buroCredito as any)?.pdfUrl ? (
-                <div className="flex items-center gap-3 border p-2 rounded bg-green-50">
-                   <FileText className="h-5 w-5 text-green-600"/>
-                   <div className="flex-1 overflow-hidden">
-                     <p className="text-xs font-medium truncate">Reporte cargado</p>
-                     <a href={(panelForm.buroCredito as any).pdfUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline block truncate">Ver Documento</a>
-                   </div>
-                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
-                       setPanelForm(currentForm => {
-                          const newForm = { 
-                            ...currentForm, 
-                            buroCredito: { ...currentForm.buroCredito, pdfUrl: null } as any 
-                          };
-                          updatePanelDetail.mutate(getPanelPayload(newForm));
-                          return newForm;
-                       });
-                   }}>Eliminar</Button>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed p-4 text-center rounded hover:bg-gray-50 transition-colors">
-                   <input type="file" id="buro-pdf-upload" className="hidden" accept="application/pdf" onChange={async (e) => {
-                      const file = e.currentTarget.files?.[0];
-                      if (!file) return;
-                      try {
-                        toast.info("Subiendo Reporte PDF...");
-                        const arrayBuf = await file.arrayBuffer();
-                        let binary = '';
-                        const bytes = new Uint8Array(arrayBuf);
-                        const len = bytes.byteLength;
-                        for (let i = 0; i < len; i++) {
-                            binary += String.fromCharCode(bytes[i]);
-                        }
-                        const base64 = btoa(binary);
-
-                        // Upload doc
-                        const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO', fileName: file.name, contentType: file.type, base64 } as any);
-                        
-                        // Update JSON
-                        setPanelForm(currentForm => {
-                          const newForm = { 
-                            ...currentForm, 
-                            buroCredito: { pdfUrl: res.url } as any 
-                          };
-                          updatePanelDetail.mutate(getPanelPayload(newForm));
-                          return newForm;
-                        });
-                        toast.success("PDF vinculado");
-                      } catch (err) {
-                        toast.error("Error al subir");
-                      }
-                      e.target.value = '';
-                   }}/>
-                   <Label htmlFor="buro-pdf-upload" className="cursor-pointer block">
-                      <div className="bg-amber-100 p-2 rounded-full w-fit mx-auto mb-2">
-                        <FileText className="h-5 w-5 text-amber-600"/>
-                      </div>
-                      <span className="text-xs font-semibold text-gray-700">Subir Reporte PDF</span>
-                      <p className="text-[10px] text-gray-400 mt-1">Clic aquí para seleccionar</p>
-                   </Label>
-                </div>
-              )}
-
-              {/* Buró de Crédito - Carga de archivos Extra con Galería */}
-              <div className="mt-4 pt-3 border-t">
-                <Label className="text-xs font-semibold">Archivos Adicionales (Opcional - con galería)</Label>
-                <div
-                  className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-amber-50 mt-2 cursor-pointer hover:bg-amber-100 transition-colors"
-                  tabIndex={0}
-                  onPaste={async (e) => {
-                    if (isClientAuth || !canEditProcess) return;
-                    e.preventDefault();
-                    const items = e.clipboardData.items;
-                    let blob: File | null = null;
-                    for (let i = 0; i < items.length; i++) {
-                      if (items[i].type.indexOf("image") !== -1) {
-                        blob = items[i].getAsFile();
-                        break;
-                      }
-                    }
-                    if (!blob) {
-                      toast.error("No se detectó imagen en el portapapeles");
-                      return;
-                    }
-                    try {
-                      toast.info("Subiendo imagen pegada...");
-                      const arrayBuf = await blob.arrayBuffer();
-                      let binary = '';
-                      const bytes = new Uint8Array(arrayBuf);
-                      const len = bytes.byteLength;
-                      for (let i = 0; i < len; i++) {
-                        binary += String.fromCharCode(bytes[i]);
-                      }
-                      const base64 = btoa(binary);
-
-                      const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO_ADICIONAL', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-                      
-                      setPanelForm(currentForm => {
-                        const newForm = { 
-                          ...currentForm, 
-                          buroCredito: { 
-                            ...currentForm.buroCredito, 
-                            archivosAdicionales: [...(currentForm.buroCredito as any).archivosAdicionales, res.url]
-                          } 
-                        };
-                        
-                        const payload = getPanelPayload(newForm);
-                        updatePanelDetail.mutate(payload);
-                        
-                        return newForm;
-                      });
-                      toast.success("Evidencia guardada");
-                    } catch (err: any) {
-                      toast.error("Error al subir: " + err.message);
-                    }
-                  }}
-                >
-                  {(panelForm.buroCredito as any).archivosAdicionales?.length > 0 ? (
-                    <div className="w-full">
-                      <div className="grid grid-cols-3 gap-2">
-                        {(panelForm.buroCredito as any).archivosAdicionales.map((url: string, idx: number) => (
-                          <div key={idx} className="relative group">
-                            <img 
-                              src={url} 
-                              alt={`Buro Adicional ${idx + 1}`} 
-                              className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                              onClick={() => { setLightboxSection("buro"); setLightboxIndex(idx); setLightboxOpen(true); }}
+                {/* 3. Investigación Legal */}
+                <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
+                   <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                        <Landmark className="h-4 w-4 text-indigo-600" /> Investigación Legal
+                        <div className="ml-auto flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400">Riesgo</span>
+                            <input
+                                type="checkbox"
+                                checked={panelForm.investigacionLegal.flagRiesgo}
+                                onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, flagRiesgo: e.target.checked } }))}
+                                disabled={isClientAuth || !canEditProcess}
                             />
-                            <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
-                              e.stopPropagation();
-                              setPanelForm(f => ({ ...f, buroCredito: { ...f.buroCredito, archivosAdicionales: (f.buroCredito as any).archivosAdicionales.filter((_: string, i: number) => i !== idx) } }));
-                            }}>×</Button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-600 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.buroCredito as any).archivosAdicionales?.length || 0})</p>
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-500">
-                      <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = e.currentTarget.files;
-                      const inputEl = e.currentTarget;
-                      if (files && !isClientAuth && canEditProcess) {
-                        for (let i = 0; i < files.length; i++) {
-                          const file = files[i];
-                          file.arrayBuffer().then(async (arrayBuf) => {
-                            let binary = '';
-                            const bytes = new Uint8Array(arrayBuf);
-                            const len = bytes.byteLength;
-                            for (let j = 0; j < len; j++) {
-                              binary += String.fromCharCode(bytes[j]);
-                            }
-                            const base64 = btoa(binary);
-                            try {
-                              const res = await uploadProcessDoc.mutateAsync({ 
-                                procesoId: processId, 
-                                tipoDocumento: 'BURO_CREDITO_ADICIONAL', 
-                                fileName: file.name, 
-                                contentType: file.type || 'application/octet-stream', 
-                                base64 
-                              } as any);
-                              
-                              setPanelForm(currentForm => {
-                                const newForm = { 
-                                  ...currentForm, 
-                                  buroCredito: { 
-                                    ...currentForm.buroCredito, 
-                                    archivosAdicionales: [...(currentForm.buroCredito as any).archivosAdicionales, res.url]
-                                  } 
-                                };
-                                const payload = getPanelPayload(newForm);
-                                updatePanelDetail.mutateAsync(payload).then(() => {
-                                  toast.success("Archivo guardado");
-                                }).catch((err: any) => {
-                                  toast.error("Error al guardar en BD: " + err.message);
-                                });
-                                return newForm;
-                              });
-                            } catch (err: any) {
-                              toast.error("Error al subir: " + err.message);
-                            }
-                          });
-                        }
-                        inputEl.value = '';
-                      }
-                    }}
-                    disabled={isClientAuth || !canEditProcess}
-                    className="block w-full text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Soporta: PDF, JPG, PNG (múltiples archivos)</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border rounded p-3 bg-white shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <Home className="h-4 w-4 text-emerald-600" />
-                <p className="font-semibold">Visita (virtual/presencial)</p>
-              </div>
-              <Label className="text-xs">Tipo</Label>
-              <select
-                className="border rounded-md h-9 px-2 w-full"
-                value={panelForm.visitaDetalle.tipo}
-                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, tipo: e.target.value } }))}
-                disabled={isClientAuth}
-              >
-                <option value="">Sin definir</option>
-                <option value="virtual">Virtual</option>
-                <option value="presencial">Presencial</option>
-              </select>
-              <Label className="text-xs mt-2">Fecha realización</Label>
-              <Input
-                type="date"
-                value={panelForm.visitaDetalle.fechaRealizacion}
-                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, fechaRealizacion: e.target.value } }))}
-                disabled={isClientAuth}
-              />
-              <Label className="text-xs mt-2">Comentarios</Label>
-              <Textarea
-                value={panelForm.visitaDetalle.comentarios}
-                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, comentarios: e.target.value } }))}
-                rows={2}
-                disabled={isClientAuth}
-              />
-              <Label className="text-xs mt-2">Enlace a reporte</Label>
-              <Input
-                value={panelForm.visitaDetalle.enlaceReporteUrl}
-                onChange={e => setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, enlaceReporteUrl: e.target.value } }))}
-                disabled={isClientAuth}
-              />
-              
-              {/* Galería de fotos de Visita */}
-              <Label className="text-xs mt-3">Fotos de la Visita (Pegar del portapapeles - múltiples imágenes permitidas)</Label>
-              <div
-                className="border-2 border-dashed rounded min-h-[100px] flex flex-col items-center justify-center p-2 bg-green-50 mt-1 cursor-pointer hover:bg-green-100 transition-colors"
-                tabIndex={0}
-                onPaste={async (e) => {
-                  if (isClientAuth) return;
-                  e.preventDefault();
-                  const items = e.clipboardData.items;
-                  let blob: File | null = null;
-                  for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf("image") !== -1) {
-                      blob = items[i].getAsFile();
-                      break;
-                    }
-                  }
-                  if (!blob) {
-                    toast.error("No se detectó imagen en el portapapeles");
-                    return;
-                  }
-                  try {
-                    toast.info("Subiendo imagen pegada...");
-                    const arrayBuf = await blob.arrayBuffer();
-                    let binary = '';
-                    const bytes = new Uint8Array(arrayBuf);
-                    const len = bytes.byteLength;
-                    for (let i = 0; i < len; i++) {
-                      binary += String.fromCharCode(bytes[i]);
-                    }
-                    const base64 = btoa(binary);
-
-                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'VISITA_FOTOGRAFIA', fileName: `paste-${Date.now()}.png`, contentType: blob.type, base64 } as any);
-                    
-                    setPanelForm(currentForm => {
-                      const newForm = { 
-                        ...currentForm, 
-                        visitaDetalle: { 
-                          ...currentForm.visitaDetalle, 
-                          evidenciasGraficas: [...(currentForm.visitaDetalle as any).evidenciasGraficas, res.url]
-                        } 
-                      };
-                      
-                      const payload = getPanelPayload(newForm);
-                      updatePanelDetail.mutateAsync(payload).then(() => {
-                        toast.success("Foto guardada");
-                      }).catch((err: any) => {
-                        toast.error("Error al guardar en BD: " + err.message);
-                      });
-                      
-                      return newForm;
-                    });
-                  } catch (err: any) {
-                    toast.error("Error al subir: " + err.message);
-                  }
-                }}
-              >
-                {(panelForm.visitaDetalle as any).evidenciasGraficas?.length > 0 ? (
-                  <div className="w-full">
-                    <div className="grid grid-cols-3 gap-2">
-                      {(panelForm.visitaDetalle as any).evidenciasGraficas.map((url: string, idx: number) => (
-                        <div key={idx} className="relative group">
-                          <img 
-                            src={url} 
-                            alt={`Visita ${idx + 1}`} 
-                            className="h-20 w-20 object-cover rounded shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                            onClick={() => { setLightboxSection("visita"); setLightboxIndex(idx); setLightboxOpen(true); }}
-                          />
-                          <Button size="sm" variant="destructive" className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0" onClick={(e) => {
-                            e.stopPropagation();
-                            setPanelForm(f => ({ ...f, visitaDetalle: { ...f.visitaDetalle, evidenciasGraficas: (f.visitaDetalle as any).evidenciasGraficas.filter((_: string, i: number) => i !== idx) } }));
-                          }}>×</Button>
                         </div>
-                      ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">Haz click en una imagen para agrandar • Pega otra imagen o haz clic en X para eliminar ({(panelForm.visitaDetalle as any).evidenciasGraficas?.length || 0})</p>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <p className="text-xs">Haz clic aquí y presiona CTRL+V para pegar imágenes de fotos tomadas en la visita</p>
-                  </div>
-                )}
+                    <div>
+                        <Label className="text-xs">Antecedentes / Hallazgos</Label>
+                        <Textarea
+                            value={panelForm.investigacionLegal.antecedentes}
+                            onChange={e => setPanelForm(f => ({ ...f, investigacionLegal: { ...f.investigacionLegal, antecedentes: e.target.value } }))}
+                            disabled={isClientAuth || !canEditProcess}
+                            rows={3}
+                            className="bg-gray-50"
+                        />
+                    </div>
+                    
+                    <div className="mt-2">
+                        <Label className="text-xs">Evidencia Gráfica (Paste)</Label>
+                        <div
+                        className="border-2 border-dashed rounded h-20 flex flex-col items-center justify-center bg-gray-50 mt-1 cursor-pointer hover:bg-gray-100"
+                        tabIndex={0}
+                        onPaste={async (e) => {
+                            if (isClientAuth) return;
+                            e.preventDefault();
+                            const files = e.clipboardData.files;
+                            if (files.length > 0) {
+                               toast.info("Subiendo...");
+                               const file = files[0];
+                               const arrayBuf = await file.arrayBuffer();
+                               let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                               const base64 = btoa(binary);
+                               const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste.png`, contentType: file.type, base64 } as any);
+                               setPanelForm(f => ({...f, investigacionLegal: { ...f.investigacionLegal, evidenciasGraficas: [...(f.investigacionLegal as any).evidenciasGraficas, res.url] }}));
+                               toast.success("Subido");
+                            }
+                        }}
+                        >
+                        <p className="text-[10px] text-gray-400 text-center px-2">Click y Ctrl+V para pegar imagen</p>
+                        </div>
+                        {/* Thumbnails */}
+                        <div className="flex gap-1 overflow-x-auto mt-2 h-12">
+                             {(panelForm.investigacionLegal as any).evidenciasGraficas.map((url:string, i:number) => (
+                                 <img key={i} src={url} className="h-10 w-10 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("legal"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                             ))}
+                        </div>
+                    </div>
+                </div>
+
+                 {/* 4. Semanas Cotizadas */}
+                <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
+                   <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                        <FileText className="h-4 w-4 text-teal-600" /> Semanas Cotizadas
+                    </div>
+                    <div>
+                        <Label className="text-xs">Comentario Cotejo</Label>
+                        <Textarea
+                            value={panelForm.semanasDetalle.comentario}
+                            onChange={e => setPanelForm(f => ({ ...f, semanasDetalle: { ...f.semanasDetalle, comentario: e.target.value } }))}
+                            rows={3}
+                            disabled={isClientAuth || !canEditProcess}
+                        />
+                    </div>
+                     <div className="mt-2">
+                        <Label className="text-xs">Evidencia (Paste / Upload)</Label>
+                         <div className="grid grid-cols-2 gap-2 mt-1">
+                             <div className="border border-dashed rounded h-16 flex items-center justify-center bg-gray-50 cursor-pointer text-[10px] text-gray-400"
+                                  onPaste={async (e) => {
+                                      if (isClientAuth) return;
+                                      const file = e.clipboardData.files[0];
+                                      if(file) {
+                                          toast.info("Subiendo...");
+                                           const arrayBuf = await file.arrayBuffer();
+                                           let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                                           const base64 = btoa(binary);
+                                           const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste.png`, contentType: file.type, base64 } as any);
+                                           setPanelForm(f => ({...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: [...(f.semanasDetalle as any).evidenciasGraficas, res.url] }}));
+                                           toast.success("Subido");
+                                      }
+                                  }}
+                                  tabIndex={0}
+                             >Pegar IMG</div>
+                             <div className="relative border border-dashed rounded h-16 flex items-center justify-center bg-gray-50 text-[10px] text-gray-400">
+                                 Subir PDF
+                                 <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async(e) => {
+                                     const file = e.currentTarget.files?.[0];
+                                     if(file) {
+                                        toast.info("Subiendo...");
+                                        const arrayBuf = await file.arrayBuffer();
+                                           let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                                           const base64 = btoa(binary);
+                                           const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_IMSS', fileName: file.name, contentType: file.type, base64 } as any);
+                                           setPanelForm(f => ({...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: [...(f.semanasDetalle as any).evidenciasGraficas, res.url] }}));
+                                           toast.success("Subido");
+                                     }
+                                 }}/>
+                             </div>
+                         </div>
+                         <div className="flex gap-1 overflow-x-auto mt-2 h-12">
+                             {(panelForm.semanasDetalle as any).evidenciasGraficas.map((url:string, i:number) => (
+                                 <div key={i} className="h-10 w-10 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { setLightboxSection("semanas"); setLightboxIndex(i); setLightboxOpen(true); }}>
+                                     {url.includes('.pdf') ? <FileText className="h-5 w-5"/> : <img src={url} className="h-full w-full object-cover"/>}
+                                 </div>
+                             ))}
+                        </div>
+                    </div>
+                </div>
+
+                 {/* 5. Antecedentes Penales */}
+                <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
+                   <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                        <AlertTriangle className="h-4 w-4 text-red-600" /> Antecedentes Penales
+                    </div>
+                     <div className="mt-2 text-center py-4 bg-gray-50 border border-dashed rounded cursor-pointer"
+                        onPaste={async (e) => {
+                              if (isClientAuth) return;
+                              const file = e.clipboardData.files[0];
+                              if(file) {
+                                    toast.info("Subiendo...");
+                                    const arrayBuf = await file.arrayBuffer();
+                                    let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                                    const base64 = btoa(binary);
+                                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'ANTECEDENTES_PENALES', fileName: `paste.png`, contentType: file.type, base64 } as any);
+                                    setPanelForm(f => ({...f, antecedentesPenales: { ...f.antecedentesPenales, evidenciasGraficas: [...(f.antecedentesPenales as any).evidenciasGraficas, res.url] }}));
+                                    toast.success("Subido");
+                              }
+                        }}
+                        tabIndex={0}
+                     >
+                         <p className="text-xs text-muted-foreground">Pegar Imagen aquí</p>
+                     </div>
+                     <div className="flex gap-1 overflow-x-auto mt-2 h-12">
+                             {(panelForm.antecedentesPenales as any).evidenciasGraficas.map((url:string, i:number) => (
+                                 <img key={i} src={url} className="h-10 w-10 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("penales"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                             ))}
+                     </div>
+                </div>
+
+                {/* 6. Buró de Crédito */}
+                <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
+                   <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                        <FileText className="h-4 w-4 text-amber-600" /> Buró de Crédito
+                    </div>
+                    
+                    {(panelForm.buroCredito as any)?.pdfUrl ? (
+                        <div className="flex items-center gap-2 text-xs border p-2 rounded bg-green-50">
+                            <FileText className="h-4 w-4 text-green-700"/>
+                            <a href={(panelForm.buroCredito as any).pdfUrl} target="_blank" className="truncate flex-1 hover:underline">Ver Reporte</a>
+                            <Button size="xs" variant="ghost" className="h-6 w-6 p-0" onClick={() => setPanelForm(f=>({...f, buroCredito: {...f.buroCredito, pdfUrl: null} as any}))}>×</Button>
+                        </div>
+                    ) : (
+                        <div className="relative border border-dashed rounded p-3 text-center bg-gray-50">
+                            <input type="file" accept="application/pdf" className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={async(e) => {
+                                     const file = e.currentTarget.files?.[0];
+                                     if(file) {
+                                        toast.info("Subiendo...");
+                                        const arrayBuf = await file.arrayBuffer();
+                                        let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                                        const base64 = btoa(binary);
+                                        const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO', fileName: file.name, contentType: file.type, base64 } as any);
+                                        setPanelForm(f => ({...f, buroCredito: { ...f.buroCredito, pdfUrl: res.url } as any}));
+                                        toast.success("Subido");
+                                     }
+                                }}
+                            />
+                            <p className="text-xs text-muted-foreground">Subir PDF</p>
+                        </div>
+                    )}
+                    
+                     <div className="mt-2 border-t pt-2">
+                        <Label className="text-[10px] text-gray-500">Adicionales</Label>
+                        <div className="text-[10px] text-gray-400 text-center border border-dashed rounded p-1 cursor-pointer" tabIndex={0}
+                            onPaste={async (e) => {
+                                if (isClientAuth) return;
+                                const file = e.clipboardData.files[0];
+                                if(file) {
+                                    toast.info("Subiendo...");
+                                    const arrayBuf = await file.arrayBuffer();
+                                    let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                                    const base64 = btoa(binary);
+                                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO_ADICIONAL', fileName: `paste.png`, contentType: file.type, base64 } as any);
+                                    setPanelForm(f => ({...f, buroCredito: { ...f.buroCredito, archivosAdicionales: [...(f.buroCredito as any).archivosAdicionales, res.url] }}));
+                                }
+                            }}
+                        >Paste files</div>
+                         <div className="flex gap-1 overflow-x-auto mt-1 h-10">
+                             {(panelForm.buroCredito as any).archivosAdicionales.map((url:string, i:number) => (
+                                 <img key={i} src={url} className="h-8 w-8 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("buro"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                             ))}
+                        </div>
+                    </div>
+                </div>
+
+                 {/* 7. Visita Detalle */}
+                <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
+                   <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                        <Home className="h-4 w-4 text-emerald-600" /> Visita (Resumen)
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label className="text-xs">Tipo</Label>
+                            <select className="w-full text-xs border rounded h-8" value={panelForm.visitaDetalle.tipo} onChange={e => setPanelForm(f => ({...f, visitaDetalle: {...f.visitaDetalle, tipo: e.target.value}}))}>
+                                <option value="">-</option>
+                                <option value="virtual">Virtual</option>
+                                <option value="presencial">Presencial</option>
+                            </select>
+                        </div>
+                        <div>
+                             <Label className="text-xs">Fecha</Label>
+                            <Input type="date" className="h-8 text-xs" value={panelForm.visitaDetalle.fechaRealizacion} onChange={e => setPanelForm(f => ({...f, visitaDetalle: {...f.visitaDetalle, fechaRealizacion: e.target.value}}))} />
+                        </div>
+                    </div>
+                    <Textarea className="text-xs" rows={2} placeholder="Comentarios..." value={panelForm.visitaDetalle.comentarios} onChange={e => setPanelForm(f => ({...f, visitaDetalle: {...f.visitaDetalle, comentarios: e.target.value}}))} />
+                    
+                    <div className="text-[10px] text-center border border-dashed rounded p-1 cursor-pointer" tabIndex={0}
+                         onPaste={async(e) => {
+                             if(isClientAuth) return;
+                             const file = e.clipboardData.files[0];
+                              if(file) {
+                                    toast.info("Subiendo...");
+                                    const arrayBuf = await file.arrayBuffer();
+                                    let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+                                    const base64 = btoa(binary);
+                                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'VISITA_FOTOGRAFIA', fileName: `paste.png`, contentType: file.type, base64 } as any);
+                                    setPanelForm(f => ({...f, visitaDetalle: { ...f.visitaDetalle, evidenciasGraficas: [...(f.visitaDetalle as any).evidenciasGraficas || [], res.url] }}));
+                              }
+                         }}
+                    >Paste Photos</div>
+                     <div className="flex gap-1 overflow-x-auto mt-1 h-10">
+                             {(panelForm.visitaDetalle as any).evidenciasGraficas?.map((url:string, i:number) => (
+                                 <img key={i} src={url} className="h-8 w-8 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("visita"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                             ))}
+                    </div>
+                </div>
+
               </div>
+            </TabsContent>
 
-              <div className="mt-2 p-2 bg-gray-50 rounded border border-dashed">
-                <input
-                  type="file"
-                  multiple
-                  accept=".jpg,.jpeg,.png,.gif"
-                  onChange={(e) => {
-                    const files = e.currentTarget.files;
-                    const inputEl = e.currentTarget;
-                    if (files && !isClientAuth) {
-                      for (let i = 0; i < files.length; i++) {
-                        const file = files[i];
-                        file.arrayBuffer().then(async (arrayBuf) => {
-                          let binary = '';
-                          const bytes = new Uint8Array(arrayBuf);
-                          const len = bytes.byteLength;
-                          for (let j = 0; j < len; j++) {
-                            binary += String.fromCharCode(bytes[j]);
-                          }
-                          const base64 = btoa(binary);
-                          try {
-                            const res = await uploadProcessDoc.mutateAsync({ 
-                              procesoId: processId, 
-                              tipoDocumento: 'VISITA_FOTOGRAFIA', 
-                              fileName: file.name, 
-                              contentType: file.type || 'image/jpeg', 
-                              base64 
-                            } as any);
-                            
-                            setPanelForm(currentForm => {
-                              const newForm = { 
-                                ...currentForm, 
-                                visitaDetalle: { 
-                                  ...currentForm.visitaDetalle, 
-                                  evidenciasGraficas: [...(currentForm.visitaDetalle as any).evidenciasGraficas, res.url]
-                                } 
-                              };
-                              const payload = getPanelPayload(newForm);
-                              updatePanelDetail.mutate(payload);
-                              return newForm;
-                            });
-                            toast.success("Foto guardada");
-                          } catch (err: any) {
-                            toast.error("Error al subir: " + err.message);
-                          }
-                        });
-                      }
-                      inputEl.value = '';
-                    }
-                  }}
-                  disabled={isClientAuth}
-                  className="block w-full text-sm"
-                />
-                <p className="text-xs text-gray-500 mt-1">Soporta: JPG, PNG, GIF (múltiples archivos)</p>
-              </div>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground">Captura interna; el cliente solo lo ve en modo lectura.</p>
-        </CardContent>
-      </Card>
-
-      {/* Visitas */}
+            <TabsContent value="visitas" className="mt-4">
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
           <CardTitle className="flex items-center gap-2">
@@ -1627,7 +904,6 @@ export default function ProcesoDetalle() {
           </CardTitle>
           {!isClientAuth && (
             <Button size="sm" variant="outline" onClick={()=>{
-              // Preseleccionar todos los encuestadores activos
               setNotifySelected(surveyors.map((s:any)=> s.id));
               setNotifyOpen(true);
             }}>Avisar encuestadores</Button>
@@ -1721,16 +997,6 @@ export default function ProcesoDetalle() {
                           }}>WhatsApp</Button>
                         )}
                         <Button size="sm" variant="outline" onClick={()=> window.open(gUrl, '_blank')}>Google Calendar</Button>
-                        <Button size="sm" variant="outline" onClick={()=>{
-                          const ics = buildICS(title, process.visitStatus?.scheduledDateTime, 60, details, process.visitStatus?.direccion);
-                          const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `visita-${process.clave}.ics`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}>Descargar .ics</Button>
                       </>
                     );
                   })()}
@@ -1740,7 +1006,6 @@ export default function ProcesoDetalle() {
           </div>
         </CardContent>
       </Card>
-
       {/* Aviso a encuestadores */}
       {!isClientAuth && canEditProcess && (
       <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
@@ -1766,10 +1031,6 @@ export default function ProcesoDetalle() {
                   </label>
                 ))}
               </div>
-              <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="outline" onClick={()=> setNotifySelected(surveyors.map((s:any)=> s.id))}>Seleccionar todos</Button>
-                <Button size="sm" variant="outline" onClick={()=> setNotifySelected([])}>Limpiar</Button>
-              </div>
             </div>
             <div className="flex flex-wrap gap-2 justify-end">
               <Button variant="outline" onClick={()=> setNotifyOpen(false)}>Cerrar</Button>
@@ -1778,7 +1039,7 @@ export default function ProcesoDetalle() {
                 const cand = getCandidate();
                 const cli = getClient();
                 const puesto = posts.find((p:any)=> p.id === process.puestoId)?.nombreDelPuesto;
-                const fechaISO = process.visitStatus?.scheduledDateTime; // puede ser undefined
+                const fechaISO = process.visitStatus?.scheduledDateTime;
                 const msgBase = (encNombre?: string) => buildVisitMessage({
                   encNombre,
                   procesoClave: process.clave,
@@ -1790,10 +1051,8 @@ export default function ProcesoDetalle() {
                   observaciones: process.visitStatus?.observaciones,
                   puestoNombre: puesto,
                 }) + "\n¿Puedes atenderla?";
-
                 const targets = surveyors.filter((s:any)=> notifySelected.includes(s.id) && s.telefono);
                 if (targets.length === 0) { return; }
-                // Abrir pestañas de WhatsApp (el navegador puede bloquear múltiples; el usuario puede permitirlas)
                 targets.forEach((s:any, idx:number)=> {
                   setTimeout(()=> {
                     const url = buildWhatsappUrl(s.telefono, msgBase(s.nombre));
@@ -1806,7 +1065,8 @@ export default function ProcesoDetalle() {
         </DialogContent>
       </Dialog>
       )}
-
+            </TabsContent>
+            <TabsContent value="documentos" className="mt-4">
       <Card>
         <CardHeader className="flex items-center justify-between flex-row">
           <CardTitle>Documentos</CardTitle>
@@ -1856,7 +1116,6 @@ export default function ProcesoDetalle() {
             const tipo = (fd.get('tipoDocumento') as string) || 'OTRO';
             if (!file) return;
             const arrayBuf = await file.arrayBuffer();
-            
             let binary = '';
             const bytes = new Uint8Array(arrayBuf);
             const len = bytes.byteLength;
@@ -1864,7 +1123,6 @@ export default function ProcesoDetalle() {
                 binary += String.fromCharCode(bytes[i]);
             }
             const base64 = btoa(binary);
-
             uploadProcessDoc.mutate({ procesoId: processId, tipoDocumento: tipo, fileName: file.name, contentType: file.type || 'application/octet-stream', base64 } as any);
             (e.currentTarget as HTMLFormElement).reset();
           }} className="space-y-2 mb-4">
@@ -1890,7 +1148,6 @@ export default function ProcesoDetalle() {
             </div>
           </form>
           )}
-
           {documents.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin documentos</p>
           ) : (
@@ -1925,8 +1182,11 @@ export default function ProcesoDetalle() {
           )}
         </CardContent>
       </Card>
-
-      {/* Lightbox Modal para galerías */}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+      
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1934,7 +1194,7 @@ export default function ProcesoDetalle() {
               {lightboxSection === "legal" && "Evidencia - Investigación Legal"}
               {lightboxSection === "semanas" && "Evidencia - Semanas Cotizadas"}
               {lightboxSection === "penales" && "Evidencia - Antecedentes Penales"}
-              {lightboxSection === "buro" && "Evidencia - Buró de Crédito (Archivos Adicionales)"}
+              {lightboxSection === "buro" && "Evidencia - Buró de Crédito"}
               {lightboxSection === "visita" && "Evidencia - Visita"}
             </DialogTitle>
           </DialogHeader>
@@ -1952,7 +1212,6 @@ export default function ProcesoDetalle() {
               };
               const images = getImagesForSection();
               const currentImage = images[lightboxIndex];
-              
               return images.length > 0 && currentImage ? (
                 <div className="space-y-3">
                   <img 
@@ -1963,7 +1222,7 @@ export default function ProcesoDetalle() {
                   <div className="flex items-center justify-between text-sm">
                     <span>{lightboxIndex + 1} de {images.length}</span>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
+                       <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))} disabled={lightboxIndex === 0}>
                         <ChevronLeft className="h-4 w-4" /> Anterior
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => setLightboxIndex(Math.min(images.length - 1, lightboxIndex + 1))} disabled={lightboxIndex === images.length - 1}>
@@ -1977,11 +1236,6 @@ export default function ProcesoDetalle() {
           }
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
-
-
-
-
