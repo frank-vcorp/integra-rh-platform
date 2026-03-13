@@ -254,14 +254,14 @@ export default function ClienteDashboard() {
                           <TableCell className="text-right">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Link href={`/cliente/proceso/${process.id}`}>
+                                <Link href={`/cliente/candidato/${process.candidatoId}`}>
                                   <Button variant="ghost" size="sm">
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </Link>
                               </TooltipTrigger>
                               <TooltipContent>
-                                Ver detalle del proceso y su avance.
+                                Ver expediente completo
                               </TooltipContent>
                             </Tooltip>
                           </TableCell>
