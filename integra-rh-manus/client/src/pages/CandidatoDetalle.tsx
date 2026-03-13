@@ -30,6 +30,25 @@ import { CAUSALES_SALIDA, CausalSalidaType, ESTATUS_INVESTIGACION, EstatusInvest
 import { calcularTiempoTrabajado, formatearFecha } from "@/lib/dateUtils";
 import { ReviewAndCompleteDialog } from "@/components/ReviewAndCompleteDialog";
 import { AuditTrailViewer } from "@/components/AuditTrailViewer";
+import {
+  IdentificationCard,
+  House,
+  Phone,
+  UsersThree,
+  ShareNetwork,
+  Heart,
+  GraduationCap,
+  Car,
+  CurrencyDollar,
+} from "@phosphor-icons/react";
+
+// IMPL-20260313-02 — InfoItem helper para perfil extendido
+const InfoItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div>
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="font-medium text-sm text-slate-800">{String(value ?? "")}</p>
+  </div>
+);
 
 const INVESTIGACION_BADGE: Record<EstatusInvestigacionType, string> = {
   en_revision: "bg-yellow-100 text-yellow-800",
@@ -1125,109 +1144,41 @@ export default function CandidatoDetalle() {
         </CardHeader>
         <CardContent>
           {perfilFilledCount > 0 && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+              {/* ── Identificación ── */}
               {hasIdentificacion && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Identificación</p>
-                  {hasValue(generales.puestoSolicitado) && (
-                    <p>
-                      <span className="text-muted-foreground">Puesto solicitado: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {generales.puestoSolicitado}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(generales.plaza) && (
-                    <p>
-                      <span className="text-muted-foreground">Plaza / CEDI: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {generales.plaza}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(generales.ciudadResidencia) && (
-                    <p>
-                      <span className="text-muted-foreground">Ciudad de residencia: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {generales.ciudadResidencia}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(generales.rfc) && (
-                    <p>
-                      <span className="text-muted-foreground">RFC: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {generales.rfc}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <IdentificationCard weight="fill" className="h-4 w-4 text-blue-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Identificación</p>
+                  </div>
+                  {hasValue(generales.puestoSolicitado) && <InfoItem label="Puesto solicitado" value={generales.puestoSolicitado} />}
+                  {hasValue(generales.plaza) && <InfoItem label="Plaza / CEDI" value={generales.plaza} />}
+                  {hasValue(generales.ciudadResidencia) && <InfoItem label="Ciudad de residencia" value={generales.ciudadResidencia} />}
+                  {hasValue(generales.rfc) && <InfoItem label="RFC" value={generales.rfc} />}
                   {(hasValue(generales.telefonoCasa) || hasValue(generales.telefonoRecados)) && (
-                    <p>
-                      <span className="text-muted-foreground">Tel. casa / recados: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {[generales.telefonoCasa, generales.telefonoRecados]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </span>
-                    </p>
+                    <InfoItem label="Tel. casa / recados" value={[generales.telefonoCasa, generales.telefonoRecados].filter(Boolean).join(" / ")} />
                   )}
-                  {hasValue(generales.fechaNacimiento) && (
-                    <p>
-                      <span className="text-muted-foreground">Fecha de nacimiento: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {generales.fechaNacimiento}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(generales.lugarNacimiento) && (
-                    <p>
-                      <span className="text-muted-foreground">Lugar de nacimiento: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {generales.lugarNacimiento}
-                      </span>
-                    </p>
-                  )}
+                  {hasValue(generales.fechaNacimiento) && <InfoItem label="Fecha de nacimiento" value={generales.fechaNacimiento} />}
+                  {hasValue(generales.lugarNacimiento) && <InfoItem label="Lugar de nacimiento" value={generales.lugarNacimiento} />}
                 </div>
               )}
 
+              {/* ── Domicilio ── */}
               {hasDomicilio && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Domicilio</p>
-                  {(hasValue(domicilio.calle) ||
-                    hasValue(domicilio.numero) ||
-                    hasValue(domicilio.interior) ||
-                    hasValue(domicilio.colonia) ||
-                    hasValue(domicilio.municipio) ||
-                    hasValue(domicilio.estado) ||
-                    hasValue(domicilio.cp)) && (
-                    <p>
-                      <span className="text-muted-foreground">Dirección: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {[domicilio.calle, domicilio.numero, domicilio.interior, domicilio.colonia, domicilio.municipio, domicilio.estado, domicilio.cp]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </span>
-                    </p>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <House weight="fill" className="h-4 w-4 text-emerald-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Domicilio</p>
+                  </div>
+                  {(hasValue(domicilio.calle) || hasValue(domicilio.numero) || hasValue(domicilio.interior) || hasValue(domicilio.colonia) || hasValue(domicilio.municipio) || hasValue(domicilio.estado) || hasValue(domicilio.cp)) && (
+                    <InfoItem label="Dirección" value={[domicilio.calle, domicilio.numero, domicilio.interior, domicilio.colonia, domicilio.municipio, domicilio.estado, domicilio.cp].filter(Boolean).join(", ")} />
                   )}
                   {domicilio.mapLink && typeof domicilio.mapLink === 'object' && 'lat' in domicilio.mapLink && 'lng' in domicilio.mapLink && (
-                    <div className="mt-4 rounded-lg overflow-hidden border border-slate-200" style={{ height: "300px" }}>
-                      <MapContainer
-                        center={[domicilio.mapLink.lat, domicilio.mapLink.lng]}
-                        zoom={16}
-                        className="h-full w-full"
-                      >
-                        <TileLayer
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          attribution='&copy; OpenStreetMap contributors'
-                        />
+                    <div className="mt-2 rounded-lg overflow-hidden border border-slate-200" style={{ height: "240px" }}>
+                      <MapContainer center={[domicilio.mapLink.lat, domicilio.mapLink.lng]} zoom={16} className="h-full w-full">
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
                         <Marker position={[domicilio.mapLink.lat, domicilio.mapLink.lng]} />
                       </MapContainer>
                     </div>
@@ -1235,441 +1186,127 @@ export default function CandidatoDetalle() {
                 </div>
               )}
 
+              {/* ── Contacto de emergencia ── */}
               {hasContactoEmergencia && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Contacto de emergencia</p>
-                  {hasValue(contactoEmergencia.nombre) && (
-                    <p>
-                      <span className="text-muted-foreground">Nombre: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {contactoEmergencia.nombre}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(contactoEmergencia.parentesco) && (
-                    <p>
-                      <span className="text-muted-foreground">Parentesco: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {contactoEmergencia.parentesco}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(contactoEmergencia.telefono) && (
-                    <p>
-                      <span className="text-muted-foreground">Teléfono: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {contactoEmergencia.telefono}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Phone weight="fill" className="h-4 w-4 text-red-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Contacto de emergencia</p>
+                  </div>
+                  {hasValue(contactoEmergencia.nombre) && <InfoItem label="Nombre" value={contactoEmergencia.nombre} />}
+                  {hasValue(contactoEmergencia.parentesco) && <InfoItem label="Parentesco" value={contactoEmergencia.parentesco} />}
+                  {hasValue(contactoEmergencia.telefono) && <InfoItem label="Teléfono" value={contactoEmergencia.telefono} />}
                 </div>
               )}
 
+              {/* ── Entorno familiar ── */}
               {hasEntornoFamiliar && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Entorno familiar</p>
-                  {hasValue(perfil.situacionFamiliar?.estadoCivil) && (
-                    <p>
-                      <span className="text-muted-foreground">Estado civil: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.estadoCivil}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.tieneHijos) && (
-                    <p>
-                      <span className="text-muted-foreground">¿Tiene hijos?: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.tieneHijos}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.cantidadHijos) && (
-                    <p>
-                      <span className="text-muted-foreground">Cantidad de hijos: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.cantidadHijos}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.edadesHijos) && (
-                    <p>
-                      <span className="text-muted-foreground">Edades de los hijos: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.edadesHijos}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.hijosDescripcion) && (
-                    <p>
-                      <span className="text-muted-foreground">Hijos / comentarios: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.hijosDescripcion}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.vivienda) && (
-                    <p>
-                      <span className="text-muted-foreground">Vivienda: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.vivienda}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.fechaMatrimonioUnion) && (
-                    <p>
-                      <span className="text-muted-foreground">Fecha matrimonio/unión: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.fechaMatrimonioUnion}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo) && (
-                    <p>
-                      <span className="text-muted-foreground">Pareja de acuerdo con trabajo: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.esposaEmbarazada) && (
-                    <p>
-                      <span className="text-muted-foreground">Esposa embarazada: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.esposaEmbarazada}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.quienCuidaHijos) && (
-                    <p>
-                      <span className="text-muted-foreground">Quién cuida a los hijos: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.quienCuidaHijos}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.dondeVivenCuidadores) && (
-                    <p>
-                      <span className="text-muted-foreground">Dónde viven los cuidadores: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.dondeVivenCuidadores}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.situacionFamiliar?.pensionAlimenticia) && (
-                    <p>
-                      <span className="text-muted-foreground">Pensión alimenticia: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.situacionFamiliar?.pensionAlimenticia}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UsersThree weight="fill" className="h-4 w-4 text-violet-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Entorno familiar</p>
+                  </div>
+                  {hasValue(perfil.situacionFamiliar?.estadoCivil) && <InfoItem label="Estado civil" value={perfil.situacionFamiliar?.estadoCivil} />}
+                  {hasValue(perfil.situacionFamiliar?.tieneHijos) && <InfoItem label="¿Tiene hijos?" value={perfil.situacionFamiliar?.tieneHijos} />}
+                  {hasValue(perfil.situacionFamiliar?.cantidadHijos) && <InfoItem label="Cantidad de hijos" value={perfil.situacionFamiliar?.cantidadHijos} />}
+                  {hasValue(perfil.situacionFamiliar?.edadesHijos) && <InfoItem label="Edades de los hijos" value={perfil.situacionFamiliar?.edadesHijos} />}
+                  {hasValue(perfil.situacionFamiliar?.hijosDescripcion) && <InfoItem label="Hijos / comentarios" value={perfil.situacionFamiliar?.hijosDescripcion} />}
+                  {hasValue(perfil.situacionFamiliar?.vivienda) && <InfoItem label="Vivienda" value={perfil.situacionFamiliar?.vivienda} />}
+                  {hasValue(perfil.situacionFamiliar?.fechaMatrimonioUnion) && <InfoItem label="Fecha matrimonio / unión" value={perfil.situacionFamiliar?.fechaMatrimonioUnion} />}
+                  {hasValue(perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo) && <InfoItem label="Pareja de acuerdo con trabajo" value={perfil.situacionFamiliar?.parejaDeAcuerdoConTrabajo} />}
+                  {hasValue(perfil.situacionFamiliar?.esposaEmbarazada) && <InfoItem label="Esposa embarazada" value={perfil.situacionFamiliar?.esposaEmbarazada} />}
+                  {hasValue(perfil.situacionFamiliar?.quienCuidaHijos) && <InfoItem label="Quién cuida a los hijos" value={perfil.situacionFamiliar?.quienCuidaHijos} />}
+                  {hasValue(perfil.situacionFamiliar?.dondeVivenCuidadores) && <InfoItem label="Dónde viven los cuidadores" value={perfil.situacionFamiliar?.dondeVivenCuidadores} />}
+                  {hasValue(perfil.situacionFamiliar?.pensionAlimenticia) && <InfoItem label="Pensión alimenticia" value={perfil.situacionFamiliar?.pensionAlimenticia} />}
                 </div>
               )}
 
+              {/* ── Redes sociales ── */}
               {hasRedes && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Redes sociales</p>
-                  {hasValue(perfil.redesSociales?.facebook) && (
-                    <p>
-                      <span className="text-muted-foreground">Facebook: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.redesSociales?.facebook}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.redesSociales?.instagram) && (
-                    <p>
-                      <span className="text-muted-foreground">Instagram: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.redesSociales?.instagram}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.redesSociales?.twitterX) && (
-                    <p>
-                      <span className="text-muted-foreground">Twitter / X: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.redesSociales?.twitterX}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.redesSociales?.tiktok) && (
-                    <p>
-                      <span className="text-muted-foreground">TikTok: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.redesSociales?.tiktok}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ShareNetwork weight="fill" className="h-4 w-4 text-sky-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Redes sociales</p>
+                  </div>
+                  {hasValue(perfil.redesSociales?.facebook) && <InfoItem label="Facebook" value={perfil.redesSociales?.facebook} />}
+                  {hasValue(perfil.redesSociales?.instagram) && <InfoItem label="Instagram" value={perfil.redesSociales?.instagram} />}
+                  {hasValue(perfil.redesSociales?.twitterX) && <InfoItem label="Twitter / X" value={perfil.redesSociales?.twitterX} />}
+                  {hasValue(perfil.redesSociales?.tiktok) && <InfoItem label="TikTok" value={perfil.redesSociales?.tiktok} />}
                 </div>
               )}
 
+              {/* ── Pareja / Noviazgo ── */}
               {hasParejaNoviazgo && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Pareja / Noviazgo</p>
-                  {hasValue(perfil.parejaNoviazgo?.tieneNovio) && (
-                    <p>
-                      <span className="text-muted-foreground">¿Tiene novio/a?: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.parejaNoviazgo?.tieneNovio}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.parejaNoviazgo?.nombreNovio) && (
-                    <p>
-                      <span className="text-muted-foreground">Nombre: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.parejaNoviazgo?.nombreNovio}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Heart weight="fill" className="h-4 w-4 text-pink-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Pareja / Noviazgo</p>
+                  </div>
+                  {hasValue(perfil.parejaNoviazgo?.tieneNovio) && <InfoItem label="¿Tiene novio/a?" value={perfil.parejaNoviazgo?.tieneNovio} />}
+                  {hasValue(perfil.parejaNoviazgo?.nombreNovio) && <InfoItem label="Nombre" value={perfil.parejaNoviazgo?.nombreNovio} />}
                   {hasValue(perfil.parejaNoviazgo?.ocupacionNovio) && (
-                    <p>
-                      <span className="text-muted-foreground">Ocupación: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.parejaNoviazgo?.ocupacionNovio}
-                      </span>
-                    </p>
+                    <InfoItem label="Ocupación" value={perfil.parejaNoviazgo?.ocupacionNovio} />
                   )}
                   {hasValue(perfil.parejaNoviazgo?.domicilioNovio) && (
-                    <p>
-                      <span className="text-muted-foreground">Domicilio: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.parejaNoviazgo?.domicilioNovio}
-                      </span>
-                    </p>
+                    <InfoItem label="Domicilio" value={perfil.parejaNoviazgo?.domicilioNovio} />
                   )}
                   {hasValue(perfil.parejaNoviazgo?.apoyoEconomicoMutuo) && (
-                    <p>
-                      <span className="text-muted-foreground">Apoyo económico mutuo: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.parejaNoviazgo?.apoyoEconomicoMutuo}
-                      </span>
-                    </p>
+                    <InfoItem label="Apoyo económico mutuo" value={perfil.parejaNoviazgo?.apoyoEconomicoMutuo} />
                   )}
                   {hasValue(perfil.parejaNoviazgo?.negocioEnConjunto) && (
-                    <p>
-                      <span className="text-muted-foreground">Negocio en conjunto: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.parejaNoviazgo?.negocioEnConjunto}
-                      </span>
-                    </p>
+                    <InfoItem label="Negocio en conjunto" value={perfil.parejaNoviazgo?.negocioEnConjunto} />
                   )}
                 </div>
               )}
 
+              {/* ── Estudios ── */}
               {hasEstudios && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Estudios</p>
-                  {hasValue(perfil.estudios?.nivelEstudios) && (
-                    <p>
-                      <span className="text-muted-foreground">Nivel de estudios: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.estudios?.nivelEstudios}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.estudios?.carrera) && (
-                    <p>
-                      <span className="text-muted-foreground">Carrera: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.estudios?.carrera}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.estudios?.estadoCarrera) && (
-                    <p>
-                      <span className="text-muted-foreground">Estado de carrera: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.estudios?.estadoCarrera}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.estudios?.esEstudiante) && (
-                    <p>
-                      <span className="text-muted-foreground">¿Es estudiante?: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.estudios?.esEstudiante}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.estudios?.modalidadEstudios) && (
-                    <p>
-                      <span className="text-muted-foreground">Modalidad: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.estudios?.modalidadEstudios}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap weight="fill" className="h-4 w-4 text-amber-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Estudios</p>
+                  </div>
+                  {hasValue(perfil.estudios?.nivelEstudios) && <InfoItem label="Nivel de estudios" value={perfil.estudios?.nivelEstudios} />}
+                  {hasValue(perfil.estudios?.carrera) && <InfoItem label="Carrera" value={perfil.estudios?.carrera} />}
+                  {hasValue(perfil.estudios?.estadoCarrera) && <InfoItem label="Estado de carrera" value={perfil.estudios?.estadoCarrera} />}
+                  {hasValue(perfil.estudios?.esEstudiante) && <InfoItem label="¿Es estudiante?" value={perfil.estudios?.esEstudiante} />}
+                  {hasValue(perfil.estudios?.modalidadEstudios) && <InfoItem label="Modalidad" value={perfil.estudios?.modalidadEstudios} />}
                 </div>
               )}
 
+              {/* ── Vehículo / Licencia ── */}
               {hasVehiculo && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Vehículo / Licencia</p>
-                  {hasValue(perfil.vehiculo?.licenciaConducir) && (
-                    <p>
-                      <span className="text-muted-foreground">Licencia de conducir: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.vehiculo?.licenciaConducir}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.vehiculo?.claseLicencia) && (
-                    <p>
-                      <span className="text-muted-foreground">Clase de licencia: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.vehiculo?.claseLicencia}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.vehiculo?.tieneVehiculo) && (
-                    <p>
-                      <span className="text-muted-foreground">¿Tiene vehículo?: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.vehiculo?.tieneVehiculo}
-                      </span>
-                    </p>
-                  )}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Car weight="fill" className="h-4 w-4 text-teal-500" />
+                    <p className="font-semibold text-slate-700 text-sm">Vehículo / Licencia</p>
+                  </div>
+                  {hasValue(perfil.vehiculo?.licenciaConducir) && <InfoItem label="Licencia de conducir" value={perfil.vehiculo?.licenciaConducir} />}
+                  {hasValue(perfil.vehiculo?.claseLicencia) && <InfoItem label="Clase de licencia" value={perfil.vehiculo?.claseLicencia} />}
+                  {hasValue(perfil.vehiculo?.tieneVehiculo) && <InfoItem label="¿Tiene vehículo?" value={perfil.vehiculo?.tieneVehiculo} />}
                 </div>
               )}
 
+              {/* ── Situación económica ── */}
               {hasEconomia && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">Situación económica</p>
-                  {hasValue(perfil.financieroAntecedentes?.tieneDeudas) && (
-                    <p>
-                      <span className="text-muted-foreground">¿Tiene deudas?: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.tieneDeudas}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.financieroAntecedentes?.historialburoCredito) && (
-                    <p>
-                      <span className="text-muted-foreground">Historial crediticio: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.historialburoCredito}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.sindicato?.sindicatoEmpresa) && (
-                    <p>
-                      <span className="text-muted-foreground">¿Pertenece a sindicato?: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.sindicato?.sindicatoEmpresa}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.sindicato?.puestoSindicato) && (
-                    <p>
-                      <span className="text-muted-foreground">Puesto sindical: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.sindicato?.puestoSindicato}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.financieroAntecedentes?.institucionDeuda) && (
-                    <p>
-                      <span className="text-muted-foreground">Institución de deuda: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.institucionDeuda}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.financieroAntecedentes?.historialburoCredito) && (
-                    <p>
-                      <span className="text-muted-foreground">Historial en buró: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.historialburoCredito}
-                      </span>
-                    </p>
-                  )}
-                  {(hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) ||
-                    hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado)) && (
-                    <p>
-                      <span className="text-muted-foreground">Sindicalizado / Afianzado: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {[
-                          perfil.financieroAntecedentes?.haSidoSindicalizado,
-                          perfil.financieroAntecedentes?.haEstadoAfianzado,
-                        ]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </span>
-                    </p>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CurrencyDollar weight="fill" className="h-4 w-4 text-green-600" />
+                    <p className="font-semibold text-slate-700 text-sm">Situación económica</p>
+                  </div>
+                  {hasValue(perfil.financieroAntecedentes?.tieneDeudas) && <InfoItem label="¿Tiene deudas?" value={perfil.financieroAntecedentes?.tieneDeudas} />}
+                  {hasValue(perfil.financieroAntecedentes?.historialburoCredito) && <InfoItem label="Historial crediticio" value={perfil.financieroAntecedentes?.historialburoCredito} />}
+                  {hasValue(perfil.sindicato?.sindicatoEmpresa) && <InfoItem label="¿Pertenece a sindicato?" value={perfil.sindicato?.sindicatoEmpresa} />}
+                  {hasValue(perfil.sindicato?.puestoSindicato) && <InfoItem label="Puesto sindical" value={perfil.sindicato?.puestoSindicato} />}
+                  {hasValue(perfil.financieroAntecedentes?.institucionDeuda) && <InfoItem label="Institución de deuda" value={perfil.financieroAntecedentes?.institucionDeuda} />}
+                  {(hasValue(perfil.financieroAntecedentes?.haSidoSindicalizado) || hasValue(perfil.financieroAntecedentes?.haEstadoAfianzado)) && (
+                    <InfoItem label="Sindicalizado / Afianzado" value={[perfil.financieroAntecedentes?.haSidoSindicalizado, perfil.financieroAntecedentes?.haEstadoAfianzado].filter(Boolean).join(" / ")} />
                   )}
                   {hasValue(perfil.financieroAntecedentes?.sindicatoEmpresa) && (
-                    <p>
-                      <span className="text-muted-foreground">Sindicato / Empresa: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.sindicatoEmpresa}
-                        {hasValue(perfil.financieroAntecedentes?.puestoSindicato) && (
-                          <span className="text-gray-500"> ({perfil.financieroAntecedentes?.puestoSindicato})</span>
-                        )}
-                      </span>
-                    </p>
+                    <InfoItem label="Sindicato / Empresa" value={`${perfil.financieroAntecedentes?.sindicatoEmpresa}${perfil.financieroAntecedentes?.puestoSindicato ? ` (${perfil.financieroAntecedentes?.puestoSindicato})` : ''}`} />
                   )}
-                  {hasValue(perfil.financieroAntecedentes?.accidentesVialesPrevios) && (
-                    <p>
-                      <span className="text-muted-foreground">Accidentes viales previos: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.accidentesVialesPrevios}
-                      </span>
-                    </p>
-                  )}
-                  {hasValue(perfil.financieroAntecedentes?.accidentesTrabajoPrevios) && (
-                    <p>
-                      <span className="text-muted-foreground">Accidentes de trabajo previos: </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {perfil.financieroAntecedentes?.accidentesTrabajoPrevios}
-                      </span>
-                    </p>
-                  )}
+                  {hasValue(perfil.financieroAntecedentes?.accidentesVialesPrevios) && <InfoItem label="Accidentes viales previos" value={perfil.financieroAntecedentes?.accidentesVialesPrevios} />}
+                  {hasValue(perfil.financieroAntecedentes?.accidentesTrabajoPrevios) && <InfoItem label="Accidentes de trabajo previos" value={perfil.financieroAntecedentes?.accidentesTrabajoPrevios} />}
                 </div>
               )}
             </div>
