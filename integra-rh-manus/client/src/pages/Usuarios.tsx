@@ -9,7 +9,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, UserCog, Pencil, Trash2, Mail } from "lucide-react";
+import { Plus, UserCog, Pencil, Trash2, Mail, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import {
   Sheet,
@@ -292,63 +298,60 @@ export default function Usuarios() {
                           {new Date(user.lastSignedIn).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                            {user.email && canEditUser && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 text-[10px] px-2"
-                                onClick={() => {
-                                  const email = user.email!;
-                                  inviteMutation.mutate(
-                                    {
-                                      name: user.name || email,
-                                      email,
-                                      role: user.role,
-                                      clientId: user.clientId ?? undefined,
-                                    },
-                                    {
-                                      onSuccess: (res: any) => {
-                                        if (res?.resetLink && user.whatsapp) {
-                                          const digits = String(user.whatsapp).replace(/[^0-9+]/g, "");
-                                          if (digits) {
-                                            const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
-                                            const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(
-                                              digits
-                                            )}&text=${encodeURIComponent(msg)}`;
-                                            try {
-                                              window.open(url, "_blank");
-                                            } catch {}
-                                          }
-                                        }
+                          <div className="flex items-center justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menú</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {user.email && canEditUser && (
+                                  <DropdownMenuItem onClick={() => {
+                                    const email = user.email!;
+                                    inviteMutation.mutate(
+                                      {
+                                        name: user.name || email,
+                                        email,
+                                        role: user.role,
+                                        clientId: user.clientId ?? undefined,
                                       },
-                                    }
-                                  );
-                                }}
-                              >
-                                Invitar
-                              </Button>
-                            )}
-                            {canEditUser && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleEdit(user)}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {canDeleteUser && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleDelete(user.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
-                            )}
+                                      {
+                                        onSuccess: (res: any) => {
+                                          if (res?.resetLink && user.whatsapp) {
+                                            const digits = String(user.whatsapp).replace(/[^0-9+]/g, "");
+                                            if (digits) {
+                                              const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
+                                              const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+                                              try { window.open(url, "_blank"); } catch {}
+                                            }
+                                          }
+                                        },
+                                      }
+                                    );
+                                  }}>
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    <span>Invitar</span>
+                                  </DropdownMenuItem>
+                                )}
+                                {canEditUser && (
+                                  <DropdownMenuItem onClick={() => handleEdit(user)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    <span>Editar</span>
+                                  </DropdownMenuItem>
+                                )}
+                                {canDeleteUser && (
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => handleDelete(user.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Eliminar</span>
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -393,45 +396,46 @@ export default function Usuarios() {
                         {new Date(user.lastSignedIn).toLocaleDateString()}
                       </div>
                     </div>
-                    <div className="mt-2 flex justify-end gap-1">
-                      {user.email && canEditUser && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => {
-                            const email = user.email!;
-                            inviteMutation.mutate({
-                              name: user.name || email,
-                              email,
-                              role: user.role,
-                              clientId: user.clientId ?? undefined,
-                            });
-                          }}
-                        >
-                          <Mail className="h-3 w-3" />
-                        </Button>
-                      )}
-                      {canEditUser && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleEdit(user)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                      {canDeleteUser && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      )}
+                    <div className="mt-2 flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {user.email && canEditUser && (
+                            <DropdownMenuItem onClick={() => {
+                              const email = user.email!;
+                              inviteMutation.mutate({
+                                name: user.name || email,
+                                email,
+                                role: user.role,
+                                clientId: user.clientId ?? undefined,
+                              });
+                            }}>
+                              <Mail className="mr-2 h-4 w-4" />
+                              <span>Invitar</span>
+                            </DropdownMenuItem>
+                          )}
+                          {canEditUser && (
+                            <DropdownMenuItem onClick={() => handleEdit(user)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              <span>Editar</span>
+                            </DropdownMenuItem>
+                          )}
+                          {canDeleteUser && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => handleDelete(user.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Eliminar</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}

@@ -20,7 +20,14 @@ import {
   MessageCircle,
   Eye,
   MapPin,
+  MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -431,70 +438,44 @@ export default function Clientes() {
                         </button>
                       </TableCell>
                       <TableCell className="text-right py-1">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSitesClient(client);
-                              setSitesDialogOpen(true);
-                            }}
-                            title="Plazas / sucursales"
-                          >
-                            <MapPin className="h-3.5 w-3.5" />
-                          </Button>
-                          {canEditClient && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(client);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {canDeleteClient && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(client.id);
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openLinkDialog(client);
-                            }}
-                          >
-                            <Share2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedClientForProcesses(client);
-                              setProcessDialogOpen(true);
-                            }}
-                            title="Ver procesos de este cliente"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
+                        <div className="flex items-center justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menú</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedClientForProcesses(client); setProcessDialogOpen(true); }}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                <span>Ver procesos</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSitesClient(client); setSitesDialogOpen(true); }}>
+                                <MapPin className="mr-2 h-4 w-4" />
+                                <span>Plazas / Sucursales</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openLinkDialog(client); }}>
+                                <Share2 className="mr-2 h-4 w-4" />
+                                <span>Compartir enlace</span>
+                              </DropdownMenuItem>
+                              {canEditClient && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  <span>Editar</span>
+                                </DropdownMenuItem>
+                              )}
+                              {canDeleteClient && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <span>Eliminar</span>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -535,95 +516,44 @@ export default function Clientes() {
                           </span>
                         </p>
                       </div>
-                      <div className="flex gap-1">
-                        {canEditClient && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(client);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        )}
-                        {canDeleteClient && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(client.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openLinkDialog(client);
-                          }}
-                          title="Compartir enlace"
-                        >
-                          <Share2 className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSitesClient(client);
-                            setSitesDialogOpen(true);
-                          }}
-                          title="Plazas / sucursales"
-                        >
-                          <MapPin className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedClientForProcesses(client);
-                            setProcessDialogOpen(true);
-                          }}
-                          title="Ver procesos"
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        {canEditClient && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleIa(client);
-                            }}
-                            title={
-                              client.iaSuggestionsEnabled
-                                ? "Desactivar sugerencias IA"
-                                : "Activar sugerencias IA"
-                            }
-                          >
-                            <span
-                              className={
-                                client.iaSuggestionsEnabled
-                                  ? "h-3 w-3 rounded-full bg-emerald-500"
-                                  : "h-3 w-3 rounded-full border border-slate-300"
-                              }
-                            />
-                          </Button>
-                        )}
+                      <div className="flex items-center justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedClientForProcesses(client); setProcessDialogOpen(true); }}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              <span>Ver procesos</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSitesClient(client); setSitesDialogOpen(true); }}>
+                              <MapPin className="mr-2 h-4 w-4" />
+                              <span>Plazas / Sucursales</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openLinkDialog(client); }}>
+                              <Share2 className="mr-2 h-4 w-4" />
+                              <span>Compartir enlace</span>
+                            </DropdownMenuItem>
+                            {canEditClient && (
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(client); }}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Editar</span>
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteClient && (
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Eliminar</span>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">

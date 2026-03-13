@@ -11,7 +11,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Users, Pencil, Trash2, Eye, ArrowUpDown } from "lucide-react";
+import { Plus, Users, Pencil, Trash2, Eye, ArrowUpDown, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -460,57 +466,38 @@ export default function Candidatos() {
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right py-1">
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Link href={`/candidatos/${candidate.id}`}>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </Button>
-                                </Link>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Ver detalle y expediente del candidato.
-                              </TooltipContent>
-                           </Tooltip>
-                           <Tooltip>
-                              {canEditCandidate && (
-                                <>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => handleEdit(candidate)}
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Editar datos básicos del candidato.
-                                  </TooltipContent>
-                                </>
-                              )}
-                            </Tooltip>
-                            <Tooltip>
-                              {canDeleteCandidate && (
-                                <>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => handleDelete(candidate.id)}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Eliminar candidato del sistema.
-                                  </TooltipContent>
-                                </>
-                              )}
-                            </Tooltip>
+                          <div className="flex items-center justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menú</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/candidatos/${candidate.id}`} className="flex items-center cursor-pointer">
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    <span>Ver detalle</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                                {canEditCandidate && (
+                                  <DropdownMenuItem onClick={() => handleEdit(candidate)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    <span>Editar</span>
+                                  </DropdownMenuItem>
+                                )}
+                                {canDeleteCandidate && (
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => handleDelete(candidate.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Eliminar</span>
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -535,53 +522,38 @@ export default function Candidatos() {
                           {getClientName(candidate.clienteId)}
                         </p>
                       </div>
-                      <div className="flex gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link href={`/candidatos/${candidate.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Ver detalle y expediente.
-                          </TooltipContent>
-                        </Tooltip>
-                        {canEditCandidate && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleEdit(candidate)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Editar datos básicos.</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {canDeleteCandidate && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
+                      <div className="flex items-center justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/candidatos/${candidate.id}`} className="flex items-center cursor-pointer">
+                                <Eye className="mr-2 h-4 w-4" />
+                                <span>Ver detalle</span>
+                              </Link>
+                            </DropdownMenuItem>
+                            {canEditCandidate && (
+                              <DropdownMenuItem onClick={() => handleEdit(candidate)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Editar</span>
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteCandidate && (
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
                                 onClick={() => handleDelete(candidate.id)}
                               >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Eliminar candidato.</TooltipContent>
-                          </Tooltip>
-                        )}
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Eliminar</span>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     <div className="mt-2 text-[11px] text-muted-foreground space-y-0.5">
