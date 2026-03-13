@@ -1898,20 +1898,6 @@ export default function CandidatoDetalle() {
                           </span>
                         )}
                       </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span
-                              className={`text-xs font-semibold px-2 py-1 rounded ${getInvestigacionClass(item.estatusInvestigacion as string)}`}
-                            >
-                              {getInvestigacionLabel(item.estatusInvestigacion as string)}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Estatus de la verificación laboral de este empleo.
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
                       {item.causalSalidaRH && (
                         <p className="text-xs mt-2">
                           <span className="text-muted-foreground">Motivo de salida (RH):</span>{" "}
@@ -1994,6 +1980,18 @@ export default function CandidatoDetalle() {
                                       )}
                                     </div>
                                   </div>
+                                  {inv.conclusion && (inv.conclusion.esRecomendable || inv.conclusion.loRecontrataria) && (
+                                    <div className="bg-slate-50 p-3 flex flex-col gap-2 border-t">
+                                      <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wide mb-1">Desempeño y Recomendación</div>
+                                      <div className="grid grid-cols-2 gap-3">
+                                        <div><span className="text-slate-400 font-medium block text-[10px] uppercase">¿Es Recomendable?</span> {inv.conclusion.esRecomendable || "-"}</div>
+                                        <div><span className="text-slate-400 font-medium block text-[10px] uppercase">¿Lo Recontratarían?</span> {inv.conclusion.loRecontrataria || "-"}</div>
+                                        {inv.conclusion.razonRecontratacion && (
+                                          <div className="col-span-2"><span className="text-slate-400 font-medium block text-[10px] uppercase">Motivos / Razones:</span> {inv.conclusion.razonRecontratacion}</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                                 {ia && (
                                   <div className="mt-3 border-t pt-2 space-y-1">
