@@ -1862,7 +1862,7 @@ export default function CandidatoDetalle() {
                                 {p.fechaCierre && <span>• Cierre: {new Date(p.fechaCierre).toLocaleDateString()}</span>}
                               </div>
                             </div>
-                            <Link href={`/candidatos/${candidateId}?tab=empleos`}>
+                            <Link href={`/procesos/${p.id}`}>
                               <Button size="sm" variant="outline">Ver</Button>
                             </Link>
                           </div>
@@ -1930,7 +1930,7 @@ export default function CandidatoDetalle() {
                                 {p.visitStatus?.direccion && <div className="truncate w-40" title={p.visitStatus.direccion}>📍 {p.visitStatus.direccion}</div>}
                               </div>
                             </div>
-                            <Link href={`/candidatos/${candidateId}?tab=empleos`}>
+                            <Link href={`/procesos/${p.id}`}>
                               <Button size="icon" variant="ghost" className="h-6 w-6"><ExternalLink className="h-3 w-3"/></Button>
                             </Link>
                           </div>
