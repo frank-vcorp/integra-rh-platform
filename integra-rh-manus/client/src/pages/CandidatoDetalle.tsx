@@ -3045,8 +3045,9 @@ export default function CandidatoDetalle() {
                     </>
                   );
                 })()}
-              <div>
-                <Label htmlFor="sueldoInicial">Sueldo inicial</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="sueldoInicial">Sueldo inicial</Label>
                 <Input
                   id="sueldoInicial"
                     name="sueldoInicial"
@@ -3070,6 +3071,7 @@ export default function CandidatoDetalle() {
               </div>
             </div>
 
+            </div>
             {/* Semanas cotizadas */}
             <div className="border rounded-md p-3 space-y-3">
               <div className="text-sm font-semibold">Semanas cotizadas</div>
