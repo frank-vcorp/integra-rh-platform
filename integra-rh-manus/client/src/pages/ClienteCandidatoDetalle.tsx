@@ -320,10 +320,35 @@ export default function ClienteCandidatoDetalle() {
                               </div>
 
                               {job.comentarioInvestigacion && (
-                                <div className="bg-slate-50 p-3 rounded text-sm text-slate-700 italic border-l-2 border-slate-300">
+                                <div className="bg-slate-50 p-3 rounded text-sm text-slate-700 italic border-l-2 border-slate-300 mb-3">
                                   "{job.comentarioInvestigacion}"
                                 </div>
                               )}
+
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t pt-3 border-slate-100">
+                                <div>
+                                  <span className="block text-xs text-gray-500 font-medium">Motivo de salida</span>
+                                  <span className="text-gray-800">{job.causalSalidaRH || job.investigacionDetalle?.incidencias?.motivoSeparacionEmpresa || "No especificado"}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-xs text-gray-500 font-medium">Desempeño</span>
+                                  <span className="text-gray-800 capitalize">{job.investigacionDetalle?.desempeno?.evaluacionGeneral?.toLowerCase() || "No evaluado"}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-xs text-gray-500 font-medium">¿Es recomendable?</span>
+                                  <span className="text-gray-800 capitalize">{job.investigacionDetalle?.conclusion?.esRecomendable?.toLowerCase() || "No especificado"}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-xs text-gray-500 font-medium">¿Lo recontratarían?</span>
+                                  <span className="text-gray-800 capitalize">{job.investigacionDetalle?.conclusion?.loRecontrataria?.toLowerCase() || "No especificado"}</span>
+                                </div>
+                                {(job.investigacionDetalle?.conclusion?.razonRecontratacion) && (
+                                  <div className="col-span-2 md:col-span-4 mt-1">
+                                    <span className="block text-xs text-gray-500 font-medium">Razones / Motivos (Recontratación)</span>
+                                    <span className="text-gray-800">{job.investigacionDetalle.conclusion.razonRecontratacion}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
