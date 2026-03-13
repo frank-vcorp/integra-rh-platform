@@ -147,10 +147,18 @@ function DashboardLayoutContent({
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, setOpen, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Auto-colapsar el sidebar después de 3 segundos
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOpen(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [setOpen]);
   // Si aún no cargó el usuario del backend, mostramos menú admin por defecto
   const menuItems = user?.role !== 'client' ? adminMenuItems : clientMenuItems;
   const activeMenuItem = menuItems.find(item => item.path === location);

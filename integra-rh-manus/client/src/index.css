@@ -46,40 +46,47 @@
   /* Paleta basada en el logo de SINERGIA RH:
      - Azul marino profundo para navegación y acciones importantes.
      - Turquesa/cyan para acentos y estados positivos. */
-  --primary: var(--color-cyan-600);
+  --primary: var(--color-sky-700);
   --primary-foreground: var(--color-slate-50);
-  --sidebar-primary: var(--color-slate-900);
+  --sidebar-primary: var(--color-sky-800);
   --sidebar-primary-foreground: var(--color-slate-50);
-  --chart-1: var(--color-cyan-400);
+  --chart-1: var(--color-sky-400);
   --chart-2: var(--color-cyan-600);
   --chart-3: var(--color-sky-500);
-  --chart-4: var(--color-sky-700);
+  --chart-4: var(--color-nav-800);
   --chart-5: var(--color-slate-800);
   --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
+  
+  /* Sistema de fondos: Matiz gris-azulado muy pálido para no fatigar la vista y quitar "lo blanco" */
+  --background: var(--color-slate-50);
+  --foreground: var(--color-slate-900);
+  
+  /* Las tarjetas sí son blancas para generar relieve "Lifted" respecto al fondo gris azulado */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
+  --card-foreground: var(--color-slate-900);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  /* Superficies suaves con toque turquesa */
-  --secondary: oklch(0.985 0.03 210); /* muy claro, con matiz azul/verde */
-  --secondary-foreground: oklch(0.35 0.04 210);
-  --muted: oklch(0.97 0.02 210);
-  --muted-foreground: oklch(0.55 0.03 210);
-  --accent: oklch(0.96 0.035 210);
-  --accent-foreground: oklch(0.2 0.04 210);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.6 0.12 210); /* borde de enfoque en turquesa */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.96 0.035 210);
-  --sidebar-accent-foreground: oklch(0.2 0.04 210);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.6 0.12 210);
+  --popover-foreground: var(--color-slate-900);
+  
+  /* Superficies suaves con toque azul fresco (Sinergia) */
+  --secondary: var(--color-sky-50); 
+  --secondary-foreground: var(--color-sky-900);
+  --muted: var(--color-slate-100);
+  --muted-foreground: var(--color-slate-500);
+  --accent: var(--color-sky-50);
+  --accent-foreground: var(--color-sky-900);
+  --destructive: var(--color-red-600);
+  --destructive-foreground: var(--color-slate-50);
+  --border: var(--color-slate-200);
+  --input: var(--color-slate-200);
+  --ring: var(--color-sky-300); /* borde de enfoque en turquesa sutil */
+  
+  /* Sidebar con color institucional ultra-ligero */
+  --sidebar: var(--color-sky-50);
+  --sidebar-foreground: var(--color-slate-800);
+  --sidebar-accent: var(--color-sky-100);
+  --sidebar-accent-foreground: var(--color-sky-950);
+  --sidebar-border: var(--color-sky-200);
+  --sidebar-ring: var(--color-sky-300);
 }
 
 .dark {
