@@ -611,7 +611,7 @@ export default function ProcesoDetalle() {
                     <div>
                         <Label className="text-xs">Comentario o Conclusión General</Label>
                         <div className="min-h-16 px-3 py-2 border rounded-md bg-gray-50 text-xs text-gray-700 mt-1 break-words whitespace-pre-wrap">
-                            {(getCandidate() as any)?.dictamenLaboral?.observaciones || "Sin comentarios."}
+                            {(getCandidate() as any)?.dictamenLaboral?.comentariosGenerales || "Sin comentarios."}
                         </div>
                     </div>
                     
