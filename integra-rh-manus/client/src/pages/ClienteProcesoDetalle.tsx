@@ -81,11 +81,11 @@ export default function ClienteProcesoDetalle() {
       description: "Validación de referencias y antecedentes laborales",
       icon: <Briefcase className="h-5 w-5 text-blue-600" />,
       colorClass: "bg-blue-50 text-blue-700 border-blue-200",
-      data: (process as any)?.investigacionLaboral as any,
+      data: (process as any)?.investigacionLaboral || {},
       render: (d: any) => ({
-        estado: d?.resultado || "Sin resultado",
-        detalle: d?.detalles,
-        flag: d?.completado ? "completo" : "pendiente",
+        estado: (candidate as any)?.dictamenLaboral?.resultado || d?.resultado || "Sin resultado",
+        detalle: (candidate as any)?.dictamenLaboral?.comentariosGenerales || d?.detalles || "Sin comentarios o resultados definidos",
+        flag: (candidate as any)?.dictamenLaboral?.completado ? "completo" : d?.completado ? "completo" : "pendiente",
       }),
       visible: servicios.laboral,
     },
@@ -127,7 +127,7 @@ export default function ClienteProcesoDetalle() {
       description: "Verificación socioeconómica en sitio",
       icon: <Home className="h-5 w-5 text-emerald-600" />,
       colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
-      data: (process as any)?.visitaDetalle || (process as any)?.visitStatus,
+      data: { ...((process as any)?.visitStatus || {}), ...((process as any)?.visitaDetalle || {}) },
       render: (d: any) => ({
         estado: d?.tipo ? d.tipo.toUpperCase() : d?.status || "No asignada",
         detalle: d?.comentarios || d?.observaciones || "Sin comentarios",
@@ -351,7 +351,14 @@ export default function ClienteProcesoDetalle() {
                             {info.detalle && (
                               <div>
                                 <p className="text-xs font-semibold text-gray-500 uppercase">Detalles</p>
-                                <p className="text-sm text-gray-700 line-clamp-3">{info.detalle}</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{info.detalle}</p>
+                              </div>
+                            )}
+
+                            {info.fecha && (
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase">Fecha / Horario</p>
+                                <p className="text-sm text-gray-700">{info.fecha}</p>
                               </div>
                             )}
 
