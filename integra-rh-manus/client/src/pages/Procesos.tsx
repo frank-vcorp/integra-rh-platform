@@ -518,40 +518,40 @@ export default function Procesos() {
                     {processes.map((process) => (
                       <TableRow
                         key={process.id}
-                        className={getStatusRowClass(process.estatusProceso)}
+                        className={`${getStatusRowClass(process.estatusProceso)} h-8`}
                       >
-                        <TableCell className="font-medium font-mono text-xs">
+                        <TableCell className="font-medium font-mono text-xs py-1.5">
                           {process.clave}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5">
                           <span className="badge badge-info">
                             {formatTipoProductoDisplay(process.tipoProducto)}
                           </span>
                         </TableCell>
-                        <TableCell className="max-w-[220px] text-xs">
+                        <TableCell className="max-w-[220px] text-xs py-1.5">
                           {getCandidateName(process.candidatoId)}
                         </TableCell>
-                        <TableCell className="max-w-[220px] text-xs">
+                        <TableCell className="max-w-[220px] text-xs py-1.5">
                           {(process as any).clientName || "-"}
                         </TableCell>
-                        <TableCell className="max-w-[200px] text-xs">
+                        <TableCell className="max-w-[200px] text-xs py-1.5">
                           {(process as any).siteName || "-"}
                         </TableCell>
-                        <TableCell className="max-w-[220px] text-xs">
+                        <TableCell className="max-w-[220px] text-xs py-1.5">
                           {getPostName(process.puestoId)}
                         </TableCell>
-                        <TableCell className="max-w-[200px] text-xs">
+                        <TableCell className="max-w-[200px] text-xs py-1.5">
                           {(process as any).responsableName ||
                             (process as any).especialistaAtraccionNombre ||
                             (process as any).analistaName ||
                             "-"}
                         </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell className="text-xs py-1.5">
                           {new Date(
                             process.fechaRecepcion,
                           ).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5">
                           <span
                             className={`badge ${getStatusBadgeClass(
                               process.estatusProceso,
@@ -560,7 +560,7 @@ export default function Procesos() {
                             {getStatusLabel(process.estatusProceso)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-xs font-medium">
+                        <TableCell className="text-xs font-medium py-1.5">
                           <span
                             className={getCalificacionTextClass(
                               process.calificacionFinal,
@@ -569,17 +569,18 @@ export default function Procesos() {
                             {getCalificacionLabel(process.calificacionFinal)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell className="text-right py-1">
+                          <div className="flex items-center justify-end gap-1">
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link href={`/procesos/${process.id}`}>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
+                                    className="h-6 w-6"
                                     aria-label="Ver detalle"
                                   >
-                                    <Eye className="h-4 w-4" />
+                                    <Eye className="h-3.5 w-3.5" />
                                   </Button>
                                 </Link>
                               </TooltipTrigger>
@@ -592,7 +593,8 @@ export default function Procesos() {
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
+                                    className="h-6 w-6"
                                     aria-label="Eliminar proceso"
                                     onClick={() => {
                                       const ok = confirm(
@@ -602,7 +604,7 @@ export default function Procesos() {
                                         deleteMutation.mutate({ id: process.id });
                                     }}
                                   >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>

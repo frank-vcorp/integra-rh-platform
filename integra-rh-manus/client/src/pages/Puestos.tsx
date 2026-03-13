@@ -185,12 +185,12 @@ export default function Puestos() {
                   </TableHeader>
                   <TableBody>
                     {posts.map((post) => (
-                      <TableRow key={post.id}>
-                        <TableCell className="font-medium">
+                      <TableRow key={post.id} className="h-8">
+                        <TableCell className="font-medium py-1.5 text-xs">
                           {post.nombreDelPuesto}
                         </TableCell>
-                        <TableCell>{getClientName(post.clienteId)}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5 text-xs">{getClientName(post.clienteId)}</TableCell>
+                        <TableCell className="py-1.5">
                           <span
                             className={`badge ${
                               post.estatus === "activo"
@@ -203,24 +203,26 @@ export default function Puestos() {
                             {post.estatus}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell className="text-right py-1">
+                          <div className="flex items-center justify-end gap-1">
                             {canEditPost && (
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => handleEdit(post)}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             )}
                             {canDeletePost && (
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => handleDelete(post.id)}
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>
                             )}
                           </div>

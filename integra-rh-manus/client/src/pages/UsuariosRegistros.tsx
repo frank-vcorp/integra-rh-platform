@@ -93,7 +93,7 @@ export default function UsuariosRegistros() {
               </TableHeader>
               <TableBody>
                 {logs.map((log: any) => (
-                  <TableRow key={log.id}>
+                  <TableRow key={log.id} className="h-8">
                     <TableCell className="whitespace-nowrap text-xs">
                       {log.timestamp
                         ? new Date(log.timestamp).toLocaleString()

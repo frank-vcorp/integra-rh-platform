@@ -379,15 +379,15 @@ export default function Clientes() {
                       key={client.id}
                       className={
                         selectedClientForProcesses?.id === client.id
-                          ? "bg-slate-50 cursor-pointer"
-                          : "cursor-pointer"
+                          ? "bg-slate-50 cursor-pointer h-8"
+                          : "cursor-pointer h-8"
                       }
                       onClick={() => {
                         setSelectedClientForProcesses(client);
                         setProcessDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium py-1.5 text-xs">
                         <button
                           type="button"
                           className="text-left hover:underline"
@@ -395,19 +395,19 @@ export default function Clientes() {
                           {client.nombreEmpresa}
                         </button>
                       </TableCell>
-                      <TableCell className="hidden 2xl:table-cell text-xs">
+                      <TableCell className="hidden 2xl:table-cell text-xs py-1.5">
                         {client.reclutador || "-"}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-xs">
-                        {client.contacto || "-"}
+                      <TableCell className="hidden lg:table-cell text-xs py-1.5 max-w-[150px] truncate">
+                        <span title={client.contacto || ""}>{client.contacto || "-"}</span>
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs py-1.5">
                         {client.telefono || "-"}
                       </TableCell>
-                      <TableCell className="text-xs break-all">
-                        {client.email || "-"}
+                      <TableCell className="text-xs py-1.5 max-w-[200px] truncate">
+                        <span title={client.email || ""}>{client.email || "-"}</span>
                       </TableCell>
-                      <TableCell className="text-xs text-center">
+                      <TableCell className="text-xs text-center py-1.5">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -430,11 +430,12 @@ export default function Clientes() {
                             : "IA desactivada"}
                         </button>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <TableCell className="text-right py-1">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-6 w-6"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSitesClient(client);
@@ -442,45 +443,49 @@ export default function Clientes() {
                             }}
                             title="Plazas / sucursales"
                           >
-                            <MapPin className="h-4 w-4" />
+                            <MapPin className="h-3.5 w-3.5" />
                           </Button>
                           {canEditClient && (
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              className="h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEdit(client);
                               }}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {canDeleteClient && (
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              className="h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(client.id);
                               }}
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </Button>
                           )}
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-6 w-6"
                             onClick={(e) => {
                               e.stopPropagation();
                               openLinkDialog(client);
                             }}
                           >
-                            <Share2 className="h-4 w-4" />
+                            <Share2 className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-6 w-6"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedClientForProcesses(client);
@@ -488,7 +493,7 @@ export default function Clientes() {
                             }}
                             title="Ver procesos de este cliente"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </TableCell>

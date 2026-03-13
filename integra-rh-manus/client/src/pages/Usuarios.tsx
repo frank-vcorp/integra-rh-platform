@@ -270,11 +270,15 @@ export default function Usuarios() {
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
-                        <TableCell>{user.email || "-"}</TableCell>
-                        <TableCell>{user.whatsapp || '-'}</TableCell>
-                        <TableCell>
+                      <TableRow key={user.id} className="h-8">
+                        <TableCell className="font-medium py-1.5 text-xs max-w-[140px] truncate">
+                          <span title={user.name ?? undefined}>{user.name}</span>
+                        </TableCell>
+                        <TableCell className="py-1.5 text-xs max-w-[180px] truncate">
+                          <span title={user.email || ""}>{user.email || "-"}</span>
+                        </TableCell>
+                        <TableCell className="py-1.5 text-xs">{user.whatsapp || '-'}</TableCell>
+                        <TableCell className="py-1.5">
                           <span
                             className={`badge ${
                               user.role === "admin" ? "badge-primary" : "badge-info"
@@ -283,16 +287,17 @@ export default function Usuarios() {
                             {user.role === "admin" ? "Administrador" : "Cliente"}
                           </span>
                         </TableCell>
-                        <TableCell>{getClientName(user.clientId)}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5 text-xs">{getClientName(user.clientId)}</TableCell>
+                        <TableCell className="py-1.5 text-xs">
                           {new Date(user.lastSignedIn).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             {user.email && canEditUser && (
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-6 text-[10px] px-2"
                                 onClick={() => {
                                   const email = user.email!;
                                   inviteMutation.mutate(
@@ -327,19 +332,21 @@ export default function Usuarios() {
                             {canEditUser && (
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => handleEdit(user)}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             )}
                             {canDeleteUser && (
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 onClick={() => handleDelete(user.id)}
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>
                             )}
                           </div>

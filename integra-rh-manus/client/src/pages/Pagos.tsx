@@ -333,21 +333,21 @@ export default function Pagos() {
               </TableHeader>
               <TableBody>
                 {payments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-medium font-mono">
+                  <TableRow key={payment.id} className="h-8">
+                    <TableCell className="font-medium font-mono text-xs py-1.5">
                       {getProcessClave(payment.procesoId)}
                     </TableCell>
-                    <TableCell>{getSurveyorName(payment.encuestadorId)}</TableCell>
-                    <TableCell className="font-semibold">
+                    <TableCell className="py-1.5 text-xs">{getSurveyorName(payment.encuestadorId)}</TableCell>
+                    <TableCell className="font-semibold py-1.5 text-xs">
                       {formatMoney(payment.monto)}
                     </TableCell>
-                    <TableCell>{payment.metodoPago || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="py-1.5 text-xs">{payment.metodoPago || "-"}</TableCell>
+                    <TableCell className="py-1.5 text-xs">
                       {payment.fechaPago
                         ? new Date(payment.fechaPago).toLocaleDateString()
                         : "-"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-1.5">
                       <span
                         className={`badge ${
                           payment.estatusPago === "pagado"
@@ -358,15 +358,16 @@ export default function Pagos() {
                         {payment.estatusPago === "pagado" ? "Pagado" : "Pendiente"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right py-1">
                       {payment.estatusPago === "pendiente" && canEditPayment && (
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-6 text-[10px] px-2"
                           onClick={() => handleMarkAsPaid(payment.id)}
                         >
-                          <Check className="h-4 w-4 mr-1" />
-                          Marcar como Pagado
+                          <Check className="h-3 w-3 mr-1" />
+                          Marcar pagado
                         </Button>
                       )}
                     </TableCell>

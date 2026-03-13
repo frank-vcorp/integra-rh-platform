@@ -218,8 +218,8 @@ export default function Encuestadores() {
                   </TableHeader>
                   <TableBody>
                     {surveyors.map((surveyor) => (
-                      <TableRow key={surveyor.id}>
-                        <TableCell className="font-medium">
+                      <TableRow key={surveyor.id} className="h-8">
+                        <TableCell className="font-medium py-1.5 text-xs">
                           <Link
                             href={`/encuestadores/${surveyor.id}`}
                             className="text-blue-600 hover:underline"
@@ -227,8 +227,10 @@ export default function Encuestadores() {
                             {surveyor.nombre}
                           </Link>
                         </TableCell>
-                        <TableCell>{surveyor.telefono || "-"}</TableCell>
-                        <TableCell>{surveyor.email || "-"}</TableCell>
+                        <TableCell className="py-1.5 text-xs">{surveyor.telefono || "-"}</TableCell>
+                        <TableCell className="py-1.5 text-xs max-w-[180px] truncate">
+                          <span title={surveyor.email || ""}>{surveyor.email || "-"}</span>
+                        </TableCell>
                         <TableCell className="text-xs">
                           {(() => {
                             const visits = (processes as any[]).filter(
@@ -276,9 +278,9 @@ export default function Encuestadores() {
                         >
                           {(surveyor as any).notas || "—"}
                         </TableCell>
-                        <TableCell>{surveyor.cobertura || "local"}</TableCell>
-                        <TableCell>{surveyor.ciudadBase || "-"}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5 text-xs">{surveyor.cobertura || "local"}</TableCell>
+                        <TableCell className="py-1.5 text-xs">{surveyor.ciudadBase || "-"}</TableCell>
+                        <TableCell className="py-1.5">
                           <span
                             className={`badge ${
                               surveyor.activo
@@ -289,12 +291,13 @@ export default function Encuestadores() {
                             {surveyor.activo ? "Activo" : "Inactivo"}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell className="text-right py-1">
+                          <div className="flex items-center justify-end gap-1">
                             {surveyor.telefono && (
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-6 w-6"
                                 aria-label="WhatsApp"
                                 onClick={() => {
                                   const digits = String(
@@ -307,13 +310,13 @@ export default function Encuestadores() {
                                   window.open(url, "_blank");
                                 }}
                               >
-                                <Phone className="h-4 w-4" />
+                                <Phone className="h-3.5 w-3.5" />
                               </Button>
                             )}
                             <Link
                               href={`/encuestadores/${surveyor.id}?section=visitas`}
                             >
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2">
                                 Ver
                               </Button>
                             </Link>
@@ -324,26 +327,29 @@ export default function Encuestadores() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      className="h-6 text-[10px] px-2"
                                       onClick={() => handleToggleActive(surveyor)}
                                     >
                                       {surveyor.activo ? "Inactivar" : "Activar"}
                                     </Button>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
+                                      size="icon"
+                                      className="h-6 w-6"
                                       onClick={() => handleEdit(surveyor)}
                                     >
-                                      <Pencil className="h-4 w-4" />
+                                      <Pencil className="h-3.5 w-3.5" />
                                     </Button>
                                   </>
                                 )}
                                 {canDeleteSurveyor && (
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
+                                    className="h-6 w-6"
                                     onClick={() => handleDelete(surveyor.id)}
                                   >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
                                 )}
                               </>

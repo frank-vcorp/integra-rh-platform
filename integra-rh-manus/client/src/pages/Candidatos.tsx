@@ -436,34 +436,36 @@ export default function Candidatos() {
                   </TableHeader>
                   <TableBody>
                     {candidates.map((candidate) => (
-                      <TableRow key={candidate.id}>
-                        <TableCell className="font-medium">
-                          {candidate.nombreCompleto}
+                      <TableRow key={candidate.id} className="h-8">
+                        <TableCell className="font-medium py-1.5 text-xs max-w-[160px] truncate">
+                          <span title={candidate.nombreCompleto}>{candidate.nombreCompleto}</span>
                         </TableCell>
-                        <TableCell>{candidate.telefono || "-"}</TableCell>
-                        <TableCell>{getClientName(candidate.clienteId)}</TableCell>
-                        <TableCell>{getSiteName(candidate.clientSiteId)}</TableCell>
-                        <TableCell>{getPostName(candidate.puestoId)}</TableCell>
-                        <TableCell>{candidate.medioDeRecepcion || "-"}</TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5 text-xs">{candidate.telefono || "-"}</TableCell>
+                        <TableCell className="py-1.5 text-xs">{getClientName(candidate.clienteId)}</TableCell>
+                        <TableCell className="py-1.5 text-xs">{getSiteName(candidate.clientSiteId)}</TableCell>
+                        <TableCell className="py-1.5 text-xs">{getPostName(candidate.puestoId)}</TableCell>
+                        <TableCell className="py-1.5 text-xs">{candidate.medioDeRecepcion || "-"}</TableCell>
+                        <TableCell className="py-1.5 text-xs max-w-[150px] truncate">
+                          <span title={candidate.analistaAsignadoId ? (analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || "-") : "-"}>
                           {candidate.analistaAsignadoId 
                             ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
                               analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
                               "-"
                             : "-"}
+                          </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-1.5 text-xs">
                           {candidate.createdAt
                             ? new Date(candidate.createdAt).toLocaleDateString()
                             : "-"}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell className="text-right py-1">
+                          <div className="flex items-center justify-end gap-1">
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link href={`/candidatos/${candidate.id}`}>
-                                  <Button variant="ghost" size="sm">
-                                    <Eye className="h-4 w-4" />
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <Eye className="h-3.5 w-3.5" />
                                   </Button>
                                 </Link>
                               </TooltipTrigger>
@@ -477,10 +479,11 @@ export default function Candidatos() {
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
+                                      size="icon"
+                                      className="h-6 w-6"
                                       onClick={() => handleEdit(candidate)}
                                     >
-                                      <Pencil className="h-4 w-4" />
+                                      <Pencil className="h-3.5 w-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -495,10 +498,11 @@ export default function Candidatos() {
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
+                                      size="icon"
+                                      className="h-6 w-6"
                                       onClick={() => handleDelete(candidate.id)}
                                     >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
