@@ -265,6 +265,7 @@ export default function ProcesoDetalle() {
       evidenciasGraficas: [] as string[],
     },
     antecedentesPenales: {
+      comentarios: "",
       evidenciasGraficas: [] as string[],
     },
     buroCredito: { estatus: "", score: "", aprobado: null as null | boolean, pdfUrl: "", archivosAdicionales: [] as string[] },
@@ -330,6 +331,7 @@ export default function ProcesoDetalle() {
         evidenciasGraficas: Array.isArray((process as any).semanasDetalle?.evidenciasGraficas) ? (process as any).semanasDetalle.evidenciasGraficas : [],
       },
       antecedentesPenales: {
+        comentarios: (process as any).antecedentesPenales?.comentarios || "",
         evidenciasGraficas: Array.isArray((process as any).antecedentesPenales?.evidenciasGraficas) ? (process as any).antecedentesPenales.evidenciasGraficas : [],
       },
       buroCredito: {
@@ -413,6 +415,7 @@ export default function ProcesoDetalle() {
           : undefined,
       },
       antecedentesPenales: {
+        comentarios: (form.antecedentesPenales as any).comentarios || undefined,
         evidenciasGraficas: Array.isArray((form.antecedentesPenales as any)?.evidenciasGraficas)
           ? (form.antecedentesPenales as any).evidenciasGraficas.filter((url: string) => !!url)
           : undefined,
@@ -702,7 +705,15 @@ export default function ProcesoDetalle() {
                         {/* Thumbnails */}
                         <div className="flex gap-1 overflow-x-auto mt-2 h-12">
                              {(panelForm.investigacionLegal as any).evidenciasGraficas.map((url:string, i:number) => (
-                                 <img key={i} src={url} className="h-10 w-10 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("legal"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                                 <div key={i} className="h-10 w-10 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { 
+                                     if(url.includes('.pdf')){
+                                         window.open(url, '_blank');
+                                     } else {
+                                         setLightboxSection("legal"); setLightboxIndex(i); setLightboxOpen(true); 
+                                     }
+                                 }}>
+                                     {url.includes('.pdf') ? <FileText className="h-5 w-5"/> : <img src={url} className="h-full w-full object-cover"/>}
+                                 </div>
                              ))}
                         </div>
                     </div>
@@ -759,7 +770,13 @@ export default function ProcesoDetalle() {
                          </div>
                          <div className="flex gap-1 overflow-x-auto mt-2 h-12">
                              {(panelForm.semanasDetalle as any).evidenciasGraficas.map((url:string, i:number) => (
-                                 <div key={i} className="h-10 w-10 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { setLightboxSection("semanas"); setLightboxIndex(i); setLightboxOpen(true); }}>
+                                 <div key={i} className="h-10 w-10 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { 
+                                     if(url.includes('.pdf')){
+                                         window.open(url, '_blank');
+                                     } else {
+                                         setLightboxSection("semanas"); setLightboxIndex(i); setLightboxOpen(true); 
+                                     }
+                                 }}>
                                      {url.includes('.pdf') ? <FileText className="h-5 w-5"/> : <img src={url} className="h-full w-full object-cover"/>}
                                  </div>
                              ))}
@@ -767,10 +784,19 @@ export default function ProcesoDetalle() {
                     </div>
                 </div>
 
-                 {/* 5. Antecedentes Penales */}
+                 {/* 5. Notas Periodísticas */}
                 <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
                    <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
-                        <AlertTriangle className="h-4 w-4 text-red-600" /> Antecedentes Penales
+                        <AlertTriangle className="h-4 w-4 text-red-600" /> Notas Periodísticas
+                    </div>
+                    <div>
+                        <Label className="text-xs">Comentarios / Hallazgos</Label>
+                        <Textarea
+                            value={(panelForm.antecedentesPenales as any).comentarios}
+                            onChange={e => setPanelForm(f => ({ ...f, antecedentesPenales: { ...f.antecedentesPenales, comentarios: e.target.value } }))}
+                            rows={3}
+                            disabled={isClientAuth || !canEditProcess}
+                        />
                     </div>
                      <div className="mt-2 text-center py-4 bg-gray-50 border border-dashed rounded cursor-pointer"
                         onPaste={async (e) => {
@@ -792,7 +818,15 @@ export default function ProcesoDetalle() {
                      </div>
                      <div className="flex gap-1 overflow-x-auto mt-2 h-12">
                              {(panelForm.antecedentesPenales as any).evidenciasGraficas.map((url:string, i:number) => (
-                                 <img key={i} src={url} className="h-10 w-10 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("penales"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                                 <div key={i} className="h-10 w-10 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { 
+                                     if(url.includes('.pdf')){
+                                         window.open(url, '_blank');
+                                     } else {
+                                         setLightboxSection("penales"); setLightboxIndex(i); setLightboxOpen(true); 
+                                     }
+                                 }}>
+                                     {url.includes('.pdf') ? <FileText className="h-5 w-5"/> : <img src={url} className="h-full w-full object-cover"/>}
+                                 </div>
                              ))}
                      </div>
                 </div>
@@ -847,7 +881,15 @@ export default function ProcesoDetalle() {
                         >Paste files</div>
                          <div className="flex gap-1 overflow-x-auto mt-1 h-10">
                              {(panelForm.buroCredito as any).archivosAdicionales.map((url:string, i:number) => (
-                                 <img key={i} src={url} className="h-8 w-8 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("buro"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                                 <div key={i} className="h-8 w-8 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { 
+                                     if(url.includes('.pdf')){
+                                         window.open(url, '_blank');
+                                     } else {
+                                         setLightboxSection("buro"); setLightboxIndex(i); setLightboxOpen(true); 
+                                     }
+                                 }}>
+                                     {url.includes('.pdf') ? <FileText className="h-4 w-4"/> : <img src={url} className="h-full w-full object-cover"/>}
+                                 </div>
                              ))}
                         </div>
                     </div>
@@ -890,7 +932,15 @@ export default function ProcesoDetalle() {
                     >Paste Photos</div>
                      <div className="flex gap-1 overflow-x-auto mt-1 h-10">
                              {(panelForm.visitaDetalle as any).evidenciasGraficas?.map((url:string, i:number) => (
-                                 <img key={i} src={url} className="h-8 w-8 object-cover rounded border cursor-pointer" onClick={() => { setLightboxSection("visita"); setLightboxIndex(i); setLightboxOpen(true); }} />
+                                 <div key={i} className="h-8 w-8 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { 
+                                     if(url.includes('.pdf')){
+                                         window.open(url, '_blank');
+                                     } else {
+                                         setLightboxSection("visita"); setLightboxIndex(i); setLightboxOpen(true); 
+                                     }
+                                 }}>
+                                     {url.includes('.pdf') ? <FileText className="h-4 w-4"/> : <img src={url} className="h-full w-full object-cover"/>}
+                                 </div>
                              ))}
                     </div>
                 </div>
@@ -1136,7 +1186,7 @@ export default function ProcesoDetalle() {
                   <option value="VISITA_EVIDENCIA">Evidencia de visita</option>
                   <option value="SEMANAS_COTIZADAS">Cotejo semanas IMSS</option>
                   <option value="BURO_CREDITO">Buró de Crédito</option>
-                  <option value="ANTECEDENTES_PENALES">Antecedentes Penales</option>
+                  <option value="ANTECEDENTES_PENALES">Notas Periodísticas</option>
                   <option value="OTRO">Otro</option>
                 </select>
               </div>
@@ -1195,7 +1245,7 @@ export default function ProcesoDetalle() {
             <DialogTitle>
               {lightboxSection === "legal" && "Evidencia - Investigación Legal"}
               {lightboxSection === "semanas" && "Evidencia - Semanas Cotizadas"}
-              {lightboxSection === "penales" && "Evidencia - Antecedentes Penales"}
+              {lightboxSection === "penales" && "Evidencia - Notas Periodísticas"}
               {lightboxSection === "buro" && "Evidencia - Buró de Crédito"}
               {lightboxSection === "visita" && "Evidencia - Visita"}
             </DialogTitle>
