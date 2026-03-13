@@ -519,6 +519,7 @@ export const processes = mysqlTable("processes", {
     evidenciasGraficas?: string[]; // Array de URLs de imágenes de semanas
   }>(),
   antecedentesPenales: json("antecedentesPenales").$type<{
+    comentarios?: string;
     evidenciasGraficas?: string[]; // Array de URLs de evidencias gráficas
   }>(),
   buroCredito: json("buroCredito").$type<{

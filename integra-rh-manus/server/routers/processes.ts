@@ -311,6 +311,7 @@ export const processesRouter = router({
         evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs
       }).partial().optional(),
       antecedentesPenales: z.object({
+        comentarios: z.string().trim().optional(),
         evidenciasGraficas: z.array(z.string()).optional(), // Array de URLs para galerías
       }).partial().optional(),
       buroCredito: z.object({
