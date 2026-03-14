@@ -651,9 +651,9 @@ export default function EncuestadorPortal() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-lg bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="bg-blue-700 text-white px-6 py-4">
+          <div className="bg-slate-800 text-white px-6 py-4">
             <h1 className="text-lg font-bold">Sinergia RH</h1>
-            <p className="text-sm text-blue-200">
+            <p className="text-sm text-slate-300">
               Estudio Socioeconómico — {candidateName}
             </p>
           </div>
@@ -692,7 +692,7 @@ export default function EncuestadorPortal() {
               <input
                 id="privacy-check"
                 type="checkbox"
-                className="mt-0.5 w-4 h-4 accent-blue-600"
+                className="mt-0.5 w-4 h-4 accent-emerald-600"
                 checked={privacyAccepted}
                 onChange={(e) => setPrivacyAccepted(e.target.checked)}
               />
@@ -705,7 +705,7 @@ export default function EncuestadorPortal() {
             </div>
 
             <Button
-              className="w-full"
+              className="w-full bg-slate-800 hover:bg-slate-700 text-white"
               disabled={!privacyAccepted}
               onClick={handleStartSurvey}
             >
@@ -733,12 +733,12 @@ export default function EncuestadorPortal() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header fijo */}
-      <div className="sticky top-0 z-20 bg-blue-700 text-white shadow-md">
+      <div className="sticky top-0 z-20 bg-slate-800 text-white shadow-md">
         <div className="flex items-center justify-between px-4 py-2">
           <div>
             <span className="font-bold text-sm">Sinergia RH</span>
-            <span className="mx-2 text-blue-300">·</span>
-            <span className="text-xs text-blue-200 truncate max-w-[160px] inline-block align-middle">
+            <span className="mx-2 text-slate-400">·</span>
+            <span className="text-xs text-slate-300 truncate max-w-[160px] inline-block align-middle">
               {candidateName}
             </span>
           </div>
@@ -756,26 +756,26 @@ export default function EncuestadorPortal() {
         </div>
         {/* Barra de progreso */}
         <div className="px-4 pb-2">
-          <div className="flex items-center justify-between text-xs text-blue-200 mb-1">
+          <div className="flex items-center justify-between text-xs text-slate-300 mb-1">
             <span>Progreso</span>
             <span>{progressPct}%</span>
           </div>
-          <div className="w-full bg-blue-900 rounded-full h-1.5">
+          <div className="w-full bg-slate-600 rounded-full h-1.5">
             <div
-              className="bg-green-400 h-1.5 rounded-full transition-all"
+              className="bg-emerald-400 h-1.5 rounded-full transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
         {syncIcon && (
-          <div className="px-4 pb-1 text-xs text-blue-200">{syncIcon}</div>
+          <div className="px-4 pb-1 text-xs text-slate-300">{syncIcon}</div>
         )}
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-4 pb-28">
         {/* Encabezado de sección */}
         <div className="mb-5 flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-sm shrink-0 shadow">
+          <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 text-white font-bold text-sm shrink-0 shadow">
             {activeSection}
           </span>
           <div className="min-w-0">
@@ -2068,6 +2068,11 @@ export default function EncuestadorPortal() {
             LA INFORMACIÓN QUE PROPORCIONÉ EN EL PRESENTE ESTUDIO ES EXACTA Y VERÍDICA; QUEDANDO EN
             ENTENDIDO QUE CUALQUIER DECLARACIÓN FALSA EN CASO DE SER CONTRATADO, SERÁ CAUSA DE
             RESCISIÓN DE MI CONTRATO DE TRABAJO.
+            <br /><br />
+            ASIMISMO, MANIFIESTO MI CONSENTIMIENTO EXPRESO PARA EL TRATAMIENTO DE MIS DATOS
+            PERSONALES CONFORME AL AVISO DE PRIVACIDAD QUE ME FUE PRESENTADO AL INICIO DE ESTE
+            FORMULARIO, EN CUMPLIMIENTO CON LA LEY FEDERAL DE PROTECCIÓN DE DATOS PERSONALES
+            EN POSESIÓN DE LOS PARTICULARES (LFPDPPP).
           </div>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-gray-600 uppercase">FIRMA CANDIDATO</Label>
