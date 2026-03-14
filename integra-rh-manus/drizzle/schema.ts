@@ -526,12 +526,233 @@ export const processes = mysqlTable("processes", {
     pdfUrl?: string; // Archivo PDF del reporte de Buró
     archivosAdicionales?: string[]; // Array de URLs de archivos adicionales
   }>(),
+  /** @intervention ARCH-20260313-FINAL */
   visitaDetalle: json("visitaDetalle").$type<{
-    tipo?: "virtual" | "presencial";
-    comentarios?: string;
-    fechaRealizacion?: string;
-    enlaceReporteUrl?: string;
-    evidenciasGraficas?: string[]; // Array de URLs de evidencias de visita
+    // ── Metadatos de sesión (auto-generados, no editables por encuestador) ──
+    _privacyAcceptedAt?: string;       // ISO timestamp
+    _sessionStartedAt?: string;        // ISO timestamp
+    _sessionStartGps?: { lat: number; lon: number; accuracy: number };
+    _sessionEndedAt?: string;          // ISO timestamp
+    _sessionEndGps?: { lat: number; lon: number; accuracy: number };
+    _deviceInfo?: { userAgent: string; platform: string };
+
+    // ── §1 Ubicación y Domicilio ──
+    ubicacion?: {
+      gps?: { lat: number; lon: number; accuracy: number; locked: boolean };
+      domicilio?: string;
+      cp?: string;
+      coloniaMunicipio?: string;
+      estado?: string;
+    };
+
+    // ── §2 Información Académica ──
+    academica?: {
+      ultimoGrado?: string;
+      institucion?: string;
+      ciudad?: string;
+      periodo?: string;
+      documentoObtenido?: string;
+      folioDocumento?: string;
+      estudiaActualmente?: boolean;
+      cursos?: Array<{ institucion: string; periodo: string; titulo: string }>;
+      equiposMaquinas?: string;
+      programas?: string;
+      funcionesAdministrativas?: string;
+      otrosConocimientos?: string;
+    };
+
+    // ── §3 Cotejo de Documentos ──
+    documentos?: {
+      actaNacimiento?: { tiene: boolean; fotoUrl?: string };
+      credencialElector?: { tiene: boolean; fotoFrenteUrl?: string; fotoReversoUrl?: string };
+      comprobanteDomicilio?: { tiene: boolean; fotoUrl?: string; nombreTitular?: string; parentesco?: string };
+      cartillaMilitar?: { tiene: boolean; fotoUrl?: string };
+      pasaporte?: { tiene: boolean; fotoUrl?: string };
+      visaAmericana?: { tiene: boolean; fotoUrl?: string };
+      cartasRecomendacion?: { tiene: boolean; fotosUrls?: string[] };
+      creditoInfonavit?: { numero?: string; monto?: string; fotoUrl?: string };
+      tipoSangre?: string;
+      afore?: { nombre?: string; fotoUrl?: string };
+      licenciaConducir?: { tiene: boolean; fotoFrenteUrl?: string; fotoReversoUrl?: string };
+      certificadoTitulo?: { tiene: boolean; fotoUrl?: string };
+    };
+
+    // ── §4 Datos Familiares ──
+    familiares?: Array<{
+      parentesco?: string;
+      nombre?: string;
+      habitaEnDomicilio?: boolean;
+      edad?: number;
+      escolaridad?: string;
+      ocupacion?: string;
+      lugarResidencia?: string;
+    }>;
+    otrasPersonasDomicilio?: Array<{
+      parentesco?: string;
+      nombre?: string;
+      habitaEnDomicilio?: boolean;
+      edad?: number;
+      escolaridad?: string;
+      ocupacion?: string;
+      lugarResidencia?: string;
+    }>;
+
+    // ── §5 Dinámica Familiar ──
+    dinamicaFamiliar?: {
+      vivenSolos?: string;
+      esposaEmbarazada?: string;
+      quienCuidaHijos?: string;
+      dondeViveQuienCuida?: string;
+      edadHijos?: string;
+      parejaDacuerdo?: string;
+      tieneDeudas?: boolean;
+      institucionDeuda?: string;
+      pensionAlimenticia?: boolean;
+      trabajoEstadosUnidos?: boolean;
+    };
+
+    // ── §6 Referencias Económicas ──
+    ingresosArray?: Array<{
+      nombre?: string;
+      parentesco?: string;
+      ingreso?: number;
+      otrosIngresos?: string;
+      aportacionTotal?: number;
+    }>;
+    egresos?: {
+      servicios?: { agua?: number; luz?: number; telefono?: number; gas?: number; tvPaga?: number; internet?: number };
+      alimentacionDespensa?: number;
+      vestidoCalzado?: number;
+      colegiaturas?: number;
+      tarjetasCredito?: number;
+      transportacion?: number;
+      rentaHipotecaInfonavit?: number;
+      gastosMedicos?: number;
+      recreaciones?: number;
+      otrosGastos?: number;
+    };
+
+    // ── §7 Estado de Salud ──
+    salud?: {
+      servicioMedico?: string;
+      ultimaCitaFecha?: string;
+      ultimaCitaCausa?: string;
+      enfermedadesCronicas?: boolean;
+      enfermedadesCuales?: string;
+      intervencionQuirurgica?: boolean;
+      intervencionCual?: string;
+      alergias?: boolean;
+      alergiasCuales?: string;
+      enfermedadesHereditarias?: boolean;
+      enfermedadesHereditariasCuales?: string;
+      enfermedadesHereditariasQuien?: string;
+      medicamentos?: boolean;
+      medicamentosCuales?: string;
+      drogas?: boolean;
+      drogasCuales?: string;
+      estadoSalud?: string;
+      accidentes?: boolean;
+      cuidadosMedicos?: string;
+      fuma?: boolean;
+      cigarrosDiarios?: number;
+      toma?: boolean;
+      tomaCadaCuando?: string;
+      tomaTipoBebida?: string;
+    };
+
+    // ── §8 Información Social ──
+    social?: {
+      pasatiempos?: string;
+      deporte?: boolean; deporteCual?: string; deporteFrecuencia?: string;
+      actividadFamiliar?: boolean; actividadFamiliarCual?: string; actividadFamiliarFrecuencia?: string;
+      discotecas?: boolean; discotecasCual?: string; discotecasFrecuencia?: string;
+      eventosReligiosos?: boolean; eventosReligiososCual?: string; eventosReligiososFrecuencia?: string;
+      partidoPolitico?: boolean; partidoPoliticoCual?: string;
+      grupoDeportivo?: boolean; grupoDeportivoCual?: string;
+      tatuajesPiercings?: boolean;
+    };
+
+    // ── §9 Área Jurídica ──
+    juridica?: {
+      procesoLegal?: boolean; procesoLegalPorQue?: string; procesoLegalQuien?: string;
+      privadoLibertad?: boolean; privadoLibertadPorQue?: string; privadoLibertadQuien?: string;
+      problemasLaborales?: boolean; problemasLaboralesPorQue?: string; problemasLaboralesQuien?: string;
+      partidoPolitico?: boolean; partidoPoliticoCual?: string; partidoPoliticoQuien?: string;
+      sindicato?: boolean; sindicatoCual?: string; sindicatoQuien?: string;
+      puestosPoliticos?: boolean; puestosPoliticosCual?: string; puestosPoliticosQuien?: string;
+    };
+
+    // ── §10 Dinámica de Vivienda ──
+    dinamicaVivienda?: {
+      personasDiscapacidad?: boolean; discapacidadQuien?: string; discapacidadTipo?: string;
+      numeroDependientes?: number; dependientesDetalle?: string;
+      matrimoniosAnteriores?: boolean;
+      hijosMatrimoniosAnteriores?: boolean; hijosMatrimoniosCuantos?: number;
+      pensionAlimenticia?: boolean; pensionMonto?: number;
+      quienCuidaHijos?: string; quienCuidaDonde?: string; parejaDeAcuerdo?: boolean;
+      esposaEmbarazada?: boolean;
+      comprendActividades?: string;
+      rutasForaneas?: boolean; inconvenienteAusencia?: boolean;
+    };
+
+    // ── §11 Fotografías ──
+    fotos?: {
+      comedor?: string;     // URL Firebase Storage
+      cocina?: string;
+      sala?: string;
+      fachadaPatio?: string;
+      fachadaCalle?: string;
+    };
+
+    // ── §12 Resumen y Firma ──
+    cierre?: {
+      observaciones?: string;
+      firmaUrl?: string;    // URL Firebase Storage (imagen canvas o foto)
+    };
+
+    // ── §13 Créditos, Propiedades y Patrimonio ──
+    creditos?: Array<{ institucion?: string; montoCredito?: number; mensualidad?: number; adeudo?: number }>;
+    bienesRaices?: Array<{ tipoPropiedad?: string; ubicacion?: string; valorAprox?: number; aNombreDe?: string }>;
+    vehiculos?: Array<{ marcaModelo?: string; valorComercial?: number; saldo?: number; aNombreDe?: string }>;
+    negocios?: Array<{ tipoNegocio?: string; ubicacion?: string; propietario?: string }>;
+    actividadDesempleo?: { ingreso?: string; comoSeAnuncia?: string };
+
+    // ── §14 Datos del Inmueble ──
+    inmueble?: {
+      tipoInmueble?: string; valorAprox?: number; superficie?: string;
+      fachada?: string; numeroBanos?: number; pisos?: string; paredes?: string;
+      niveles?: number;
+      muebles?: string[];
+      estadoMuebles?: string;
+      serviciosPublicos?: string[];
+      estadoVivienda?: string; ordenLimpieza?: string; zona?: string;
+      predial?: string; numeroRecamaras?: number;
+      tieneSala?: boolean; tieneJardin?: boolean; tieneComedor?: boolean;
+      tieneCochera?: boolean; tieneCocina?: boolean; tienePatio?: boolean;
+      medioTransporte?: string; tiempoTraslado?: string; precioPasaje?: number;
+      tiempoResidenciaActual?: string; tiempoResidenciaAnterior?: string;
+    };
+
+    // ── §15 Referencias Vecinales ──
+    referenciasVecinales?: Array<{
+      nombre?: string; ocupacion?: string; telefono?: string; domicilio?: string;
+      tiempoDeConocerlo?: string; candidatoViveAhi?: boolean;
+      cuantosHijos?: string; quienCuidaHijos?: string; empleosAnteriores?: string;
+      comentarios?: string;
+    }>;
+
+    // ── §15b Referencias Personales ──
+    referenciasPersonales?: Array<{
+      nombre?: string; telefono?: string; ocupacion?: string;
+      domicilio?: string; tiempoDeConocerlo?: string; referencia?: string;
+    }>;
+
+    // ── §16 Otros Datos ──
+    otrosDatos?: {
+      trabajoEnGrupo?: boolean; trabajoEnGrupoCual?: string;
+      trabajoEnGrupoPeriodo?: string; trabajoEnGrupoMotivoSalida?: string;
+      familiaresEnGrupo?: boolean; familiarNombre?: string; familiarPuestoDepto?: string;
+    };
   }>(),
   archivoDictamenUrl: varchar("archivoDictamenUrl", { length: 500 }),
   archivoDictamenPath: varchar("archivoDictamenPath", { length: 500 }),
@@ -743,3 +964,27 @@ export const candidateSelfTokens = mysqlTable("candidateSelfTokens", {
 
 export type CandidateSelfToken = typeof candidateSelfTokens.$inferSelect;
 export type InsertCandidateSelfToken = typeof candidateSelfTokens.$inferInsert;
+
+// ============================================================================
+// TOKENS DE ACCESO PARA ENCUESTADORES (Portal del Encuestador)
+// ============================================================================
+
+/**
+ * @intervention ARCH-20260313-FINAL
+ * Tokens de sesión únicos para el Portal del Encuestador.
+ * Se generan al presionar "Programar" y son el entry-point
+ * del flujo de captura en campo (PWA móvil).
+ */
+export const surveyorTokens = mysqlTable("surveyorTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  processId: int("processId").notNull(),
+  surveyorId: int("surveyorId"),           // FK a surveyors.id (nullable, puede no estar asignado)
+  status: mysqlEnum("status", ["PENDIENTE", "EN_CURSO", "COMPLETADO"]).default("PENDIENTE").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SurveyorToken = typeof surveyorTokens.$inferSelect;
+export type InsertSurveyorToken = typeof surveyorTokens.$inferInsert;

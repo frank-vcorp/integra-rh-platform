@@ -28,6 +28,7 @@ import ClienteProcesoDetalle from "./pages/ClienteProcesoDetalle";
 import ClienteCandidatoDetalle from "./pages/ClienteCandidatoDetalle";
 import Visitas from "./pages/Visitas";
 import { ConsentPage } from "./pages/ConsentPage";
+import EncuestadorPortal from "./pages/EncuestadorPortal";
 import SearchResults from "./pages/SearchResults";
 import CandidatoSelfService from "./pages/CandidatoSelfService";
 
@@ -44,6 +45,8 @@ const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
 function Router() {
   return (
     <Switch>
+      {/* Portal público del Encuestador — @intervention IMPL-20260313-03 */}
+      <Route path="/e/:token" component={EncuestadorPortal} />
       {/* Public consent route */}
       <Route path="/consentir/:token" component={ConsentPage} />
       {/* Public candidate self-service route */}

@@ -33,7 +33,8 @@ export default function Visitas() {
       toast.success("Visita programada");
       const proc = processes.find((p: any) => p.id === parseInt(vars.id as unknown as string));
       const enc = surveyors.find((s: any) => s.id === parseInt(vars.encuestadorId as unknown as string));
-      setLastScheduled({ proc, enc, fechaHora: vars.fechaHora, direccion: vars.direccion, observaciones: vars.observaciones });
+      const surveyorToken = (_res as any)?.surveyorToken;
+      setLastScheduled({ proc, enc, fechaHora: vars.fechaHora, direccion: vars.direccion, observaciones: vars.observaciones, surveyorToken });
     },
     onError: (e) => toast.error("Error al programar: " + e.message),
   });
@@ -122,23 +123,19 @@ export default function Visitas() {
     return `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(text)}`;
   };
   const buildMapsUrl = (address?: string) => address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '';
-  const buildVisitMessage = (opts: { encNombre?: string; procesoClave: string; tipo: string; cliente?: any; candidato?: any; fechaISO?: string; direccion?: string; observaciones?: string; }) => {
-    const fecha = opts.fechaISO ? new Date(opts.fechaISO).toLocaleString() : 'Por confirmar';
-    const line = (k:string,v?:string)=> v? `\n- ${k}: ${v}`: '';
-    const maps = buildMapsUrl(opts.direccion);
+  /** @intervention IMPL-20260313-03 — Mensaje sin datos internos de Sinergia, incluye link del portal */
+  const buildVisitMessage = (opts: { encNombre?: string; candidatoNombre?: string; candidatoTelefono?: string; fechaISO?: string; direccion?: string; observaciones?: string; surveyorToken?: string; }) => {
+    const fecha = opts.fechaISO ? new Date(opts.fechaISO).toLocaleString('es-MX') : 'Por confirmar';
+    const portalUrl = opts.surveyorToken ? `https://integra-rh.web.app/e/${opts.surveyorToken}` : '';
+    const line = (emoji: string, label: string, val?: string) => val ? `\n${emoji} ${label}: ${val}` : '';
     return (
-      `Hola ${opts.encNombre || ''}, te comparto los datos para la visita:` +
-      line('Proceso', `${opts.procesoClave} (${opts.tipo})`) +
-      line('Cliente', opts.cliente?.nombreEmpresa) +
-      line('Contacto cliente', opts.cliente?.contacto) +
-      line('Tel. cliente', opts.cliente?.telefono) +
-      line('Candidato', opts.candidato?.nombreCompleto) +
-      line('Tel. candidato', opts.candidato?.telefono) +
-      line('Email candidato', opts.candidato?.email) +
-      line('Fecha/Hora', fecha) +
-      line('Dirección', opts.direccion) +
-      (maps ? `\n- Maps: ${maps}` : '') +
-      line('Observaciones', opts.observaciones) +
+      `Hola ${opts.encNombre || ''}, tienes una visita domiciliaria asignada:` +
+      line('👤', 'Candidato', opts.candidatoNombre) +
+      line('📞', 'Teléfono', opts.candidatoTelefono) +
+      line('📍', 'Dirección', opts.direccion) +
+      line('📅', 'Fecha y hora', fecha) +
+      line('🕐', 'Horario / Indicaciones', opts.observaciones) +
+      (portalUrl ? `\n\n📋 Formulario de visita:\n${portalUrl}` : '') +
       `\n\nGracias.`
     );
   };
@@ -246,18 +243,15 @@ export default function Visitas() {
                           {enc?.telefono && (
                             <Button size="sm" variant="outline" onClick={() => {
                               const cand = candidates.find((c:any)=> c.id === v.candidatoId);
-                              const cli = clients.find((c:any)=> c.id === v.clienteId);
                               const msg = buildVisitMessage({
                                 encNombre: enc.nombre,
-                                procesoClave: v.clave,
-                                tipo: v.tipoProducto,
-                                cliente: cli,
-                                candidato: cand,
+                                candidatoNombre: (cand as any)?.nombreCompleto,
+                                candidatoTelefono: (cand as any)?.celular || (cand as any)?.telefono,
                                 fechaISO: v.visitStatus?.scheduledDateTime,
                                 direccion: v.visitStatus?.direccion,
                                 observaciones: v.visitStatus?.observaciones,
                               });
-                              try { trpc.surveyorMessages.create.mutate({ encuestadorId: enc.id, procesoId: v.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
+                              try { (trpc.surveyorMessages.create as any).mutate({ encuestadorId: enc.id, procesoId: v.id, canal: 'whatsapp', contenido: msg }); } catch {}
                               window.open(buildWhatsappUrl(enc.telefono, msg), '_blank');
                             }}>WhatsApp</Button>
                           )}
@@ -365,30 +359,58 @@ export default function Visitas() {
             </div>
 
             {lastScheduled && (
-              <div className="mt-3 border rounded p-3">
+              <div className="mt-3 border rounded p-3 space-y-2">
                 <div className="text-sm font-medium">Compartir</div>
-                <div className="mt-2 flex gap-2">
+                {lastScheduled.surveyorToken && (
+                  <div className="text-xs bg-muted rounded px-2 py-1 font-mono break-all">
+                    🔗 {`https://integra-rh.web.app/e/${lastScheduled.surveyorToken}`}
+                  </div>
+                )}
+                <div className="flex gap-2 flex-wrap">
                   {lastScheduled.enc?.telefono && (
                     <Button size="sm" variant="outline" onClick={()=>{
-                      const msg = `Hola ${lastScheduled.enc.nombre}, visita programada: ${lastScheduled.proc?.clave} el ${new Date(lastScheduled.fechaHora).toLocaleString()} en ${lastScheduled.direccion || 'dirección por confirmar'}.`;
+                      const cand = candidates.find((c:any)=> c.id === lastScheduled.proc?.candidatoId);
+                      const msg = buildVisitMessage({
+                        encNombre: lastScheduled.enc?.nombre,
+                        candidatoNombre: cand?.nombreCompleto,
+                        candidatoTelefono: cand?.celular || cand?.telefono,
+                        fechaISO: lastScheduled.fechaHora,
+                        direccion: lastScheduled.direccion,
+                        observaciones: lastScheduled.observaciones,
+                        surveyorToken: lastScheduled.surveyorToken,
+                      });
                       window.open(buildWhatsappUrl(lastScheduled.enc.telefono, msg), '_blank');
                     }}>WhatsApp</Button>
                   )}
                   <Button size="sm" variant="outline" onClick={()=>{
-                    const title = `Visita: ${lastScheduled.proc?.clave}`;
-                    const details = `Proceso: ${lastScheduled.proc?.tipoProducto}\nEncuestador: ${lastScheduled.enc?.nombre || ''}`;
+                    const cand = candidates.find((c:any)=> c.id === lastScheduled.proc?.candidatoId);
+                    const portalUrl = lastScheduled.surveyorToken ? `https://integra-rh.web.app/e/${lastScheduled.surveyorToken}` : '';
+                    const title = 'Visita domiciliaria';
+                    const details = [
+                      cand?.nombreCompleto ? `Candidato: ${cand.nombreCompleto}` : '',
+                      cand?.celular || cand?.telefono ? `Teléfono: ${cand?.celular || cand?.telefono}` : '',
+                      lastScheduled.observaciones ? `Indicaciones: ${lastScheduled.observaciones}` : '',
+                      portalUrl ? `Formulario: ${portalUrl}` : '',
+                    ].filter(Boolean).join('\n');
                     const gUrl = buildGoogleCalendarUrl(title, lastScheduled.fechaHora, 60, details, lastScheduled.direccion);
                     window.open(gUrl, '_blank');
                   }}>Google Calendar</Button>
                   <Button size="sm" variant="outline" onClick={()=>{
-                    const title = `Visita: ${lastScheduled.proc?.clave}`;
-                    const details = `Proceso: ${lastScheduled.proc?.tipoProducto}\nEncuestador: ${lastScheduled.enc?.nombre || ''}`;
+                    const cand = candidates.find((c:any)=> c.id === lastScheduled.proc?.candidatoId);
+                    const portalUrl = lastScheduled.surveyorToken ? `https://integra-rh.web.app/e/${lastScheduled.surveyorToken}` : '';
+                    const title = 'Visita domiciliaria';
+                    const details = [
+                      cand?.nombreCompleto ? `Candidato: ${cand.nombreCompleto}` : '',
+                      cand?.celular || cand?.telefono ? `Teléfono: ${cand?.celular || cand?.telefono}` : '',
+                      lastScheduled.observaciones ? `Indicaciones: ${lastScheduled.observaciones}` : '',
+                      portalUrl ? `Formulario: ${portalUrl}` : '',
+                    ].filter(Boolean).join('\n');
                     const ics = buildICS(title, lastScheduled.fechaHora, 60, details, lastScheduled.direccion);
                     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `visita-${lastScheduled.proc?.clave}.ics`;
+                    a.download = `visita-domiciliaria.ics`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }}>Descargar .ics</Button>

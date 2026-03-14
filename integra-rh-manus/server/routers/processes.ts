@@ -6,6 +6,9 @@ import { TRPCError } from "@trpc/server";
 import { logAuditEvent } from "../_core/audit";
 import { invokeLLM } from "../_core/llm";
 import { ENV } from "../_core/env";
+/** @intervention IMPL-20260313-02 */
+import { surveyorTokens } from "../../drizzle/schema";
+import { eq, and } from "drizzle-orm";
 
 function assertCanEditProcess(ctx: any, proc: any) {
   if (!ctx.user) {
@@ -430,6 +433,7 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 
+  /** @intervention IMPL-20260313-02 — genera token para Portal del Encuestador */
   visitSchedule: protectedProcedure
     .use(requirePermission("visitas", "edit"))
     .input(z.object({ id: z.number(), fechaHora: z.string(), direccion: z.string().optional(), observaciones: z.string().optional(), encuestadorId: z.number().optional() }))
@@ -441,7 +445,46 @@ export const processesRouter = router({
       assertCanEditProcess(ctx, proc);
       const prev = (proc as any).visitStatus || {};
       await db.updateProcess(input.id, { visitStatus: { ...prev, status: 'programada', scheduledDateTime: input.fechaHora, direccion: input.direccion, observaciones: input.observaciones, encuestadorId: input.encuestadorId ?? prev.encuestadorId } } as any);
-      return { ok: true } as const;
+
+      // Generar o reutilizar token para Portal del Encuestador
+      const drizzleDb = await db.getDb();
+      if (!drizzleDb) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de datos no disponible" });
+      }
+
+      // Verificar si ya existe un token activo (PENDIENTE o EN_CURSO) para este proceso
+      const existingTokens = await drizzleDb
+        .select()
+        .from(surveyorTokens)
+        .where(
+          and(
+            eq(surveyorTokens.processId, input.id),
+            eq(surveyorTokens.status, "PENDIENTE")
+          )
+        )
+        .limit(1);
+
+      let surveyorToken: string;
+
+      if (existingTokens.length > 0) {
+        // Reutilizar token activo existente
+        surveyorToken = existingTokens[0].token;
+      } else {
+        // Crear nuevo token
+        surveyorToken = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días
+        await drizzleDb
+          .insert(surveyorTokens)
+          .values({
+            token: surveyorToken,
+            processId: input.id,
+            surveyorId: input.encuestadorId ?? null,
+            status: "PENDIENTE",
+            expiresAt,
+          });
+      }
+
+      return { ok: true, surveyorToken } as const;
     }),
 
   visitUpdate: protectedProcedure

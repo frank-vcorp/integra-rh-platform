@@ -25,6 +25,37 @@ import {
   parseTipoProductoToConfig,
 } from "@/lib/procesoTipo";
 
+// ── Botón para generar y descargar el PDF del estudio socioeconómico ─────────
+function PdfEstudioButton({ processId }: { processId: number }) {
+  const genPdf = trpc.surveyorPortal.generateStudyPDF.useMutation({
+    onSuccess: (data) => {
+      window.open(data.url, "_blank");
+    },
+  });
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={genPdf.isPending}
+      onClick={() => genPdf.mutate({ processId })}
+      className="flex items-center gap-1 text-blue-700 border-blue-300 hover:bg-blue-50"
+    >
+      {genPdf.isPending ? (
+        <>
+          <span className="animate-spin w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full" />
+          Generando PDF...
+        </>
+      ) : (
+        <>
+          <FileText className="h-4 w-4" />
+          PDF Estudio
+        </>
+      )}
+      {genPdf.isError && <span className="text-red-500 text-xs ml-1">Error</span>}
+    </Button>
+  );
+}
+
 export default function ProcesoDetalle() {
   const params = useParams();
   const processId = parseInt(params.id || "0");
@@ -954,12 +985,17 @@ export default function ProcesoDetalle() {
           <CardTitle className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5"/> Visitas domiciliarias
           </CardTitle>
-          {!isClientAuth && (
+          <div className="flex gap-2">
+            {!isClientAuth && process.estatusProceso === "visita_realizada" && (
+              <PdfEstudioButton processId={processId} />
+            )}
+            {!isClientAuth && (
             <Button size="sm" variant="outline" onClick={()=>{
               setNotifySelected(surveyors.map((s:any)=> s.id));
               setNotifyOpen(true);
             }}>Avisar encuestadores</Button>
-          )}
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

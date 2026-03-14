@@ -22,6 +22,8 @@ import { candidateSelfRouter } from "./candidateSelf";
 import { rolesRouter } from './roles';
 import { clientSitesRouter } from "./clientSites";
 import { geolocationRouter } from './geolocation';
+/** @intervention IMPL-20260313-02 */
+import { surveyorPortalRouter } from './surveyorPortal';
 
 /**
  * Este es el router principal de nuestra aplicación.
@@ -72,6 +74,8 @@ export const appRouter = router({
   audit: auditRouter,
   roles: rolesRouter,
   geolocation: geolocationRouter,
+  /** @intervention IMPL-20260313-02 — Portal del Encuestador (público) */
+  surveyorPortal: surveyorPortalRouter,
 });
 
 // Exportamos el tipo del router. El cliente lo usará para tener autocompletado y tipado.
