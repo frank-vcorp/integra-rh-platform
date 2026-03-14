@@ -95,7 +95,13 @@ export default function ProcesoDetalle() {
     initialData: [],
   } as any);
   const visitAssign = trpc.processes.visitAssign.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
-  const visitSchedule = trpc.processes.visitSchedule.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
+  const [lastSurveyorToken, setLastSurveyorToken] = useState<string | null>(null);
+  const visitSchedule = trpc.processes.visitSchedule.useMutation({
+    onSuccess: (data: any) => {
+      utils.processes.getById.invalidate({ id: processId });
+      if (data?.surveyorToken) setLastSurveyorToken(data.surveyorToken);
+    },
+  });
   const visitUpdate = trpc.processes.visitUpdate.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitDone = trpc.processes.visitMarkDone.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitCancel = trpc.processes.visitCancel.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
@@ -107,24 +113,20 @@ export default function ProcesoDetalle() {
   const getCandidate = () => candidates.find((c:any)=> c.id === process?.candidatoId);
   const getClient = () => clients.find((c:any)=> c.id === process?.clienteId);
   const buildMapsUrl = (address?: string) => address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '';
-  const buildVisitMessage = (opts: { encNombre?: string; procesoClave: string; tipo: string; cliente?: any; candidato?: any; fechaISO?: string; direccion?: string; observaciones?: string; puestoNombre?: string; }) => {
+  const buildVisitMessage = (opts: { encNombre?: string; candidato?: any; fechaISO?: string; direccion?: string; observaciones?: string; surveyorToken?: string | null; }) => {
     const fecha = opts.fechaISO ? new Date(opts.fechaISO).toLocaleString() : 'Por confirmar';
     const line = (k:string,v?:string)=> v? `\n- ${k}: ${v}`: '';
     const maps = buildMapsUrl(opts.direccion);
+    const formUrl = opts.surveyorToken ? `https://integra-rh.web.app/e/${opts.surveyorToken}` : null;
     return (
       `Hola ${opts.encNombre || ''}, te comparto los datos para la visita:` +
-      line('Proceso', `${opts.procesoClave} (${opts.tipo})`) +
-      line('Cliente', opts.cliente?.nombreEmpresa) +
-      line('Contacto cliente', opts.cliente?.contacto) +
-      line('Tel. cliente', opts.cliente?.telefono) +
       line('Candidato', opts.candidato?.nombreCompleto) +
       line('Tel. candidato', opts.candidato?.telefono) +
-      line('Email candidato', opts.candidato?.email) +
-      line('Puesto', opts.puestoNombre) +
       line('Fecha/Hora', fecha) +
       line('Dirección', opts.direccion) +
       (maps ? `\n- Maps: ${maps}` : '') +
       line('Observaciones', opts.observaciones) +
+      (formUrl ? `\n- Formulario de visita: ${formUrl}` : '') +
       `\n\nGracias.`
     );
   };
@@ -1067,18 +1069,13 @@ export default function ProcesoDetalle() {
                         {enc?.telefono && (
                           <Button size="sm" variant="outline" onClick={()=>{
                             const cand = getCandidate();
-                            const cli = getClient();
-                            const puesto = posts.find((p:any)=> p.id === process.puestoId)?.nombreDelPuesto;
                             const msg = buildVisitMessage({
                               encNombre: enc.nombre,
-                              procesoClave: process.clave,
-                              tipo: process.tipoProducto,
-                              cliente: cli,
                               candidato: cand,
                               fechaISO: process.visitStatus?.scheduledDateTime,
                               direccion: process.visitStatus?.direccion,
                               observaciones: process.visitStatus?.observaciones,
-                              puestoNombre: puesto,
+                              surveyorToken: lastSurveyorToken,
                             });
                             try { trpc.surveyorMessages.create.mutate({ encuestadorId: enc.id, procesoId: process.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
                             window.open(buildWhatsappUrl(enc.telefono, msg), '_blank');
@@ -1125,19 +1122,14 @@ export default function ProcesoDetalle() {
               <Button onClick={()=>{
                 if (!process) return;
                 const cand = getCandidate();
-                const cli = getClient();
-                const puesto = posts.find((p:any)=> p.id === process.puestoId)?.nombreDelPuesto;
                 const fechaISO = process.visitStatus?.scheduledDateTime;
                 const msgBase = (encNombre?: string) => buildVisitMessage({
                   encNombre,
-                  procesoClave: process.clave,
-                  tipo: process.tipoProducto,
-                  cliente: cli,
                   candidato: cand,
                   fechaISO,
                   direccion: process.visitStatus?.direccion,
                   observaciones: process.visitStatus?.observaciones,
-                  puestoNombre: puesto,
+                  surveyorToken: lastSurveyorToken,
                 }) + "\n¿Puedes atenderla?";
                 const targets = surveyors.filter((s:any)=> notifySelected.includes(s.id) && s.telefono);
                 if (targets.length === 0) { return; }

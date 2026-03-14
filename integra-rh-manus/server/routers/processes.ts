@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { logAuditEvent } from "../_core/audit";
 import { invokeLLM } from "../_core/llm";
 import { ENV } from "../_core/env";
+import { randomUUID } from "node:crypto";
 /** @intervention IMPL-20260313-02 */
 import { surveyorTokens } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
@@ -471,7 +472,7 @@ export const processesRouter = router({
         surveyorToken = existingTokens[0].token;
       } else {
         // Crear nuevo token
-        surveyorToken = crypto.randomUUID();
+        surveyorToken = randomUUID();
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días
         await drizzleDb
           .insert(surveyorTokens)
