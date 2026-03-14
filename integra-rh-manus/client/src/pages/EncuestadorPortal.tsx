@@ -101,14 +101,32 @@ const PARENTESCO_OPTS = [
   "Otro",
 ];
 
+const SECTION_TITLES: Record<number, string> = {
+  1: "Ubicación y Domicilio",
+  2: "Información Académica",
+  3: "Cotejo de Documentos",
+  4: "Datos Familiares",
+  5: "Dinámica Familiar",
+  6: "Referencias Económicas",
+  7: "Estado de Salud y Hábitos",
+  8: "Información Social y Pasatiempos",
+  9: "Área Jurídica",
+  10: "Estructura y Dinámica de la Vivienda",
+  11: "Fotografías del Entorno",
+  12: "Resumen y Firma",
+  13: "Créditos, Propiedades y Patrimonio",
+  14: "Inmueble",
+  15: "Referencias Vecinales",
+  16: "Referencias Personales",
+  17: "Otros Datos",
+};
+const TOTAL_SECTIONS = 17;
+
 // ──────────────────────────────────────────────
-// Sub-componente: Acordeón de Sección
+// Sub-componente: Acordeón de Sección (wizard)
 // ──────────────────────────────────────────────
 function SectionAccordion({
-  index,
-  title,
   active,
-  onToggle,
   children,
 }: {
   index: number;
@@ -117,26 +135,8 @@ function SectionAccordion({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
-  return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden mb-2">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 text-left font-semibold text-sm text-gray-800 hover:bg-gray-100 transition-colors"
-      >
-        <span>
-          <span className="inline-block w-6 h-6 mr-2 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
-            {index}
-          </span>
-          {title}
-        </span>
-        <span className="text-gray-500">{active ? "▴" : "▾"}</span>
-      </button>
-      {active && (
-        <div className="px-4 py-3 bg-white space-y-3">{children}</div>
-      )}
-    </div>
-  );
+  if (!active) return null;
+  return <div className="space-y-4">{children}</div>;
 }
 
 // ──────────────────────────────────────────────
@@ -288,7 +288,7 @@ export default function EncuestadorPortal() {
 
   const [step, setStep] = useState<StepType>("loading");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [activeSection, setActiveSection] = useState<number>(0);
+  const [activeSection, setActiveSection] = useState<number>(1);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
@@ -314,7 +314,7 @@ export default function EncuestadorPortal() {
 
   const contextQuery = trpc.surveyorPortal.getContext.useQuery(
     { token: token! },
-    { enabled: !!token, retry: false }
+    { enabled: !!token, retry: false, refetchOnWindowFocus: false, staleTime: Infinity }
   );
   const saveProgressMutation = trpc.surveyorPortal.saveProgress.useMutation();
   const completeMutation = trpc.surveyorPortal.complete.useMutation();
@@ -415,7 +415,7 @@ export default function EncuestadorPortal() {
     });
 
   // ── Progreso de secciones ──
-  const sectionCount = 16;
+  const sectionCount = TOTAL_SECTIONS;
   const filledSections = [
     val("ubicacion.domicilio"),
     val("academica.gradoEstudios"),
@@ -772,7 +772,18 @@ export default function EncuestadorPortal() {
         )}
       </div>
 
-      <div className="max-w-lg mx-auto px-3 pt-4 space-y-1">
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-28">
+        {/* Encabezado de sección */}
+        <div className="mb-5 flex items-center gap-3">
+          <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-sm shrink-0 shadow">
+            {activeSection}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-gray-800 leading-tight truncate">{SECTION_TITLES[activeSection]}</h2>
+            <p className="text-xs text-gray-400">Sección {activeSection} de {TOTAL_SECTIONS}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
 
         {/* ─────────────────────────────────────────── */}
         {/* SECCIÓN 1 — UBICACIÓN Y DOMICILIO */}
@@ -2802,31 +2813,52 @@ export default function EncuestadorPortal() {
             </Field>
           </SwitchField>
         </SectionAccordion>
-      </div>
+        </div>{/* /card */}
+      </div>{/* /outer */}
 
-      {/* ── BOTÓN FLOTANTE ENVIAR Y FINALIZAR ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 p-4 bg-white border-t border-gray-200 shadow-lg">
-        <Button
-          className="w-full max-w-lg mx-auto block bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-base"
-          onClick={handleComplete}
-          disabled={completeMutation.isPending || uploadPhotoMutation.isPending}
-        >
-          {uploadStatus ? (
-            <span className="flex items-center gap-2 justify-center">
-              <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-              {uploadStatus}
-            </span>
-          ) : completeMutation.isPending ? (
-            <span className="flex items-center gap-2 justify-center">
-              <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-              Enviando...
-            </span>
-          ) : (
-            "✅ Enviar y Finalizar"
+      {/* ── NAVEGACIÓN WIZARD ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex gap-3">
+          {activeSection > 1 && (
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setActiveSection((s) => s - 1); window.scrollTo(0, 0); }}
+            >
+              ← Anterior
+            </Button>
           )}
-        </Button>
+          {activeSection < TOTAL_SECTIONS ? (
+            <Button
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => { setActiveSection((s) => s + 1); window.scrollTo(0, 0); }}
+            >
+              Siguiente →
+            </Button>
+          ) : (
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+              onClick={handleComplete}
+              disabled={completeMutation.isPending || uploadPhotoMutation.isPending}
+            >
+              {uploadStatus ? (
+                <span className="flex items-center gap-2 justify-center">
+                  <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  {uploadStatus}
+                </span>
+              ) : completeMutation.isPending ? (
+                <span className="flex items-center gap-2 justify-center">
+                  <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  Enviando...
+                </span>
+              ) : (
+                "✅ Enviar y Finalizar"
+              )}
+            </Button>
+          )}
+        </div>
         {completeMutation.isError && (
-          <p className="text-red-600 text-xs text-center mt-1">
+          <p className="text-red-600 text-xs text-center pb-2">
             Error al enviar. Verifica tu conexión e inténtalo de nuevo.
           </p>
         )}
