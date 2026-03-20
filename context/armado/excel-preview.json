@@ -1,0 +1,494 @@
+{
+  "ESTUDIO SOCIOECONOMICO": [
+    [
+      "ESTUDIO SOCIOLABORAL"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [
+      "STATUS DEL CANDIDATO",
+      null,
+      null,
+      "RECOMENDABLE",
+      null,
+      "CON RESERVAS",
+      null,
+      "NO RECOMENDABLE"
+    ],
+    [],
+    [
+      null,
+      null,
+      null,
+      "ESTO LO LLENA SINERGIA",
+      null,
+      "ESTO LO LLENA SINERGIA",
+      null,
+      "ESTO LO LLENA SINERGIA"
+    ],
+    [],
+    [
+      " GENERALES"
+    ],
+    [
+      null,
+      null,
+      "NOMBRE DEL CANDIDATO: ",
+      null,
+      null,
+      null,
+      null,
+      "FECHA"
+    ],
+    [
+      null,
+      null,
+      "PUESTO:",
+      null,
+      null,
+      null,
+      null,
+      "CEDI /PLAZA"
+    ],
+    [
+      null,
+      null,
+      "FECHA DE NACIMIENTO: ",
+      null,
+      null,
+      null,
+      null,
+      "EDAD:"
+    ],
+    [
+      null,
+      null,
+      "INVESTIGACIÓN IMSS:",
+      "SI",
+      "NO",
+      "¿PORQUÉ?",
+      "ESTO LO LLENA SINERGIA RH"
+    ],
+    [
+      null,
+      null,
+      "DISPOSICIÓN DE SEMANAS COTIZADAS?:",
+      null,
+      null,
+      "ESTO LO LLENA SINERGIA RH"
+    ],
+    [
+      null,
+      null,
+      "LUGAR DE NACIMIENTO: ",
+      null,
+      null,
+      null,
+      null,
+      "SEXO:",
+      "M",
+      "F"
+    ],
+    [
+      null,
+      null,
+      "ESTADO CIVIL: ",
+      "(anotar soltero, union libre, casado, divorciado,\r\n separado de matrimonio y union libre)",
+      null,
+      null,
+      "FECHA DE MATRIMONIO O DE UNIÓN LIBRE:"
+    ],
+    [
+      null,
+      null,
+      "DOMICILIO (CALLE Y ENTRE CALLES)",
+      null,
+      null,
+      null,
+      null,
+      "C.P:"
+    ],
+    [
+      null,
+      null,
+      "COLONIA Y MUNICIPIO:",
+      null,
+      null,
+      null,
+      null,
+      "ESTADO:"
+    ],
+    [
+      null,
+      null,
+      "CELULAR:",
+      null,
+      null,
+      null,
+      null,
+      "RECADOS:"
+    ],
+    [
+      null,
+      null,
+      "CORREO ELECTRÓNICO:",
+      null,
+      null,
+      null,
+      null,
+      "TEL CASA:"
+    ],
+    [
+      null,
+      null,
+      "REDES SOCIALES:",
+      "FACEBOOK",
+      null,
+      "INSTAGRAM",
+      null,
+      "TWITTER",
+      "TIK TOK"
+    ],
+    [
+      null,
+      null,
+      null,
+      "ESTO LO LLENA SINERGIA RH",
+      null,
+      "ESTO LO LLENA SINERGIA RH",
+      null,
+      "ESTO LO LLENA SINERGIA RH",
+      "ESTO LO LLENA SINERGIA RH"
+    ],
+    [
+      null,
+      null,
+      "TIENE DEUDAS:",
+      null,
+      "INSTITUCIÓN:"
+    ],
+    [
+      null,
+      null,
+      "BURÓ DE CRÉDITO?",
+      "ESTO LO LLENA SINERGIA RH",
+      null,
+      "PENSIÓN ALIMENTICIA?"
+    ],
+    [
+      null,
+      null,
+      "ACCIDENTES VIALES?",
+      null,
+      null,
+      "ACCIDENTES DE TRABAJO?"
+    ],
+    [
+      null,
+      null,
+      "HAZ TRABAJADO EN ESTADOS UNIDOS?"
+    ],
+    [],
+    [
+      "DOCUMENTOS"
+    ],
+    [
+      "ACTA DE NACIMIENTO:",
+      "(anotar si tiene o no tiene)",
+      null,
+      null,
+      "CREDENCIAL DE ELECTOR:",
+      null,
+      "(anotar si tiene o no tiene)"
+    ],
+    [
+      "NSS:",
+      null,
+      "FECHA EN QUE SE LE OTORGÓ:",
+      null,
+      "CARTILLA MILITAR:",
+      null,
+      null,
+      "FECHA DE LIBERACIÓN:",
+      "(anotar si tiene o no tiene)"
+    ],
+    [
+      "CURP:",
+      null,
+      null,
+      null,
+      "LICENCIA DE CONDUCIR:",
+      null,
+      "(anotar si tiene o no tiene)"
+    ],
+    [
+      "RFC:",
+      null,
+      null,
+      null,
+      "CERTIFICADO O TITULO RECIBIDO:"
+    ],
+    [
+      "CRÉDITO INFONAVIT (NUMERO Y MONTO):",
+      "(anotar si tiene o no tiene)",
+      null,
+      null,
+      "TIPO DE SANGRE:",
+      null,
+      "(anotar si tiene o no tiene)"
+    ],
+    [
+      "PASAPORTE:",
+      "(anotar si tiene o no tiene)",
+      null,
+      null,
+      "VISA AMERICANA:",
+      null,
+      "(anotar si tiene o no tiene)"
+    ],
+    [
+      "AFILIADO EN LA AFORE: ",
+      "(anotar si tiene o no tiene)"
+    ],
+    [
+      "COMPROBANTE DE DOMICILIO:",
+      null,
+      "RECIBO DE CFE, SERVICIO ######### A NOMBRE DE ######### DEL DÍA, MES Y AÑO"
+    ],
+    [
+      null,
+      null,
+      "PARENTESCO CON EL TITULAR DEL RECIBO: "
+    ],
+    [
+      "CARTAS DE RECOMENDACIÓN:"
+    ],
+    [
+      " OBSERVACIONES / RESUMEN Y CONCLUSIONES"
+    ],
+    [
+      "LAS OBSERVACIONES QUE DEBES ESCRIBIR AQUÍ DEBEN SER COMO ESTA: ROGELIO FLORES PADILLA DE 36 AÑOS, ORIGINARIO DE IGUALA, GRO.  CUENTA CON SECUNDARIA TERMINADA COMO  MÁXIMO GRADO DE ESTUDIOS.  SEPARADO DE RELACIÓN ANTERIOR, TIENE DOS HIJOS. EL CANDIDATO TIENE TRES AÑOS DE VIVIR EN ESTE  DOMICILIO DESDE QUE SE SEPARÓ DE SU PAREJA Y SUS HIJOS SE QUEDARON CON ELLA, MENCIONA QUE NO LES PASA PENSIÓN. EN EL DOMICILIO VIVE SU MAMÁ, HERMANA Y SOBRINAS, EL INMUEBLE ES PROPIEDAD DE SU MAMÁ Y SE ENCUENTRA EN REGULARES CONDICIONES DE MANTENIMIENTO Y BIEN EN CUANTO A ORDEN Y LIMPIEZA. LOS GASTOS DE LA CASA SON CUBIERTOS POR EL CANDIDATO Y SU HERMANA. DURANTE LOS PERIODOS DE INACTIVIDAD SE HA EMPLEADO COMO TAXISTA Y PLATERO. LAS REFERENCIAS VECINALES Y PERSONALES, CONSIDERAN AL CANDIDATO COMO BUENA PERSONA, RESPONSABLE Y TRABAJADOR. SE PRESENTÓ A LA ENTREVISTA, LIMPIO EN SU PERSONA, VESTIMENTA Y CALZADO.  "
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      " INFORMACIÓN ACADÉMICA"
+    ],
+    [
+      "ULTIMO GRADO DE ESTUDIOS:"
+    ],
+    [
+      "INSTITUCIÓN EDUCATIVA:",
+      null,
+      null,
+      null,
+      null,
+      null,
+      "CIUDAD:"
+    ],
+    [
+      "PERIODO:",
+      null,
+      null,
+      "TITULO RECIBIDO:",
+      null,
+      "(DOCUMENTO PRESENTADO Y FOLIO)"
+    ]
+  ],
+  "INVESTIGACION LABORAL": [
+    [
+      "INVESTIGACIÓN LABORAL"
+    ],
+    [
+      "STATUS DEL CANDIDATO",
+      null,
+      null,
+      "RECOMENDABLE ",
+      null,
+      "CON RESERVAS",
+      null,
+      "NO RECOMENDABLE"
+    ],
+    [],
+    [],
+    [
+      "I. GENERALES"
+    ],
+    [
+      "NOMBRE DEL CANDIDATO: ",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "FECHA"
+    ],
+    [
+      "PUESTO:",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "CEDI /PLAZA:"
+    ],
+    [
+      "FECHA Y LUGAR DE NACIMIENTO: ",
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "EDAD:"
+    ],
+    [
+      "NSS:",
+      null,
+      null,
+      null,
+      null,
+      "CURP:"
+    ],
+    [
+      "DOMICILIO:",
+      null,
+      null,
+      null,
+      null,
+      "RFC:"
+    ],
+    [
+      "COLONIA Y MUNICIPIO:",
+      null,
+      null,
+      null,
+      null,
+      "ESTADO:"
+    ],
+    [
+      "CELULAR:",
+      null,
+      "TEL CASA: ",
+      null,
+      null,
+      "RECADOS:",
+      null,
+      "CORREO:"
+    ],
+    [
+      "TIENE DEUDAS:",
+      null,
+      "INSTITUCIÓN: ",
+      null,
+      null,
+      "TC? BURÓ DE CRÉDITO?  "
+    ],
+    [
+      "PENSIÓN ALIMENTICIA?",
+      null,
+      "ACCIDENTES VIALES?",
+      null,
+      null,
+      "ACCIDENTES DE TRABAJO?"
+    ],
+    [
+      "QUIEN CUIDA A TUS HIJOS? (NOMBRE Y RELACIÓN)",
+      null,
+      "DONDE VIVE QUIEN CUIDA A TUS HIJOS",
+      null,
+      null,
+      "ESTÁ DE ACUERDO TU PAREJA EN QUE TRABAJES?"
+    ],
+    [
+      "EDAD DE TUS HIJOS:",
+      null,
+      "ESPOSA EMBARAZADA?:",
+      null,
+      null,
+      "VIVEN SOLOS CON TU FAMILIA O LA DE TU PAREJA? "
+    ],
+    [
+      "HAZ SIDO SINDICALIZADO?",
+      null,
+      "NOMBRE SINDICADO Y CARGO OCUPADO",
+      null,
+      null,
+      "HAZ ESTADO AFIANZADO? NOMBRE AFIANZADORA"
+    ],
+    [
+      "II. PATRONES EN EL IMSS "
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "III. OBSERVACIONES Y/O CONCLUSIONES"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "IV. HISTORIAL LABORAL"
+    ],
+    [
+      "EMPRESA (NOMBRE COMERCIAL Y RAZON SOCIAL)"
+    ],
+    [
+      "GIRO "
+    ],
+    [
+      "DIRECCIÓN"
+    ],
+    [
+      "TELÉFONO"
+    ],
+    [
+      "PUESTO  INICIAL/  PUESTO FINAL"
+    ],
+    [
+      "PRINCIPALES ACTIVIDADES REALIZADAS"
+    ],
+    [
+      "PERIODO LABORADO CANDIDATO / PERIODO EMPRESA"
+    ],
+    [
+      "SUELDO INICIAL / SUELDO FINAL"
+    ],
+    [
+      "JEFE INMEDIATO"
+    ],
+    [
+      "MOTIVO DE SEPARACIÓN                                                                                                   CANDIDATO / EMPRESA"
+    ],
+    [
+      "¿CUÁNTAS INCAPACIDADES TUVO? ¿POR  QUÉ? CANDIDATO / EMPRESA"
+    ],
+    [
+      "¿CUÁNTAS FALTAS? ¿POR QUÈ? \r\nCANDIDATO / EMPRESA"
+    ],
+    [
+      "¿DEMANDÓ?  CANDIDATO / EMPRESA"
+    ],
+    [
+      "EVALUACIÓN DEL DESEMPEÑO (Excelente, bueno, regular, malo)"
+    ]
+  ]
+}
