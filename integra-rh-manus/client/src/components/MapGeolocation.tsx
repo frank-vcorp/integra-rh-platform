@@ -1,7 +1,16 @@
+/**
+ * Compatibilidad tipada para geolocalización con react-leaflet.
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+const UnsafeMapContainer = MapContainer as any;
+const UnsafeTileLayer = TileLayer as any;
 
 // Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -21,7 +30,7 @@ interface MapGeolocationProps {
 
 const MapClickHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void }> = ({ onMapClick }) => {
   useMapEvents({
-    click(e) {
+    click(e: any) {
       onMapClick(e.latlng.lat, e.latlng.lng);
     },
   });
@@ -38,7 +47,7 @@ const MapGeolocation: React.FC<MapGeolocationProps> = ({
   const [position, setPosition] = useState<[number, number]>([initialLat, initialLng]);
   const [loading, setLoading] = useState(true);
   const [geoMessage, setGeoMessage] = useState('');
-  const mapRef = useRef(null);
+  const mapRef = useRef<any>(null);
   const geoAttempted = useRef(false);
 
   // Función para geocodificar una dirección usando fetch directo (evita caché de tRPC)
@@ -55,7 +64,7 @@ const MapGeolocation: React.FC<MapGeolocationProps> = ({
         '/api/trpc/geolocation.geocodeAddress', // fallback a local
       ];
       
-      let lastError = null;
+      let lastError: Error | null = null;
       for (const baseUrl of urls) {
         try {
           // Construir URL con parámetros (GET para queries en tRPC)
@@ -95,7 +104,7 @@ const MapGeolocation: React.FC<MapGeolocationProps> = ({
             return;
           }
         } catch (error) {
-          lastError = error;
+          lastError = error instanceof Error ? error : new Error(String(error));
           continue;
         }
       }
@@ -151,13 +160,13 @@ const MapGeolocation: React.FC<MapGeolocationProps> = ({
 
   return (
     <div className="w-full rounded-lg overflow-hidden border border-gray-300 shadow-sm">
-      <MapContainer
+      <UnsafeMapContainer
         center={position}
         zoom={17}
         style={{ height, width: '100%' }}
         ref={mapRef}
       >
-        <TileLayer
+        <UnsafeTileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
@@ -172,7 +181,7 @@ const MapGeolocation: React.FC<MapGeolocationProps> = ({
           </Popup>
         </Marker>
         <MapClickHandler onMapClick={handleMapClick} />
-      </MapContainer>
+      </UnsafeMapContainer>
       <div className="bg-blue-50 p-3 text-xs text-gray-700 border-t border-gray-300">
         <p className="font-semibold mb-1">📍 Ubicación actual:</p>
         <p>Latitud: <span className="font-mono">{position[0].toFixed(6)}</span></p>

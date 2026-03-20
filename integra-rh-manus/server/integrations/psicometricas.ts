@@ -1,6 +1,8 @@
 /**
  * Integración con API de Psicométricas
  * Documentación: Ver /context/Fichas_tecnicas/psicometricas API/
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
  */
 
 import https from "https";
@@ -14,7 +16,7 @@ interface AsignarBateriaParams {
   email: string;
   telefono?: string;
   bateria?: string; // Nombre batería (opcional)
-  testsCsv: string; // IDs de pruebas
+  testsCsv?: string; // IDs de pruebas
   vacante?: string;
 }
 
@@ -147,7 +149,7 @@ export async function asignarBateriaPsicometrica(
     form.set("Candidate", params.nombre);
     if (params.email) form.set("Email", params.email);
     if (params.vacante) form.set("Vacancy", params.vacante);
-    form.set("Tests", params.testsCsv);
+    if (params.testsCsv) form.set("Tests", params.testsCsv);
     if (params.bateria) form.set("Battery", params.bateria);
 
     const { status, body } = await postFormEncoded("/agregaCandidato", form);
@@ -291,7 +293,7 @@ export async function listarBaterias(): Promise<any[]> {
     // La forma exacta depende de la API; devolvemos tal cual y dejamos adaptación al cliente
     bateriasCache = Array.isArray(data) ? data : (data?.baterias || data?.data || []);
     bateriasCacheTs = now;
-    return bateriasCache;
+    return bateriasCache ?? [];
   } catch (error) {
     console.error("[Psicométricas] Error al listar baterías:", error);
     throw error;

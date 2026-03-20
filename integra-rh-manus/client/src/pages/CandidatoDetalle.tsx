@@ -1,3 +1,9 @@
+/**
+ * Detalle de candidato con compatibilidad de tipos en mapas y fechas.
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
+ */
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +16,9 @@ import { Link, useParams, useSearch, useLocation } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+
+const UnsafeMapContainer = MapContainer as any;
+const UnsafeTileLayer = TileLayer as any;
 import {
   Sheet,
   SheetContent,
@@ -1177,10 +1186,10 @@ export default function CandidatoDetalle() {
                   )}
                   {domicilio.mapLink && typeof domicilio.mapLink === 'object' && 'lat' in domicilio.mapLink && 'lng' in domicilio.mapLink && (
                     <div className="mt-2 rounded-lg overflow-hidden border border-slate-200" style={{ height: "240px" }}>
-                      <MapContainer center={[domicilio.mapLink.lat, domicilio.mapLink.lng]} zoom={16} className="h-full w-full">
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
+                      <UnsafeMapContainer center={[domicilio.mapLink.lat, domicilio.mapLink.lng]} zoom={16} className="h-full w-full">
+                        <UnsafeTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
                         <Marker position={[domicilio.mapLink.lat, domicilio.mapLink.lng]} />
-                      </MapContainer>
+                      </UnsafeMapContainer>
                     </div>
                   )}
                 </div>
@@ -1530,7 +1539,7 @@ export default function CandidatoDetalle() {
                         Tiempo trabajado:{" "}
                         {item.tiempoTrabajadoEmpresa ||
                           item.tiempoTrabajado ||
-                          calcularTiempoTrabajado(item.fechaInicio, item.fechaFin) ||
+                          calcularTiempoTrabajado(item.fechaInicio ?? undefined, item.fechaFin ?? undefined) ||
                           "-"}
                       </p>
                       <p className="text-[11px] text-slate-500 mt-1">

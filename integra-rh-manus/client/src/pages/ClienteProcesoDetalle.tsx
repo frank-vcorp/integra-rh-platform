@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 /**
  * Vista de detalle de proceso para clientes
  * Reestructurada con diseño Grid + Tabs (Estilo Dashboard)
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
  */
 export default function ClienteProcesoDetalle() {
   const params = useParams();
@@ -323,7 +325,14 @@ export default function ClienteProcesoDetalle() {
                <TabsContent value="resultados" className="space-y-6">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {blocks.map((block) => {
-                      const info = block.render(block.data || {});
+                      const info = block.render(block.data || {}) as {
+                        estado?: string;
+                        detalle?: string;
+                        flag?: string;
+                        fecha?: string;
+                        link?: string;
+                      };
+                      const infoFlag = info.flag ?? "pendiente";
                       return (
                         <Card key={block.key} className="hover:shadow-md transition-shadow">
                           <CardHeader className="pb-2 bg-gray-50/50 border-b">
@@ -333,12 +342,12 @@ export default function ClienteProcesoDetalle() {
                                 <CardTitle className="text-base font-semibold text-gray-700">{block.label}</CardTitle>
                               </div>
                               <Badge variant="outline" className="bg-white">
-                                {info.flag === 'completo' || info.flag === 'aprobado' || info.flag === 'en curso' ? (
+                                {infoFlag === 'completo' || infoFlag === 'aprobado' || infoFlag === 'en curso' ? (
                                   <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
                                 ) : (
                                   <Clock className="h-3 w-3 text-amber-500 mr-1" />
                                 )}
-                                <span className="text-xs">{info.flag}</span>
+                                <span className="text-xs">{infoFlag}</span>
                               </Badge>
                             </div>
                           </CardHeader>

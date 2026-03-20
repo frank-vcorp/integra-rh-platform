@@ -1,3 +1,9 @@
+/**
+ * Agenda de visitas con hardening de tipos y compatibilidad de WhatsApp.
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { DayPicker } from "react-day-picker";
@@ -8,6 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+
+const getCandidatePhone = (candidate: any): string | undefined => {
+  return candidate?.celular || candidate?.telefono || undefined;
+};
 
 export default function Visitas() {
   const { user } = useAuth();
@@ -246,13 +256,13 @@ export default function Visitas() {
                               const msg = buildVisitMessage({
                                 encNombre: enc.nombre,
                                 candidatoNombre: (cand as any)?.nombreCompleto,
-                                candidatoTelefono: (cand as any)?.celular || (cand as any)?.telefono,
+                                candidatoTelefono: getCandidatePhone(cand),
                                 fechaISO: v.visitStatus?.scheduledDateTime,
                                 direccion: v.visitStatus?.direccion,
                                 observaciones: v.visitStatus?.observaciones,
                               });
                               try { (trpc.surveyorMessages.create as any).mutate({ encuestadorId: enc.id, procesoId: v.id, canal: 'whatsapp', contenido: msg }); } catch {}
-                              window.open(buildWhatsappUrl(enc.telefono, msg), '_blank');
+                              window.open(buildWhatsappUrl(String(enc.telefono), msg), '_blank');
                             }}>WhatsApp</Button>
                           )}
                           <Button size="sm" variant="outline" onClick={() => window.open(gUrl, '_blank')}>Google Calendar</Button>
@@ -327,7 +337,7 @@ export default function Visitas() {
                 Sugeridos: {suggested.length === 0 ? '—' : suggested.map((s:any, idx:number)=> (
                   <button key={s.id} className="underline mr-2" onClick={(e)=>{ e.preventDefault(); setForm(f=> ({ ...f, encuestadorId: String(s.id) })); }}>{s.nombre}{idx < suggested.length-1 ? ',' : ''}</button>
                 ))}
-                <Button size="xs" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
+                <Button size="sm" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
               </div>
             </div>
             <div>
@@ -373,13 +383,13 @@ export default function Visitas() {
                       const msg = buildVisitMessage({
                         encNombre: lastScheduled.enc?.nombre,
                         candidatoNombre: cand?.nombreCompleto,
-                        candidatoTelefono: cand?.celular || cand?.telefono,
+                        candidatoTelefono: getCandidatePhone(cand),
                         fechaISO: lastScheduled.fechaHora,
                         direccion: lastScheduled.direccion,
                         observaciones: lastScheduled.observaciones,
                         surveyorToken: lastScheduled.surveyorToken,
                       });
-                      window.open(buildWhatsappUrl(lastScheduled.enc.telefono, msg), '_blank');
+                      window.open(buildWhatsappUrl(String(lastScheduled.enc.telefono), msg), '_blank');
                     }}>WhatsApp</Button>
                   )}
                   <Button size="sm" variant="outline" onClick={()=>{
@@ -388,7 +398,7 @@ export default function Visitas() {
                     const title = 'Visita domiciliaria';
                     const details = [
                       cand?.nombreCompleto ? `Candidato: ${cand.nombreCompleto}` : '',
-                      cand?.celular || cand?.telefono ? `Teléfono: ${cand?.celular || cand?.telefono}` : '',
+                      getCandidatePhone(cand) ? `Teléfono: ${getCandidatePhone(cand)}` : '',
                       lastScheduled.observaciones ? `Indicaciones: ${lastScheduled.observaciones}` : '',
                       portalUrl ? `Formulario: ${portalUrl}` : '',
                     ].filter(Boolean).join('\n');
@@ -401,7 +411,7 @@ export default function Visitas() {
                     const title = 'Visita domiciliaria';
                     const details = [
                       cand?.nombreCompleto ? `Candidato: ${cand.nombreCompleto}` : '',
-                      cand?.celular || cand?.telefono ? `Teléfono: ${cand?.celular || cand?.telefono}` : '',
+                      getCandidatePhone(cand) ? `Teléfono: ${getCandidatePhone(cand)}` : '',
                       lastScheduled.observaciones ? `Indicaciones: ${lastScheduled.observaciones}` : '',
                       portalUrl ? `Formulario: ${portalUrl}` : '',
                     ].filter(Boolean).join('\n');

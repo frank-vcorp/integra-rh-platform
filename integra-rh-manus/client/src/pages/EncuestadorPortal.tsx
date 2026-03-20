@@ -1,8 +1,8 @@
-/** @intervention IMPL-20260313-03b */
 /**
  * EncuestadorPortal.tsx
  * PWA móvil para encuestadores en campo — Ruta pública /e/:token
- * @intervention IMPL-20260313-03b
+ * @intervention FIX-20260319-02
+ * @respaldo PROYECTO.md
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -2006,7 +2006,7 @@ export default function EncuestadorPortal() {
             </p>
             <SwitchField
               label="¿SABE QUE DE ACUERDO A LA OPERACIÓN SE LE PUEDE REQUERIR PARA RUTAS FORÁNEAS DE LUNES A SÁBADO?"
-              value={!!val("vivienda.sabe Foraneas")}
+              value={!!val("vivienda.sabeForaneas")}
               onChange={(v) => update("vivienda.sabeForaneas", v)}
             />
             <SwitchField
@@ -2333,6 +2333,12 @@ export default function EncuestadorPortal() {
             <Label className="text-xs font-semibold uppercase block mb-2">
               A QUE TE DEDICAS CUANDO NO TIENES EMPLEO FORMAL:
             </Label>
+            <Field label="ACTIVIDAD:">
+              <Input
+                value={val("patrimonio.desempleoActividad")}
+                onChange={(e) => update("patrimonio.desempleoActividad", e.target.value)}
+              />
+            </Field>
             <Field label="INGRESO:">
               <Input
                 value={val("patrimonio.desempleoIngreso")}
@@ -2564,7 +2570,7 @@ export default function EncuestadorPortal() {
             />
           ))}
 
-          <Field label="MEDIO DE TRANSPORTE DISPONIBLE DE TU DOMICILIO AL LUGAR DE TRABAJO EN SIGMA?">
+          <Field label="MEDIO DE TRANSPORTE DISPONIBLE DE TU DOMICILIO AL LUGAR DE TRABAJO?">
             <Input
               value={val("inmueble.medioTransporte")}
               onChange={(e) => update("inmueble.medioTransporte", e.target.value)}
@@ -2606,10 +2612,14 @@ export default function EncuestadorPortal() {
           active={activeSection === 15}
           onToggle={() => setActiveSection(activeSection === 15 ? 0 : 15)}
         >
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">
+            ESTAS PREGUNTAS DEBEN CONTESTARSE CON LA INFORMACIÓN PROPORCIONADA POR UN
+            VECINO DEL CANDIDATO, NO POR EL CANDIDATO.
+          </p>
           {refVecinales.map((rv, i) => (
             <div key={i} className="border rounded p-2 space-y-2 bg-gray-50 mb-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-medium">Vecino {i + 1}</span>
+                <span className="text-xs font-medium">Vecino entrevistado {i + 1}</span>
                 <button
                   type="button"
                   onClick={() => setRefVecinales((prev) => prev.filter((_, j) => j !== i))}

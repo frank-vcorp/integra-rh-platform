@@ -1,3 +1,9 @@
+/**
+ * Panel operativo de procesos con ajustes de compatibilidad tipada.
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
+ */
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -534,7 +540,7 @@ export default function ProcesoDetalle() {
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Estatus</span>
                     <select 
                         value={process.estatusProceso} 
-                        onChange={(e) => updateStatus.mutate({ id: processId, estatusProceso: e.target.value })}
+                        onChange={(e) => updateStatus.mutate({ id: processId, estatusProceso: e.target.value as (typeof ESTATUS)[number]["value"] })}
                         disabled={!canEditProcess}
                         className="bg-transparent text-sm font-medium border-none p-0 h-auto focus:ring-0 cursor-pointer w-32"
                     >
@@ -874,7 +880,7 @@ export default function ProcesoDetalle() {
                         <div className="flex items-center gap-2 text-xs border p-2 rounded bg-green-50">
                             <FileText className="h-4 w-4 text-green-700"/>
                             <a href={(panelForm.buroCredito as any).pdfUrl} target="_blank" className="truncate flex-1 hover:underline">Ver Reporte</a>
-                            <Button size="xs" variant="ghost" className="h-6 w-6 p-0" onClick={() => setPanelForm(f=>({...f, buroCredito: {...f.buroCredito, pdfUrl: null} as any}))}>×</Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setPanelForm(f=>({...f, buroCredito: {...f.buroCredito, pdfUrl: null} as any}))}>×</Button>
                         </div>
                     ) : (
                         <div className="relative border border-dashed rounded p-3 text-center bg-gray-50">
@@ -1019,7 +1025,7 @@ export default function ProcesoDetalle() {
                   Sugeridos por cercanía: {suggested.length === 0 ? '—' : suggested.map((s:any, idx:number)=> (
                     <button key={s.id} className="underline mr-2" onClick={(e)=>{ e.preventDefault(); setVisitForm(f=>({ ...f, encuestadorId: String(s.id) })); }}>{s.nombre}{idx < suggested.length-1 ? ',' : ''}</button>
                   ))}
-                  <Button size="xs" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
+                  <Button size="sm" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
                 </div>
                 <div className="mt-2 flex gap-2">
                   <Button size="sm" variant="outline" disabled={!visitForm.encuestadorId || visitAssign.isPending} onClick={()=>{
@@ -1077,8 +1083,8 @@ export default function ProcesoDetalle() {
                               observaciones: process.visitStatus?.observaciones,
                               surveyorToken: lastSurveyorToken,
                             });
-                            try { trpc.surveyorMessages.create.mutate({ encuestadorId: enc.id, procesoId: process.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
-                            window.open(buildWhatsappUrl(enc.telefono, msg), '_blank');
+                            try { (trpc.surveyorMessages.create as any).mutate({ encuestadorId: enc.id, procesoId: process.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
+                            window.open(buildWhatsappUrl(String(enc.telefono), msg), '_blank');
                           }}>WhatsApp</Button>
                         )}
                         <Button size="sm" variant="outline" onClick={()=> window.open(gUrl, '_blank')}>Google Calendar</Button>
@@ -1135,7 +1141,7 @@ export default function ProcesoDetalle() {
                 if (targets.length === 0) { return; }
                 targets.forEach((s:any, idx:number)=> {
                   setTimeout(()=> {
-                    const url = buildWhatsappUrl(s.telefono, msgBase(s.nombre));
+                    const url = buildWhatsappUrl(String(s.telefono), msgBase(s.nombre));
                     window.open(url, '_blank');
                   }, idx * 200);
                 });

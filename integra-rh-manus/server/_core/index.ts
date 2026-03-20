@@ -1,3 +1,9 @@
+/**
+ * Bootstrap del servidor con hardening de logs y compatibilidad de tipos.
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
+ */
+
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
@@ -190,7 +196,6 @@ async function startServer() {
       console.log(`🟢 [SERVER] Token validado`, {
         requestId,
         candidateId: tokenRow.candidateId,
-        email: tokenRow.email,
       });
 
       const { getDb } = await import("../db");

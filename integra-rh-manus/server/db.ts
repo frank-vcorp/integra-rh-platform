@@ -1,3 +1,9 @@
+/**
+ * Acceso a datos con compatibilidad tipada para Drizzle/MySQL.
+ * @intervention FIX-20260319-04
+ * @respaldo PROYECTO.md
+ */
+
 import { eq, and, desc, asc, like, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
@@ -42,7 +48,7 @@ import {
 import { ENV } from "./_core/env";
 import { randomBytes } from "crypto";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: any = null;
 
 export async function getDb() {
   if (_db) return _db;
@@ -531,7 +537,7 @@ export async function getCandidateByPsicoClave(clave: string) {
   return Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : undefined;
 }
 
-export async function createCandidate(data: InsertCandidate) {
+export async function createCandidate(data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(candidates).values(data);
@@ -622,14 +628,14 @@ export async function getWorkHistoryById(id: number) {
   return rows[0] ?? undefined;
 }
 
-export async function createWorkHistory(data: InsertWorkHistory) {
+export async function createWorkHistory(data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(workHistory).values(data);
   return result[0].insertId;
 }
 
-export async function updateWorkHistory(id: number, data: Partial<InsertWorkHistory>) {
+export async function updateWorkHistory(id: number, data: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(workHistory).set(data).where(eq(workHistory.id, id));
