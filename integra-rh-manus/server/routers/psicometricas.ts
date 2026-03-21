@@ -8,6 +8,25 @@ import { descargarReportePDF } from "../integrations/psicometricas";
 import { storage as firebaseStorage } from "../firebase";
 import { logAuditEvent } from "../_core/audit";
 
+/**
+ * @intervention IMPL-20260320-15
+ * @disabled Módulo de psicométricas deshabilitado temporalmente por decisión del cliente.
+ * No invertir más tiempo ni recursos en este módulo hasta nueva orden.
+ * Para rehabilitar: cambiar PSICOMETRICAS_DISABLED a false y remover este bloque.
+ * @respaldo PROYECTO.md
+ */
+const PSICOMETRICAS_DISABLED = true as const;
+
+function assertPsicometricasEnabled(): void {
+  if (PSICOMETRICAS_DISABLED) {
+    throw new TRPCError({
+      code: 'NOT_IMPLEMENTED',
+      // TODO(IMPL-20260320-15): reactivar cuando el cliente lo decida
+      message: 'Módulo de psicométricas deshabilitado temporalmente. Contacta a soporte.',
+    });
+  }
+}
+
 const NORMALIZE_STATUS = (raw?: string) => {
   const value = (raw || "").toString().toLowerCase();
   if (value.includes("complet")) return "Completado";
@@ -27,12 +46,14 @@ export const psicometricasRouter = router({
   getBaterias: protectedProcedure
     .use(requirePermission("candidatos", "view"))
     .query(async () => {
+      assertPsicometricasEnabled();
       return psicometricas.listarBaterias();
     }),
   asignarBateria: protectedProcedure
     .use(requirePermission("candidatos", "edit"))
     .input(z.object({ candidatoId: z.number(), bateria: z.string().optional(), tests: z.array(z.number()).min(1), vacante: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
+      assertPsicometricasEnabled();
       const candidate = await db.getCandidateById(input.candidatoId);
       if (!candidate) return { error: "Candidato no encontrado" } as any;
 
@@ -168,6 +189,7 @@ export const psicometricasRouter = router({
     .use(requirePermission("candidatos", "edit"))
     .input(z.object({ asignacionId: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      assertPsicometricasEnabled();
       // Reenviar por correo (SendGrid) solamente, sin pegar al proveedor.
       const candidate: any = await db.getCandidateByPsicoClave(input.asignacionId);
       if (!candidate) {
@@ -222,6 +244,7 @@ export const psicometricasRouter = router({
     .use(requirePermission("candidatos", "view"))
     .input(z.object({ asignacionId: z.string() }))
     .query(async ({ input }) => {
+      assertPsicometricasEnabled();
       // Minimizar llamadas a la API: usar caché en candidato.psicometricos + cooldown
       const dbmod = await import("../db");
       const candidate: any = await dbmod.getCandidateByPsicoClave(input.asignacionId);
@@ -270,6 +293,7 @@ export const psicometricasRouter = router({
       fileName: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      assertPsicometricasEnabled();
       const candidate = await db.getCandidateById(input.candidatoId);
       if (!candidate) {
         throw new Error("Candidato no encontrado");
@@ -328,7 +352,7 @@ export const psicometricasRouter = router({
           url: jsonUrl,
           fileKey: jsonKey,
           mimeType: "application/json",
-          uploadedBy: ctx.user.name || ctx.user.email || "Admin",
+          uploadedBy: ctx.user!.name || ctx.user!.email || "Admin",
         } as any);
         jsonDoc = { id: jsonId, url: jsonUrl };
       }
@@ -353,7 +377,7 @@ export const psicometricasRouter = router({
           url: signedUrl,
           fileKey: key,
           mimeType: "application/pdf",
-          uploadedBy: ctx.user.name || ctx.user.email || "Admin",
+          uploadedBy: ctx.user!.name || ctx.user!.email || "Admin",
         } as any);
         pdfDoc = { id, url: signedUrl };
       }

@@ -205,7 +205,7 @@ export default function Clientes() {
   });
 
   const filteredClients = clients.filter(
-    (client) =>
+    (client: any) =>
       client.nombreEmpresa.toLowerCase().includes(filter.toLowerCase()) ||
       client.email?.toLowerCase().includes(filter.toLowerCase())
   );
@@ -376,7 +376,7 @@ export default function Clientes() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredClients.map((client) => (
+                    {filteredClients.map((client: any) => (
                     <TableRow
                       key={client.id}
                       className={
@@ -463,7 +463,7 @@ export default function Clientes() {
 
               {/* Vista en tarjetas para móvil */}
               <div className="space-y-3 md:hidden">
-                {filteredClients.map((client) => (
+                {filteredClients.map((client: any) => (
                   <div
                     key={client.id}
                     className="rounded-lg border p-3 bg-white shadow-sm"

@@ -185,7 +185,7 @@ export const candidatesRouter = router({
       } as any);
 
       await logAuditEvent(ctx, {
-        action: "review",
+        action: "update",
         entityType: "candidate",
         entityId: input.id,
         details: {

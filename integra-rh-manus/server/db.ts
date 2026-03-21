@@ -1,6 +1,6 @@
 /**
  * Acceso a datos con compatibilidad tipada para Drizzle/MySQL.
- * @intervention FIX-20260319-04
+ * @intervention ARCH-20260319-02
  * @respaldo PROYECTO.md
  */
 
@@ -22,6 +22,8 @@ import {
   InsertCandidateComment,
   processes,
   InsertProcess,
+  processReportVersions,
+  InsertProcessReportVersion,
   processComments,
   InsertProcessComment,
   surveyors,
@@ -44,6 +46,7 @@ import {
   InsertUserRole,
   candidateSelfTokens,
   InsertCandidateSelfToken,
+  surveyorTokens,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { randomBytes } from "crypto";
@@ -197,7 +200,7 @@ export async function getAllRolesWithPermissions() {
     if (!byRole[rid]) byRole[rid] = [];
     byRole[rid].push(p as any);
   }
-  return rolesList.map((r) => ({
+  return rolesList.map((r: any) => ({
     ...r,
     permissions: byRole[r.id] ?? [],
   }));
@@ -483,23 +486,23 @@ export async function getCandidatesWithInvestigationProgress(clienteId?: number)
 
   if (baseCandidates.length === 0) return [];
 
-  const candidateIds = baseCandidates.map((c) => c.id);
+  const candidateIds = baseCandidates.map((c: any) => c.id);
   const allWorkHistory = await db
     .select()
     .from(workHistory)
     .where(inArray(workHistory.candidatoId, candidateIds));
 
-  return baseCandidates.map((c) => {
-    const items = allWorkHistory.filter((w) => w.candidatoId === c.id);
+  return baseCandidates.map((c: any) => {
+    const items = allWorkHistory.filter((w: any) => w.candidatoId === c.id);
     if (items.length === 0) {
       return { ...c, investigacionProgreso: 0 };
     }
     const total = items.length;
     const terminados = items.filter(
-      (w) => w.estatusInvestigacion === "terminado"
+      (w: any) => w.estatusInvestigacion === "terminado"
     ).length;
     const revisados = items.filter(
-      (w) => w.estatusInvestigacion === "revisado"
+      (w: any) => w.estatusInvestigacion === "revisado"
     ).length;
     const pesoTerminado = 1;
     const pesoRevisado = 0.5;
@@ -679,7 +682,7 @@ export async function getAllProcesses() {
     .leftJoin(clients, eq(processes.clienteId, clients.id))
     .orderBy(desc(processes.fechaRecepcion));
   
-  return results.map(row => ({
+  return results.map((row: any) => ({
     ...row.processes,
     siteName: row.clientSites?.nombrePlaza || null,
     responsableName: row.users?.name || null,
@@ -699,7 +702,7 @@ export async function getProcessesByClient(clienteId: number) {
     .leftJoin(clients, eq(processes.clienteId, clients.id))
     .orderBy(desc(processes.fechaRecepcion));
   
-  return results.map(row => ({
+  return results.map((row: any) => ({
     ...row.processes,
     siteName: row.clientSites?.nombrePlaza || null,
     responsableName: row.users?.name || null,
@@ -728,11 +731,31 @@ export async function getProcessById(id: number) {
   if (result.length === 0) return undefined;
   
   const row = result[0];
+
+  const latestSurveyorTokenRows = await db
+    .select()
+    .from(surveyorTokens)
+    .where(eq(surveyorTokens.processId, id))
+    .orderBy(desc(surveyorTokens.createdAt), desc(surveyorTokens.id))
+    .limit(1);
+
+  const latestSurveyorToken = latestSurveyorTokenRows[0];
+
   return {
     ...row.processes,
     siteName: row.clientSites?.nombrePlaza || null,
     responsableName: row.users?.name || null,
     clientName: row.clients?.nombreEmpresa || null,
+    surveyorPortalAccess: latestSurveyorToken
+      ? {
+          token: latestSurveyorToken.token,
+          status: latestSurveyorToken.status,
+          expiresAt: latestSurveyorToken.expiresAt,
+          createdAt: latestSurveyorToken.createdAt,
+          updatedAt: latestSurveyorToken.updatedAt,
+          url: `https://integra-rh.web.app/e/${latestSurveyorToken.token}`,
+        }
+      : null,
   };
 }
 
@@ -797,6 +820,127 @@ export async function updateProcess(id: number, data: Partial<InsertProcess>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(processes).set(data).where(eq(processes.id, id));
+}
+
+// ============================================================================
+// VERSIONES DE ARMADOS
+// ============================================================================
+
+/**
+ * @intervention ARCH-20260320-01
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+ */
+export async function getProcessReportVersions(procesoId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(processReportVersions)
+    .where(eq(processReportVersions.procesoId, procesoId))
+    .orderBy(desc(processReportVersions.versionNumber), desc(processReportVersions.createdAt));
+}
+
+export async function getProcessReportVersionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(processReportVersions).where(eq(processReportVersions.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getLatestPublishedProcessReportVersion(procesoId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(processReportVersions)
+    .where(and(eq(processReportVersions.procesoId, procesoId), eq(processReportVersions.status, "published")))
+    .orderBy(desc(processReportVersions.versionNumber), desc(processReportVersions.publishedAt), desc(processReportVersions.createdAt))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createProcessReportVersion(data: InsertProcessReportVersion) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const requestedVersionNumber = data.versionNumber;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const latest = await db
+      .select({ versionNumber: processReportVersions.versionNumber })
+      .from(processReportVersions)
+      .where(eq(processReportVersions.procesoId, data.procesoId))
+      .orderBy(desc(processReportVersions.versionNumber))
+      .limit(1);
+
+    const nextVersionNumber = requestedVersionNumber ?? ((latest[0]?.versionNumber ?? 0) + 1);
+
+    try {
+      const result = await db.insert(processReportVersions).values({
+        ...data,
+        versionNumber: nextVersionNumber,
+      });
+
+      return {
+        id: result[0].insertId,
+        versionNumber: nextVersionNumber,
+      };
+    } catch (error: any) {
+      const isDuplicateVersionNumber = error?.code === "ER_DUP_ENTRY" || error?.errno === 1062;
+      if (requestedVersionNumber || !isDuplicateVersionNumber || attempt === 2) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("No se pudo crear la versión del reporte");
+}
+
+export async function publishProcessReportVersion(
+  id: number,
+  publishedBy: { userId?: number | null; name?: string | null }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.transaction(async (tx: any) => {
+    const rows = await tx.select().from(processReportVersions).where(eq(processReportVersions.id, id)).limit(1);
+    const targetVersion = rows[0];
+
+    if (!targetVersion) {
+      throw new Error("Report version not found");
+    }
+
+    await tx
+      .update(processReportVersions)
+      .set({ status: "archived" })
+      .where(and(eq(processReportVersions.procesoId, targetVersion.procesoId), eq(processReportVersions.status, "published")));
+
+    const publishedAt = new Date();
+    await tx
+      .update(processReportVersions)
+      .set({
+        status: "published",
+        publishedAt,
+        publishedByUserId: publishedBy.userId ?? null,
+        publishedByName: publishedBy.name ?? null,
+      })
+      .where(eq(processReportVersions.id, id));
+
+    return {
+      ...targetVersion,
+      status: "published" as const,
+      publishedAt,
+      publishedByUserId: publishedBy.userId ?? null,
+      publishedByName: publishedBy.name ?? null,
+    };
+  });
+}
+
+export async function deleteProcessReportVersion(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(processReportVersions).where(eq(processReportVersions.id, id));
 }
 
 export async function deleteProcess(id: number) {

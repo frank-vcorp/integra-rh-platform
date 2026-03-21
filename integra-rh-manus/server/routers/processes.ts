@@ -7,9 +7,12 @@ import { logAuditEvent } from "../_core/audit";
 import { invokeLLM } from "../_core/llm";
 import { ENV } from "../_core/env";
 import { randomUUID } from "node:crypto";
-/** @intervention IMPL-20260313-02 */
-import { surveyorTokens } from "../../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { generarArmadoClientePDF } from "../utils/estudiosocioPdf";
+/** @intervention IMPL-20260313-02 | IMPL-20260320-15 | ARCH-20260321-03 */
+// HTML-first renderer excluido del RC (ARCH-20260321-03). Flujo: solo pdf-lib legado.
+/** IMPL-20260320-15: blindado operaciones de Storage (getPublishedReportAccess, getReportVersionAccess, createLegacyReportDraft, generarDictamen) */
+import { surveyorTokens, auditLogs, users } from "../../drizzle/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 function assertCanEditProcess(ctx: any, proc: any) {
   if (!ctx.user) {
@@ -49,18 +52,95 @@ function assertCanEditProcess(ctx: any, proc: any) {
   });
 }
 
+/**
+ * @intervention ARCH-20260319-01
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+ */
+function assertCanViewProcessReports(ctx: any, proc: any) {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  if (ctx.user.role === "client") {
+    if (proc.clienteId !== ctx.user.clientId) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "No puedes acceder a este proceso",
+      });
+    }
+    return;
+  }
+
+  if (hasPermission(ctx, "procesos", "view")) {
+    return;
+  }
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "No tienes permisos para ver reportes de este proceso.",
+  });
+}
+
 const CALIFICACION_LABELS: Record<string, string> = {
   pendiente: "Pendiente",
   recomendable: "Recomendable",
   con_reservas: "Recomendable con reservas",
   no_recomendable: "No recomendable",
+  recomendable_con_observacion: "Recomendable con observación",
+  con_reservas_con_observacion: "Con reservas con observación",
 };
+
+/**
+ * @intervention ARCH-20260320-01
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+ */
+const reportSectionValues = [
+  "generales_candidato",
+  "documentos",
+  "investigacion_laboral",
+  "investigacion_legal",
+  "semanas_cotizadas",
+  "buro_credito",
+  "visita_domiciliaria",
+  "observaciones_conclusion",
+] as const;
+
+/**
+ * @intervention ARCH-20260320-02
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+ */
+const jsonRecordSchema = z.record(z.string(), z.unknown());
 
 const safeText = (value: unknown) => {
   if (value === null || value === undefined) return "-";
   const text = String(value).trim();
   return text.length > 0 ? text : "-";
 };
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function getVisitCaptureChanges(beforeValue: unknown, afterValue: unknown, currentPath = "captura"): Array<{
+  path: string;
+  before: unknown;
+  after: unknown;
+}> {
+  if (Array.isArray(beforeValue) || Array.isArray(afterValue)) {
+    return JSON.stringify(beforeValue ?? null) === JSON.stringify(afterValue ?? null)
+      ? []
+      : [{ path: currentPath, before: beforeValue ?? null, after: afterValue ?? null }];
+  }
+
+  if (isPlainObject(beforeValue) && isPlainObject(afterValue)) {
+    const keys = Array.from(new Set([...Object.keys(beforeValue), ...Object.keys(afterValue)])).sort();
+    return keys.flatMap((key) => getVisitCaptureChanges(beforeValue[key], afterValue[key], `${currentPath}.${key}`));
+  }
+
+  return JSON.stringify(beforeValue ?? null) === JSON.stringify(afterValue ?? null)
+    ? []
+    : [{ path: currentPath, before: beforeValue ?? null, after: afterValue ?? null }];
+}
 
 export const processesRouter = router({
   list: publicProcedure.query(async ({ ctx }) => {
@@ -254,11 +334,13 @@ export const processesRouter = router({
     }),
 
   updateCalificacion: protectedProcedure
+    // IMPL-20260320-07: trazabilidad de edición posterior a asignación inicial
     .use(requirePermission("procesos", "edit"))
     .input(z.object({ 
       id: z.number(), 
       calificacionFinal: z.enum(["pendiente","recomendable","con_reservas","no_recomendable","recomendable_con_observacion","con_reservas_con_observacion"]),
-      comentarioCalificacion: z.string().optional()
+      comentarioCalificacion: z.string().optional(),
+      motivoEdicion: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const proc = await db.getProcessById(input.id);
@@ -266,6 +348,18 @@ export const processesRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
       }
       assertCanEditProcess(ctx, proc);
+
+      const calificacionAnterior = proc.calificacionFinal;
+      const comentarioAnterior = (proc as any).comentarioCalificacion ?? null;
+      const esCalifAsignada = !!calificacionAnterior && calificacionAnterior !== "pendiente";
+      const esEdicionPosterior = esCalifAsignada && input.calificacionFinal !== calificacionAnterior;
+
+      if (esEdicionPosterior && !input.motivoEdicion?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Se requiere un motivo de edición para cambiar una calificación ya asignada.",
+        });
+      }
 
       const updateData: any = { calificacionFinal: input.calificacionFinal };
       if (input.comentarioCalificacion !== undefined) {
@@ -278,7 +372,16 @@ export const processesRouter = router({
         action: "update",
         entityType: "process_score",
         entityId: input.id,
-        details: { calificacionFinal: input.calificacionFinal },
+        details: {
+          calificacionAnterior: calificacionAnterior ?? null,
+          calificacionFinal: input.calificacionFinal,
+          comentarioAnterior,
+          comentarioNuevo: input.comentarioCalificacion ?? null,
+          ...(esEdicionPosterior && {
+            esEdicionPosterior: true,
+            motivoEdicion: input.motivoEdicion,
+          }),
+        },
       });
 
       // Intentar generar/actualizar el resumen IA para cliente en segundo plano
@@ -357,6 +460,551 @@ export const processesRouter = router({
       return { ok: true } as const;
     }),
 
+  updateVisitCapture: protectedProcedure
+    .use(requirePermission("procesos", "edit"))
+    .input(
+      z.object({
+        id: z.number(),
+        visitaDetalle: jsonRecordSchema,
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      const previousVisitCapture = ((proc as any).visitaDetalle || {}) as Record<string, unknown>;
+      const nextVisitCapture = input.visitaDetalle || {};
+      const changedFields = getVisitCaptureChanges(previousVisitCapture, nextVisitCapture);
+
+      if (changedFields.length === 0) {
+        return { ok: true, changedFields: 0 } as const;
+      }
+
+      await db.updateProcess(input.id, { visitaDetalle: nextVisitCapture } as any);
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "process_visita_detalle",
+        entityId: input.id,
+        details: {
+          changedFields,
+        },
+      });
+
+      return { ok: true, changedFields: changedFields.length } as const;
+    }),
+
+  getVisitCaptureAudit: protectedProcedure
+    .use(requirePermission("procesos", "view"))
+    .input(z.object({ id: z.number(), limit: z.number().int().min(1).max(100).optional() }))
+    .query(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      const drizzleDb = await db.getDb();
+      if (!drizzleDb) return [];
+
+      return drizzleDb
+        .select({
+          id: auditLogs.id,
+          timestamp: auditLogs.timestamp,
+          userId: auditLogs.userId,
+          actorType: auditLogs.actorType,
+          action: auditLogs.action,
+          entityType: auditLogs.entityType,
+          entityId: auditLogs.entityId,
+          requestId: auditLogs.requestId,
+          details: auditLogs.details,
+          userName: users.name,
+          userEmail: users.email,
+        })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.userId, users.id))
+        .where(and(eq(auditLogs.entityType, "process_visita_detalle"), eq(auditLogs.entityId, String(input.id))))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(input.limit ?? 30);
+    }),
+
+  /**
+   * Historial de auditoría de Calificación Final por proceso.
+   * @intervention IMPL-20260320-02
+   * @respaldo PROYECTO.md
+   */
+  getScoreAudit: protectedProcedure
+    .use(requirePermission("procesos", "view"))
+    .input(z.object({ id: z.number(), limit: z.number().int().min(1).max(100).optional() }))
+    .query(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      const drizzleDb = await db.getDb();
+      if (!drizzleDb) return [];
+
+      return drizzleDb
+        .select({
+          id: auditLogs.id,
+          timestamp: auditLogs.timestamp,
+          userId: auditLogs.userId,
+          actorType: auditLogs.actorType,
+          action: auditLogs.action,
+          entityType: auditLogs.entityType,
+          entityId: auditLogs.entityId,
+          requestId: auditLogs.requestId,
+          details: auditLogs.details,
+          userName: users.name,
+          userEmail: users.email,
+        })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.userId, users.id))
+        .where(and(eq(auditLogs.entityType, "process_score"), eq(auditLogs.entityId, String(input.id))))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(input.limit ?? 30);
+    }),
+
+  /**
+   * @intervention ARCH-20260320-01
+   * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+   */
+  getPublishedReportSummary: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanViewProcessReports(ctx, proc);
+
+      const report = await db.getLatestPublishedProcessReportVersion(input.id);
+      if (!report) return null;
+
+      return {
+        id: report.id,
+        versionNumber: report.versionNumber,
+        status: report.status,
+        publishedAt: report.publishedAt,
+        pdfFileName: report.pdfFileName,
+        sections: report.sections ?? [],
+      } as const;
+    }),
+
+  getPublishedReportAccess: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanViewProcessReports(ctx, proc);
+
+      const report = await db.getLatestPublishedProcessReportVersion(input.id);
+      if (!report || !report.pdfStoragePath) {
+        return null;
+      }
+
+      const bucket = firebaseStorage.bucket();
+      const file = bucket.file(report.pdfStoragePath);
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      let signedUrl: string;
+      try {
+        const [url] = await file.getSignedUrl({
+          action: "read",
+          expires: new Date(Date.now() + 60 * 60 * 1000),
+        });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[ProcessesRouter] Storage error (getPublishedReportAccess):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al generar URL de acceso al reporte: ${msg}`,
+        });
+      }
+
+      await logAuditEvent(ctx, {
+        action: "client_link_access",
+        entityType: "process_report_version",
+        entityId: report.id,
+        details: {
+          procesoId: input.id,
+          versionNumber: report.versionNumber,
+          status: report.status,
+        },
+      });
+
+      return {
+        id: report.id,
+        versionNumber: report.versionNumber,
+        url: signedUrl,
+        pdfFileName: report.pdfFileName,
+        publishedAt: report.publishedAt,
+      } as const;
+    }),
+
+  getReportVersionAccess: protectedProcedure
+    .input(z.object({ versionId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const version = await db.getProcessReportVersionById(input.versionId);
+      if (!version) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Versión no encontrada" });
+      }
+
+      const proc = await db.getProcessById(version.procesoId);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanViewProcessReports(ctx, proc);
+
+      if (ctx.user.role === "client") {
+        if (version.status !== "published") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No puedes acceder a esta versión" });
+        }
+      }
+
+      if (!version.pdfStoragePath) {
+        return null;
+      }
+
+      const bucket = firebaseStorage.bucket();
+      const file = bucket.file(version.pdfStoragePath);
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      let signedUrl: string;
+      try {
+        const [url] = await file.getSignedUrl({
+          action: "read",
+          expires: new Date(Date.now() + 60 * 60 * 1000),
+        });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[ProcessesRouter] Storage error (getReportVersionAccess):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al generar URL de acceso a la versión del reporte: ${msg}`,
+        });
+      }
+
+      await logAuditEvent(ctx, {
+        action: "client_link_access",
+        entityType: "process_report_version",
+        entityId: version.id,
+        details: {
+          procesoId: version.procesoId,
+          versionNumber: version.versionNumber,
+          status: version.status,
+          reportScope: version.reportScope,
+        },
+      });
+
+      return {
+        id: version.id,
+        versionNumber: version.versionNumber,
+        status: version.status,
+        url: signedUrl,
+        pdfFileName: version.pdfFileName,
+        publishedAt: version.publishedAt,
+      } as const;
+    }),
+
+  listReportVersions: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanViewProcessReports(ctx, proc);
+
+      const versions = await db.getProcessReportVersions(input.id);
+      return ctx.user.role === "client"
+        ? versions.filter((version: any) => version.status === "published")
+        : versions;
+    }),
+
+  createReportVersion: adminProcedure
+    .use(requirePermission("procesos", "edit"))
+    .input(
+      z.object({
+        id: z.number(),
+        sections: z.array(z.enum(reportSectionValues)).min(1),
+        snapshot: jsonRecordSchema,
+        pdfFileName: z.string().trim().min(1).optional(),
+        pdfStoragePath: z.string().trim().min(1).optional(),
+        reportScope: z.enum(["armado_manual", "legacy_visit_pdf"]).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      const created = await db.createProcessReportVersion({
+        procesoId: input.id,
+        sections: input.sections as unknown as string[],
+        snapshot: input.snapshot,
+        pdfFileName: input.pdfFileName,
+        pdfStoragePath: input.pdfStoragePath,
+        reportScope: input.reportScope ?? "armado_manual",
+        status: "draft",
+        createdByUserId: Number(ctx.user!.id) || null,
+        createdByName: ctx.user!.name || ctx.user!.email || "Sistema interno",
+      } as any);
+
+      await logAuditEvent(ctx, {
+        action: "create",
+        entityType: "process_report_version",
+        entityId: created.id,
+        details: {
+          procesoId: input.id,
+          versionNumber: created.versionNumber,
+          sections: input.sections,
+          reportScope: input.reportScope ?? "armado_manual",
+        },
+      });
+
+      return created;
+    }),
+
+  createLegacyReportDraft: adminProcedure
+    .use(requirePermission("procesos", "edit"))
+    .input(
+      z.object({
+        id: z.number(),
+        sections: z.array(z.enum(reportSectionValues)).min(1),
+        snapshot: jsonRecordSchema,
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const proc = await db.getProcessById(input.id);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      const drizzleDb = await db.getDb();
+      if (!drizzleDb) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de datos no disponible" });
+      }
+
+      // ── Renderer pdf-lib (RC estable, ARCH-20260321-03) ─────────────────
+      // HTML-first experimental excluido del RC. Renderer único: pdf-lib legado.
+      const pdfBytes = await generarArmadoClientePDF(input.snapshot, input.sections as string[]);
+      const rendererUsed = "pdf_lib_legacy" as const;
+
+      const timestamp = Date.now();
+      const storagePath = `estudios/${input.id}/armado-draft-${timestamp}.pdf`;
+      const bucket = firebaseStorage.bucket();
+      const pdfFile = bucket.file(storagePath);
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      try {
+        await pdfFile.save(Buffer.from(pdfBytes), { contentType: "application/pdf", resumable: false });
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[ProcessesRouter] Storage error (createLegacyReportDraft):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar PDF de armado en Storage: ${msg}`,
+        });
+      }
+
+      const created = await db.createProcessReportVersion({
+        procesoId: input.id,
+        sections: input.sections as unknown as string[],
+        snapshot: input.snapshot,
+        pdfFileName: `armado-${proc.clave}.pdf`,
+        pdfStoragePath: storagePath,
+        reportScope: "armado_manual",
+        status: "draft",
+        createdByUserId: Number(ctx.user!.id) || null,
+        createdByName: ctx.user!.name || ctx.user!.email || "Sistema interno",
+      } as any);
+
+      await logAuditEvent(ctx, {
+        action: "create",
+        entityType: "process_report_version",
+        entityId: created.id,
+        details: {
+          procesoId: input.id,
+          versionNumber: created.versionNumber,
+          sections: input.sections,
+          reportScope: "armado_manual",
+          storagePath,
+          rendererUsed,
+        },
+      });
+
+      return {
+        id: created.id,
+        versionNumber: created.versionNumber,
+        storagePath,
+        rendererUsed,
+      } as const;
+    }),
+
+  publishReportVersion: adminProcedure
+    .use(requirePermission("procesos", "edit"))
+    .input(z.object({ versionId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const version = await db.getProcessReportVersionById(input.versionId);
+      if (!version) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Versión no encontrada" });
+      }
+
+      const proc = await db.getProcessById(version.procesoId);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      if (!version.pdfStoragePath) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "La versión no tiene PDF asociado para publicarse",
+        });
+      }
+
+      const published = await db.publishProcessReportVersion(input.versionId, {
+        userId: Number(ctx.user!.id) || null,
+        name: ctx.user!.name || ctx.user!.email || "Sistema interno",
+      });
+
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "process_report_version",
+        entityId: input.versionId,
+        details: {
+          procesoId: version.procesoId,
+          versionNumber: version.versionNumber,
+          publishedAt: published.publishedAt,
+        },
+      });
+
+      return {
+        id: published.id,
+        versionNumber: published.versionNumber,
+        status: published.status,
+        publishedAt: published.publishedAt,
+      } as const;
+    }),
+
+  deleteReportVersion: adminProcedure
+    .use(requirePermission("procesos", "edit"))
+    .input(z.object({ versionId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const version = await db.getProcessReportVersionById(input.versionId);
+      if (!version) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Versión no encontrada" });
+      }
+
+      const proc = await db.getProcessById(version.procesoId);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanEditProcess(ctx, proc);
+
+      if (version.status === "published") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No se puede eliminar una versión publicada desde este flujo",
+        });
+      }
+
+      if (version.pdfStoragePath) {
+        const bucket = firebaseStorage.bucket();
+        const file = bucket.file(version.pdfStoragePath);
+        try {
+          await file.delete({ ignoreNotFound: true } as any);
+        } catch {
+          // Si el archivo ya no existe o falla el borrado físico, no abortamos la limpieza lógica.
+        }
+      }
+
+      await db.deleteProcessReportVersion(input.versionId);
+
+      await logAuditEvent(ctx, {
+        action: "delete",
+        entityType: "process_report_version",
+        entityId: input.versionId,
+        details: {
+          procesoId: version.procesoId,
+          versionNumber: version.versionNumber,
+          status: version.status,
+          reportScope: version.reportScope,
+          storagePath: version.pdfStoragePath,
+        },
+      });
+
+      return { ok: true } as const;
+    }),
+
+  /**
+   * Preview HTML interno para revisión editorial de una versión draft.
+   * Solo accesible para usuarios internos (admin). Retorna HTML desde el
+   * editorialSnapshot inmutable — no lee datos vivos del proceso.
+   *
+   * @intervention IMPL-20260320-01
+   * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+   */
+  getReportVersionHtml: adminProcedure
+    .use(requirePermission("procesos", "view"))
+    .input(z.object({ versionId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const version = await db.getProcessReportVersionById(input.versionId);
+      if (!version) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Versión no encontrada" });
+      }
+
+      const proc = await db.getProcessById(version.procesoId);
+      if (!proc) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
+      }
+
+      assertCanViewProcessReports(ctx, proc);
+
+      // Preview HTML es exclusivo de uso interno — clientes no pueden acceder
+      if (ctx.user!.role === "client") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "El preview HTML es exclusivo para revisión interna.",
+        });
+      }
+
+      // HTML renderer excluido del RC estable (ARCH-20260321-03).
+      throw new TRPCError({
+        code: "NOT_IMPLEMENTED",
+        message: "Preview HTML no disponible en esta versión.",
+      });
+    }),
+
   generarDictamen: protectedProcedure
     .use(requirePermission("procesos", "edit"))
     .input(z.object({ id: z.number() }))
@@ -374,10 +1022,25 @@ export const processesRouter = router({
       const bucket = firebaseStorage.bucket();
       const key = `processes/${proc.id}/dictamen-${proc.calificacionFinal}-${Date.now()}.txt`;
 
-      const contenido = `Dictamen del Proceso\n\nClave: ${proc.clave}\nProceso: ${proc.tipoProducto}\nCalificación final: ${proc.calificacionFinal}\nFecha: ${new Date().toISOString()}\nGenerado por: ${ctx.user.email || ctx.user.name || 'Admin'}\n`;
+      const contenido = `Dictamen del Proceso\n\nClave: ${proc.clave}\nProceso: ${proc.tipoProducto}\nCalificación final: ${proc.calificacionFinal}\nFecha: ${new Date().toISOString()}\nGenerado por: ${ctx.user!.email || ctx.user!.name || 'Admin'}\n`;
       const file = bucket.file(key);
-      await file.save(Buffer.from(contenido, 'utf8'), { contentType: 'text/plain', resumable: false });
-      const [signedUrl] = await file.getSignedUrl({ action: 'read', expires: new Date(Date.now() + 365*24*60*60*1000) });
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      let signedUrl: string;
+      try {
+        await file.save(Buffer.from(contenido, 'utf8'), { contentType: 'text/plain', resumable: false });
+        const [url] = await file.getSignedUrl({ action: 'read', expires: new Date(Date.now() + 365*24*60*60*1000) });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[ProcessesRouter] Storage error (generarDictamen):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar dictamen en Storage: ${msg}`,
+        });
+      }
 
       // guardar documento
       await db.createDocument({
@@ -387,7 +1050,7 @@ export const processesRouter = router({
         url: signedUrl,
         fileKey: key as any,
         mimeType: 'text/plain',
-        uploadedBy: ctx.user.email || ctx.user.name || 'Admin',
+        uploadedBy: ctx.user!.email || ctx.user!.name || 'Admin',
       } as any);
 
       // actualizar proceso con enlaces
@@ -405,7 +1068,7 @@ export const processesRouter = router({
     .use(requirePermission("visitas", "view"))
     .query(async ({ ctx }) => {
       const all = await db.getAllProcesses();
-      const filtered = ctx.user.role === 'client'
+      const filtered = ctx.user!.role === 'client'
         ? all.filter((p: any) => p.clienteId === (ctx.user as any).clientId)
         : all;
       return filtered

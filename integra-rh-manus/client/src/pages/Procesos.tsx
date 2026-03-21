@@ -72,7 +72,7 @@ export default function Procesos() {
   const { data: allProcesses = [], isLoading } = trpc.processes.list.useQuery();
   // Filtrar procesos según rol
   const processesBase = isClient
-    ? allProcesses.filter(p => p.clienteId === user?.clientId)
+    ? allProcesses.filter((p: any) => p.clienteId === user?.clientId)
     : allProcesses;
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
@@ -165,13 +165,13 @@ export default function Procesos() {
   };
 
   const getCandidateName = (candidatoId: number) => {
-    const candidate = candidates.find((c) => c.id === candidatoId);
+    const candidate = candidates.find((c: any) => c.id === candidatoId);
     return candidate?.nombreCompleto || "-";
   };
 
 
   const getPostName = (puestoId: number) => {
-    const post = allPosts.find((p) => p.id === puestoId);
+    const post = allPosts.find((p: any) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
   };
 
@@ -235,7 +235,7 @@ export default function Procesos() {
 
   // Filtrar puestos por cliente seleccionado
   const availablePosts = selectedClient
-    ? allPosts.filter((p) => p.clienteId === parseInt(selectedClient))
+    ? allPosts.filter((p: any) => p.clienteId === parseInt(selectedClient))
     : allPosts;
 
   const [processSortKey, setProcessSortKey] = useState<
@@ -861,7 +861,7 @@ export default function Procesos() {
                     <SelectValue placeholder="Selecciona un candidato" />
                   </SelectTrigger>
                   <SelectContent>
-                    {candidates.map((candidate) => (
+                    {candidates.map((candidate: any) => (
                       <SelectItem key={candidate.id} value={candidate.id.toString()}>
                         {candidate.nombreCompleto}
                       </SelectItem>
@@ -884,7 +884,7 @@ export default function Procesos() {
                     <SelectValue placeholder="Selecciona un cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
+                    {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.nombreEmpresa}
                       </SelectItem>
@@ -924,7 +924,7 @@ export default function Procesos() {
                     <SelectValue placeholder="Selecciona un puesto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availablePosts.map((post) => (
+                    {availablePosts.map((post: any) => (
                       <SelectItem key={post.id} value={post.id.toString()}>
                         {post.nombreDelPuesto}
                       </SelectItem>

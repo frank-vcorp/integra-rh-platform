@@ -1,17 +1,22 @@
 /**
- * @intervention IMPL-20260313-02
+ * @intervention ARCH-20260319-03 | IMPL-20260320-15
  * Portal del Encuestador — Router público (sin autenticación).
+ * IMPL-20260320-15: blindado operaciones de Storage (uploadPhoto, generateStudyPDF)
+ * con traducción de invalid_grant → mensaje legible, consistente con documents.ts.
+ * @respaldo PROYECTO.md
  * El encuestador accede mediante un token UUID de vida corta generado
  * al momento de programar la visita desde el panel de oficina.
+ * @respaldo PROYECTO.md
  */
 
-import { router, publicProcedure, protectedProcedure } from "../_core/trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
-import { surveyorTokens, processes, candidates, surveyors } from "../../drizzle/schema";
+import { surveyorTokens, processes, candidates } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { storage } from "../firebase";
+import { logAuditEvent } from "../_core/audit";
 import { generarEstudioSocioeconomicoPDF } from "../utils/estudiosocioPdf";
 
 export const surveyorPortalRouter = router({
@@ -187,8 +192,21 @@ export const surveyorPortalRouter = router({
 
       const bucket = storage.bucket();
       const file   = bucket.file(storagePath);
-      await file.save(buffer, { metadata: { contentType: input.mimeType }, resumable: false });
-      await file.makePublic();
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      try {
+        await file.save(buffer, { metadata: { contentType: input.mimeType }, resumable: false });
+        await file.makePublic();
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[SurveyorPortalRouter] Storage error (uploadPhoto):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar imagen en Storage: ${msg}`,
+        });
+      }
 
       const url = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
       return { url } as const;
@@ -249,9 +267,15 @@ export const surveyorPortalRouter = router({
     }),
 
   // ── Generar PDF del estudio socioeconómico (uso interno de oficina) ──────
-  generateStudyPDF: protectedProcedure
-    .input(z.object({ processId: z.number() }))
-    .mutation(async ({ input }) => {
+  generateStudyPDF: adminProcedure
+    .use(requirePermission("procesos", "view"))
+    .input(
+      z.object({
+        processId: z.number(),
+        auditChannel: z.enum(["whatsapp"]).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de datos no disponible" });
 
@@ -260,6 +284,7 @@ export const surveyorPortalRouter = router({
         .select({
           processId: processes.id,
           clave: processes.clave,
+          clienteId: processes.clienteId,
           visitaDetalle: processes.visitaDetalle,
           visitStatus: processes.visitStatus,
           candidatoId: candidates.id,
@@ -275,24 +300,7 @@ export const surveyorPortalRouter = router({
       if (rows.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "Proceso no encontrado" });
       const row = rows[0];
 
-      // 2. Buscar nombre del encuestador si existe token
-      let encuestadorNombre: string | null = null;
-      const tokenRow = await db
-        .select({ surveyorId: surveyorTokens.surveyorId })
-        .from(surveyorTokens)
-        .where(eq(surveyorTokens.processId, input.processId))
-        .limit(1);
-
-      if (tokenRow[0]?.surveyorId) {
-        const encRow = await db
-          .select({ nombre: surveyors.nombre })
-          .from(surveyors)
-          .where(eq(surveyors.id, tokenRow[0].surveyorId))
-          .limit(1);
-        encuestadorNombre = encRow[0]?.nombre ?? null;
-      }
-
-      // 3. Generar PDF
+      // 2. Generar PDF sin exponer datos internos del encuestador.
       const visitStatus = (row.visitStatus as any) ?? {};
       const perfilDetalle = (row.perfilDetalle as any) ?? {};
       const detalle = (row.visitaDetalle as Record<string, any>) ?? {};
@@ -309,22 +317,47 @@ export const surveyorPortalRouter = router({
           direccion: visitStatus?.direccion ?? null,
           scheduledDateTime: visitStatus?.scheduledDateTime ?? null,
           observaciones: visitStatus?.observaciones ?? null,
-          encuestadorNombre,
         },
         detalle,
       );
 
-      // 4. Subir a Firebase Storage
+      // 3. Subir a Firebase Storage
       const timestamp = Date.now();
       const storagePath = `estudios/${row.processId}/estudio-${timestamp}.pdf`;
       const bucket = storage.bucket();
       const pdfFile = bucket.file(storagePath);
-      await pdfFile.save(Buffer.from(pdfBytes), { contentType: "application/pdf", resumable: false });
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      let signedUrl: string;
+      try {
+        await pdfFile.save(Buffer.from(pdfBytes), { contentType: "application/pdf", resumable: false });
+        const [url] = await pdfFile.getSignedUrl({
+          action: "read",
+          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 año
+        });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[SurveyorPortalRouter] Storage error (generateStudyPDF):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar PDF de estudio en Storage: ${msg}`,
+        });
+      }
 
-      const [signedUrl] = await pdfFile.getSignedUrl({
-        action: "read",
-        expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 año
-      });
+      if (input.auditChannel) {
+        await logAuditEvent(ctx, {
+          action: "update",
+          entityType: "process_study_pdf_share",
+          entityId: input.processId,
+          details: {
+            channel: input.auditChannel,
+            storagePath,
+          },
+        });
+      }
 
       return { url: signedUrl, storagePath } as const;
     }),

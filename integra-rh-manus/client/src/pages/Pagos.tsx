@@ -190,12 +190,12 @@ export default function Pagos() {
   })();
 
   const getProcessClave = (procesoId: number) => {
-    const process = processes.find((p) => p.id === procesoId);
+    const process = processes.find((p: any) => p.id === procesoId);
     return process?.clave || "-";
   };
 
   const getSurveyorName = (encuestadorId: number) => {
-    const surveyor = surveyors.find((s) => s.id === encuestadorId);
+    const surveyor = surveyors.find((s: any) => s.id === encuestadorId);
     return surveyor?.nombre || "-";
   };
 
@@ -282,7 +282,7 @@ export default function Pagos() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {payments.filter((p) => p.estatusPago === "pendiente").length}
+              {payments.filter((p: any) => p.estatusPago === "pendiente").length}
             </div>
           </CardContent>
         </Card>
@@ -292,7 +292,7 @@ export default function Pagos() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {payments.filter((p) => p.estatusPago === "pagado").length}
+              {payments.filter((p: any) => p.estatusPago === "pagado").length}
             </div>
           </CardContent>
         </Card>
@@ -332,7 +332,7 @@ export default function Pagos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((payment) => (
+                {payments.map((payment: any) => (
                   <TableRow key={payment.id} className="h-8">
                     <TableCell className="font-medium font-mono text-xs py-1.5">
                       {getProcessClave(payment.procesoId)}
@@ -395,7 +395,7 @@ export default function Pagos() {
                     <SelectValue placeholder="Selecciona un proceso" />
                   </SelectTrigger>
                   <SelectContent>
-                    {processes.map((process) => (
+                    {processes.map((process: any) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.clave}
                       </SelectItem>

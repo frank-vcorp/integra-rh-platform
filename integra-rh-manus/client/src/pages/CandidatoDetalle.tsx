@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Briefcase, MessageSquare, Paperclip, ExternalLink, File as FileIcon, FileText, FileSpreadsheet, FileImage, FileArchive, FileCode, RefreshCcw, FolderOpen, ShieldCheck, CheckCircle2, Sparkles, MoreHorizontal, Landmark } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearch, useLocation } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -29,6 +29,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,44 @@ import {
   Car,
   CurrencyDollar,
 } from "@phosphor-icons/react";
+
+/** ARCH-20260320-07 | Respaldo: PROYECTO.md */
+const RESULTADO_DICTAMEN_GLOBAL_OPTIONS = [
+  { value: "recomendable", label: "RECOMENDABLE" },
+  { value: "recomendable_con_observacion", label: "RECOMENDABLE CON OBSERVACION" },
+  { value: "con_reservas", label: "CON RESERVAS" },
+  { value: "con_reservas_con_observacion", label: "CON RESERVAS CON OBSERVACION" },
+  { value: "no_recomendable", label: "NO RECOMENDABLE" },
+] as const;
+
+const normalizeDictamenLaboralResultado = (value?: string | null): string => {
+  if (!value) return "";
+
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+
+  switch (normalized) {
+    case "recomendable":
+      return "recomendable";
+    case "recomendable con observacion":
+      return "recomendable_con_observacion";
+    case "con reservas":
+      return "con_reservas";
+    case "con reservas con observacion":
+      return "con_reservas_con_observacion";
+    case "no recomendable":
+      return "no_recomendable";
+    default:
+      return value;
+  }
+};
+
+const isResultadoConObservacion = (value?: string | null): boolean =>
+  value === "recomendable_con_observacion" || value === "con_reservas_con_observacion";
 
 // IMPL-20260313-02 — InfoItem helper para perfil extendido
 const InfoItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
@@ -214,6 +253,10 @@ export default function CandidatoDetalle() {
 
   const { data: candidate, isLoading } = trpc.candidates.getById.useQuery({ id: candidateId });
   const { data: workHistoryRaw = [] } = trpc.workHistory.getByCandidate.useQuery({ candidatoId: candidateId });
+  const { data: candidateClient } = trpc.clients.get.useQuery(
+    { id: candidate?.clienteId || 0 },
+    { enabled: !!candidate?.clienteId }
+  );
   
   // Ordenar historial laboral: más reciente primero (por fechaInicio descendente)
   const workHistory = [...workHistoryRaw].sort((a, b) => {
@@ -231,6 +274,14 @@ export default function CandidatoDetalle() {
   const { data: procesos = [] } = trpc.processes.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: consent, refetch: refetchConsent } = trpc.candidateConsent.getConsentByCandidateId.useQuery({ candidateId: candidateId });
   const { data: analysts = [] } = trpc.users.list.useQuery();
+  /**
+   * ARCH-20260320-16 | Respaldo: PROYECTO.md
+   */
+  const assignedAnalystName = candidate?.analistaAsignadoId
+    ? analysts.find((analyst: any) => analyst.id === candidate.analistaAsignadoId)?.name ||
+      analysts.find((analyst: any) => analyst.id === candidate.analistaAsignadoId)?.email ||
+      "-"
+    : "-";
   const createSelfServiceLink = trpc.candidateSelf.createToken.useMutation({
     onSuccess: (res) => {
       setSelfServiceUrl(res.url);
@@ -375,6 +426,7 @@ export default function CandidatoDetalle() {
   });
 
   const [emailTo, setEmailTo] = useState("");
+  const [dictamenGlobalResultado, setDictamenGlobalResultado] = useState("");
 
   // Edición inline de datos básicos del candidato
   // IMPL-20260312-02 | Doc: Micro-Sprint 02 — War Room Refactoring
@@ -394,6 +446,12 @@ export default function CandidatoDetalle() {
       toast.error("Error al actualizar: " + error.message);
     },
   });
+
+  useEffect(() => {
+    setDictamenGlobalResultado(
+      normalizeDictamenLaboralResultado((candidate as any)?.dictamenLaboral?.resultado),
+    );
+  }, [candidate]);
 
   // Work History mutations
   const createWorkHistoryMutation = trpc.workHistory.create.useMutation({
@@ -590,14 +648,12 @@ export default function CandidatoDetalle() {
         periodos.push({ periodoEmpresa, periodoCandidato, puesto });
       }
     }
-    /** ARCH-20260128-23 | Doc: context/SPEC-INVESTIGACION-SEMANAS-COTIZADAS.md */
+    /** ARCH-20260320-01 | Respaldo: PROYECTO.md */
     const periodo = {
       // antiguedadTexto se mantiene por compatibilidad aunque ya no se captura
       antiguedadTexto: getString("antiguedadTexto"),
       sueldoInicial: getString("sueldoInicial"),
       sueldoFinal: getString("sueldoFinal"),
-      disposicionSemanasCotizadas: getString("disposicionSemanasCotizadas"),
-      motivoDisposicion: getString("motivoDisposicion"),
       periodos: periodos.length > 0 ? periodos : undefined,
     };
     /** ARCH-20260128-20 | Doc: context/SPEC-INVESTIGACION-INCIDENCIAS-DUAL.md */
@@ -891,8 +947,14 @@ export default function CandidatoDetalle() {
         </Tooltip>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">{candidate.nombreCompleto}</h1>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="mt-1 flex flex-wrap items-center gap-3">
             <p className="text-muted-foreground">Detalle del candidato</p>
+            {candidateClient?.nombreEmpresa ? (
+              <div className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                <Landmark className="h-3 w-3" />
+                Proceso para: {candidateClient.nombreEmpresa}
+              </div>
+            ) : null}
             {/* Badge de consentimiento - lee desde perfilDetalle.consentimiento JSON */}
             {(() => {
               const perfilDetalle = (candidate as any)?.perfilDetalle;
@@ -1054,13 +1116,7 @@ export default function CandidatoDetalle() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Analista Responsable</p>
-                    <p className="font-medium">
-                      {candidate?.analistaAsignadoId 
-                        ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
-                          analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
-                          "-"
-                        : "-"}
-                    </p>
+                    <p className="font-medium">{assignedAnalystName}</p>
                   </div>
                 </div>
               )}
@@ -1519,6 +1575,74 @@ export default function CandidatoDetalle() {
           </Tooltip>
         </CardHeader>
         <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              updateCandidateMutation.mutate(
+                {
+                  id: candidateId,
+                  data: {
+                    dictamenLaboral: {
+                      ...(candidate as any)?.dictamenLaboral,
+                      disposicionSemanasCotizadas:
+                        (formData.get("disposicionSemanas") as string) || undefined,
+                      motivoDisposicion:
+                        (formData.get("motivoDisposicion") as string) || undefined,
+                    },
+                  },
+                },
+                {
+                  onSuccess: () => {
+                    toast.success("Semanas cotizadas globales guardadas");
+                  },
+                },
+              );
+            }}
+            className="mb-6 rounded-lg border border-teal-200 bg-teal-50/60 p-4 space-y-4"
+          >
+            <div>
+              <h3 className="text-sm font-semibold text-teal-900">Semanas cotizadas</h3>
+              <p className="text-xs text-teal-700 mt-1">
+                Esta pregunta se captura una sola vez para todo el historial laboral del candidato.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Disposición de Semanas Cotizadas</Label>
+                <textarea
+                  name="disposicionSemanas"
+                  spellCheck={true}
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  lang="es"
+                  className="w-full mt-1 border rounded-md p-2 text-sm min-h-[100px] bg-white"
+                  placeholder="Describe la disposición de semanas cotizadas..."
+                  defaultValue={(candidate as any)?.dictamenLaboral?.disposicionSemanasCotizadas || ""}
+                />
+              </div>
+              <div>
+                <Label>Motivo / Observación</Label>
+                <textarea
+                  name="motivoDisposicion"
+                  spellCheck={true}
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  lang="es"
+                  className="w-full mt-1 border rounded-md p-2 text-sm min-h-[100px] bg-white"
+                  placeholder="Detalla la razón de la disposición de semanas..."
+                  defaultValue={(candidate as any)?.dictamenLaboral?.motivoDisposicion || ""}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={updateCandidateMutation.isPending}>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Guardar semanas cotizadas
+              </Button>
+            </div>
+          </form>
+
           {workHistory.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               No hay historial laboral registrado
@@ -1526,10 +1650,24 @@ export default function CandidatoDetalle() {
           ) : (
             <div className="space-y-4">
               {workHistory.map((item) => (
-                <div key={item.id} className="border rounded-lg p-4">
+                <div
+                  key={item.id}
+                  className={`rounded-lg border p-4 ${
+                    item.estatusInvestigacion === "terminado"
+                      ? "border-green-200 bg-green-50/30"
+                      : "border-border bg-white"
+                  }`}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h4 className="font-semibold">{item.empresa}</h4>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-semibold">{item.empresa}</h4>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${getInvestigacionClass(item.estatusInvestigacion)}`}
+                        >
+                          {getInvestigacionLabel(item.estatusInvestigacion)}
+                        </span>
+                      </div>
                       <p className="text-sm text-muted-foreground">{item.puesto || "-"}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {item.fechaInicio ? formatearFecha(item.fechaInicio) : "-"} -{" "}
@@ -1752,6 +1890,27 @@ export default function CandidatoDetalle() {
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             <span>Capturar Referencia Funcional</span>
                           </DropdownMenuItem>
+                          {/* IMPL-20260320-07: Finalizar investigación individual del empleo */}
+                          <DropdownMenuSeparator />
+                          {item.estatusInvestigacion !== "terminado" ? (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateWorkHistoryMutation.mutate({
+                                  id: item.id,
+                                  data: { estatusInvestigacion: "terminado" },
+                                })
+                              }
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                              <span>Marcar investigación como finalizada</span>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem disabled>
+                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                              <span className="text-green-700">Investigación finalizada</span>
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteWorkHistory(item.id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             <span>Eliminar empleo</span>
@@ -1787,10 +1946,14 @@ export default function CandidatoDetalle() {
                 id: candidateId,
                 data: {
                   dictamenLaboral: {
-                    resultado: formData.get("resultado") as string,
+                    ...(candidate as any)?.dictamenLaboral,
+                    resultado: normalizeDictamenLaboralResultado(formData.get("resultado") as string),
                     comentariosGenerales: formData.get("comentarios") as string,
+                    observacionResultado: isResultadoConObservacion(formData.get("resultado") as string)
+                      ? ((formData.get("observacionResultado") as string) || undefined)
+                      : undefined,
                     completado: true,
-                    completadoAt: new Date().toISOString()
+                    completadoAt: new Date().toISOString(),
                   }
                 }
               }, {
@@ -1807,19 +1970,42 @@ export default function CandidatoDetalle() {
                 <select 
                   name="resultado" 
                   className="w-full mt-1 border rounded-md h-9 px-2 text-sm bg-white"
-                  defaultValue={(candidate as any)?.dictamenLaboral?.resultado || ""}
+                  value={dictamenGlobalResultado}
+                  onChange={(e) => setDictamenGlobalResultado(e.target.value)}
                 >
                   <option value="">Seleccione un resultado...</option>
-                  <option value="Recomendable">Recomendable</option>
-                  <option value="Con reservas">Con reservas</option>
-                  <option value="No recomendable">No recomendable</option>
+                  {RESULTADO_DICTAMEN_GLOBAL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
+            {isResultadoConObservacion(dictamenGlobalResultado) && (
+              <div>
+                <Label>¿Por qué lleva observación?</Label>
+                <textarea
+                  name="observacionResultado"
+                  spellCheck={true}
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  lang="es"
+                  className="w-full mt-1 border rounded-md p-2 text-sm min-h-[100px] bg-white"
+                  placeholder="Explica por qué este resultado lleva observación..."
+                  defaultValue={(candidate as any)?.dictamenLaboral?.observacionResultado || ""}
+                />
+              </div>
+            )}
             <div>
               <Label>Comentario o Conclusión General</Label>
+              {/* ARCH-20260320-11 | Respaldo: PROYECTO.md */}
               <textarea 
                 name="comentarios"
+                spellCheck={true}
+                autoCorrect="on"
+                autoCapitalize="sentences"
+                lang="es"
                 className="w-full mt-1 border rounded-md p-2 text-sm min-h-[100px] bg-white"
                 placeholder="Escribe el resumen general de la investigación laboral..."
                 defaultValue={(candidate as any)?.dictamenLaboral?.comentariosGenerales || ""}
@@ -1877,8 +2063,8 @@ export default function CandidatoDetalle() {
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
                             <div className="border rounded p-2">
-                              <div className="font-semibold text-gray-900 text-sm">Especialista</div>
-                              <div>{p.especialistaAtraccionNombre || "Sin asignar"}</div>
+                              <div className="font-semibold text-gray-900 text-sm">Analista Responsable</div>
+                              <div>{assignedAnalystName}</div>
                             </div>
                             <div className="border rounded p-2">
                               <div className="font-semibold text-gray-900 text-sm">Investigación Legal</div>
@@ -2560,38 +2746,6 @@ export default function CandidatoDetalle() {
               </div>
             </div>
 
-            </div>
-            {/* Semanas cotizadas */}
-            <div className="border rounded-md p-3 space-y-3">
-              <div className="text-sm font-semibold">Semanas cotizadas</div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="">
-                  <Label htmlFor="disposicionSemanasCotizadas">
-                    Disposición de semanas cotizadas
-                  </Label>
-                  <Input
-                    id="disposicionSemanasCotizadas"
-                    name="disposicionSemanasCotizadas"
-                    defaultValue={
-                      investigationTarget?.investigacionDetalle?.periodo
-                        ?.disposicionSemanasCotizadas ||
-                      ""
-                    }
-                  />
-                </div>
-                <div className="">
-                  <Label htmlFor="motivoDisposicion">Motivo de disposición</Label>
-                  <Textarea
-                    id="motivoDisposicion"
-                    name="motivoDisposicion"
-                    rows={1} className="min-h-[40px] resize-none text-xs border-slate-200 shadow-sm"
-                    defaultValue={
-                      investigationTarget?.investigacionDetalle?.periodo?.motivoDisposicion ||
-                      ""
-                    }
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Incidencias */}

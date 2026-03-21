@@ -105,7 +105,7 @@ export const clientAccessRouter = router({
           gt(clientAccessTokens.expiresAt, now),
           isNull(clientAccessTokens.revokedAt)
         ));
-      return rows.map(r => ({
+      return rows.map((r: any) => ({
         token: r.token,
         expiresAt: r.expiresAt,
         lastUsedAt: r.lastUsedAt,

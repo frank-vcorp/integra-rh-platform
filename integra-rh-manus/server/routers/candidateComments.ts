@@ -8,9 +8,9 @@ export const candidateCommentsRouter = router({
     .use(requirePermission("candidatos", "view"))
     .input(z.object({ candidatoId: z.number() }))
     .query(async ({ input, ctx }) => {
-      if (ctx.user.role === "client") {
+      if (ctx.user!.role === "client") {
         const candidate = await db.getCandidateById(input.candidatoId);
-        if (candidate?.clienteId !== ctx.user.clientId) {
+        if (candidate?.clienteId !== ctx.user!.clientId) {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         // Clientes solo ven comentarios públicos
@@ -33,7 +33,7 @@ export const candidateCommentsRouter = router({
       const id = await db.createCandidateComment({
         candidatoId: input.candidatoId,
         text: input.text,
-        author: ctx.user.name || ctx.user.email || "Admin",
+        author: ctx.user!.name || ctx.user!.email || "Admin",
         visibility: input.visibility ?? "internal",
       } as any);
       return { id } as const;

@@ -17,10 +17,10 @@ export default function Dashboard() {
 
   // Filtrar datos según rol
   const candidates = isClient 
-    ? allCandidates.filter(c => c.clienteId === user?.clientId)
+    ? allCandidates.filter((c: any) => c.clienteId === user?.clientId)
     : allCandidates;
   const processes = isClient
-    ? allProcesses.filter(p => p.clienteId === user?.clientId)
+    ? allProcesses.filter((p: any) => p.clienteId === user?.clientId)
     : allProcesses;
 
   // ============================================================================
@@ -31,7 +31,7 @@ export default function Dashboard() {
 
   // Procesos ingresados hoy (por fechaRecepcion)
   const procesosIngresadosHoy = processes.filter(
-    (p) => new Date(p.fechaRecepcion).toDateString() === todayStr
+    (p: any) => new Date(p.fechaRecepcion).toDateString() === todayStr
   );
 
   // KPIs operativos
@@ -39,13 +39,13 @@ export default function Dashboard() {
     totalClients: clients.length,
     // Activos = en flujo de trabajo (excl. recepción y finalizados)
     procesosActivos: processes.filter(
-      (p) => !["en_recepcion", "finalizado", "entregado"].includes(p.estatusProceso)
+      (p: any) => !["en_recepcion", "finalizado", "entregado"].includes(p.estatusProceso)
     ).length,
     procesosCompletados: processes.filter(
-      (p) => p.estatusProceso === "finalizado" || p.estatusProceso === "entregado"
+      (p: any) => p.estatusProceso === "finalizado" || p.estatusProceso === "entregado"
     ).length,
     procesosPendientes: processes.filter(
-      (p) => p.estatusProceso === "en_recepcion"
+      (p: any) => p.estatusProceso === "en_recepcion"
     ).length,
     procesosIngresadosHoy: procesosIngresadosHoy.length,
   };
@@ -56,7 +56,7 @@ export default function Dashboard() {
 
   // Procesos atascados en recepción (los más recientes primero)
   const procesosAtascados = processes
-    .filter((p) => p.estatusProceso === "en_recepcion")
+    .filter((p: any) => p.estatusProceso === "en_recepcion")
     .slice(-5)
     .reverse();
 
@@ -239,7 +239,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground text-center py-4">No hay procesos en recepción</p>
             ) : (
               <div>
-                {procesosAtascados.map((p) => (
+                {procesosAtascados.map((p: any) => (
                   <Link
                     key={p.id}
                     href={`/candidatos/${p.candidatoId}?tab=empleos`}

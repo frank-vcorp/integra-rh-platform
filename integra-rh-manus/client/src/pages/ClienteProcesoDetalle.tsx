@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { VisitCapturePanel } from "@/components/VisitCapturePanel";
 import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck, Sparkles, CheckCircle2, Clock, AlertTriangle, Download, ExternalLink } from "lucide-react";
 import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
@@ -11,26 +13,39 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { useState } from "react";
 
 /**
  * Vista de detalle de proceso para clientes
  * Reestructurada con diseño Grid + Tabs (Estilo Dashboard)
- * @intervention FIX-20260319-04
- * @respaldo PROYECTO.md
+ * @intervention ARCH-20260320-01
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
  */
 export default function ClienteProcesoDetalle() {
   const params = useParams();
   const procesoId = parseInt(params.id || "0");
   const { clientId, clientData } = useClientAuth();
+  const [visitCaptureOpen, setVisitCaptureOpen] = useState(false);
 
   const { data: process, isLoading: processLoading } = trpc.processes.getById.useQuery({ id: procesoId });
   const { data: candidate } = trpc.candidates.getById.useQuery(
     { id: process?.candidatoId || 0 },
     { enabled: !!process?.candidatoId }
   );
+  const { data: publishedReportSummary } = trpc.processes.getPublishedReportSummary.useQuery(
+    { id: procesoId },
+    { enabled: Number.isFinite(procesoId) && procesoId > 0 }
+  );
+  const openPublishedReport = trpc.processes.getPublishedReportAccess.useMutation({
+    onSuccess: (data) => {
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    },
+  });
   // Obtener puesto desde la lista
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
-  const post = allPosts.find(p => p.id === process?.puestoId);
+  const post = allPosts.find((p: { id: number }) => p.id === process?.puestoId);
 
   if (processLoading) {
     return (
@@ -85,8 +100,13 @@ export default function ClienteProcesoDetalle() {
       colorClass: "bg-blue-50 text-blue-700 border-blue-200",
       data: (process as any)?.investigacionLaboral || {},
       render: (d: any) => ({
-        estado: (candidate as any)?.dictamenLaboral?.resultado || d?.resultado || "Sin resultado",
-        detalle: (candidate as any)?.dictamenLaboral?.comentariosGenerales || d?.detalles || "Sin comentarios o resultados definidos",
+        estado: getCalificacionLabel((candidate as any)?.dictamenLaboral?.resultado || d?.resultado || "pendiente"),
+        detalle: [
+          (candidate as any)?.dictamenLaboral?.observacionResultado
+            ? `Observación: ${(candidate as any).dictamenLaboral.observacionResultado}`
+            : null,
+          (candidate as any)?.dictamenLaboral?.comentariosGenerales || d?.detalles || null,
+        ].filter(Boolean).join("\n\n") || "Sin comentarios o resultados definidos",
         flag: (candidate as any)?.dictamenLaboral?.completado ? "completo" : d?.completado ? "completo" : "pendiente",
       }),
       visible: servicios.laboral,
@@ -171,6 +191,24 @@ export default function ClienteProcesoDetalle() {
     process.calificacionFinal !== "no_recomendable";
   
   const isFinished = process.estatusProceso === 'finalizado' || process.estatusProceso === 'entregado';
+  const surveyorPortalAccess = (process as any)?.surveyorPortalAccess;
+  const surveyorPortalUrl = surveyorPortalAccess?.url || null;
+  const surveyorPortalStatus = surveyorPortalAccess?.status || null;
+  const visitCaptureData = ((process as any)?.visitaDetalle || {}) as Record<string, unknown>;
+  const hasCapturedVisitData = Object.keys(visitCaptureData).length > 0;
+  const processIsVisitCompleted = process.estatusProceso === 'visita_realizada' || process.visitStatus?.status === 'realizada' || surveyorPortalStatus === 'COMPLETADO';
+  const hasPublishedClientReport = !!publishedReportSummary;
+  const visitBlock = blocks.find((block) => block.key === 'visitaDetalle');
+  const resultBlocks = blocks.filter((block) => block.key !== 'visitaDetalle');
+  const visitInfo = visitBlock
+    ? (visitBlock.render(visitBlock.data || {}) as {
+        estado?: string;
+        detalle?: string;
+        flag?: string;
+        fecha?: string;
+        link?: string;
+      })
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -243,11 +281,14 @@ export default function ClienteProcesoDetalle() {
                 </div>
 
                 {isFinished && (
-                  <a href={process.archivoDictamenUrl || "#"} target="_blank" rel="noopener noreferrer" className={!process.archivoDictamenUrl ? "pointer-events-none" : ""}> 
-                    <Button className="w-full mt-6 bg-green-600 hover:bg-green-700" disabled={!process.archivoDictamenUrl}>
-                      <Download className="mr-2 h-4 w-4" /> Descargar Reporte PDF
-                    </Button>
-                  </a>
+                  <Button
+                    className="w-full mt-6 bg-green-600 hover:bg-green-700"
+                    disabled={!hasPublishedClientReport || openPublishedReport.isPending}
+                    onClick={() => openPublishedReport.mutate({ id: procesoId })}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {openPublishedReport.isPending ? "Abriendo reporte..." : "Descargar Reporte PDF"}
+                  </Button>
                 )}
               </CardContent>
             </Card>
@@ -323,8 +364,80 @@ export default function ClienteProcesoDetalle() {
 
                {/* TAB: RESULTADOS */}
                <TabsContent value="resultados" className="space-y-6">
+                 {visitBlock && (
+                   <Card className="border-emerald-200 shadow-sm overflow-hidden">
+                     <CardHeader className="bg-emerald-50/70 border-b border-emerald-100">
+                       <div className="flex flex-wrap items-center justify-between gap-3">
+                         <div>
+                           <CardTitle className="text-base font-semibold text-emerald-900 flex items-center gap-2">
+                             <Home className="h-5 w-5 text-emerald-600" /> Visita (Resumen)
+                           </CardTitle>
+                           <CardDescription className="text-emerald-800/80 mt-1">
+                             Seguimiento del cuestionario compartido con el encuestador y recuperación del estudio.
+                           </CardDescription>
+                         </div>
+                         <Badge variant="outline" className="bg-white border-emerald-200 text-emerald-800">
+                           {surveyorPortalStatus || process.visitStatus?.status || 'sin enlace'}
+                         </Badge>
+                       </div>
+                     </CardHeader>
+                     <CardContent className="pt-5 space-y-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                         <div className="rounded-lg border bg-white p-4 space-y-2">
+                           <p className="text-xs font-semibold uppercase text-gray-500">Resultado</p>
+                           <p className="font-medium text-gray-900">{visitInfo?.estado || 'Sin registro'}</p>
+                           <p className="text-gray-700 whitespace-pre-wrap">{visitInfo?.detalle || 'Sin comentarios disponibles'}</p>
+                         </div>
+                         <div className="rounded-lg border bg-white p-4 space-y-2">
+                           <p className="text-xs font-semibold uppercase text-gray-500">Programación</p>
+                           <p className="text-gray-900">{visitInfo?.fecha || process.visitStatus?.scheduledDateTime || 'Sin fecha programada'}</p>
+                           <p className="text-gray-700">{process.visitStatus?.direccion || 'Sin dirección registrada'}</p>
+                         </div>
+                       </div>
+
+                       <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+                         <div>
+                           <p className="text-xs font-semibold uppercase text-emerald-800">URL del cuestionario</p>
+                           <p className="text-sm break-all text-emerald-950">
+                             {surveyorPortalUrl || 'La visita aún no tiene una URL generada.'}
+                           </p>
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                           {hasCapturedVisitData && (
+                             <Button variant="outline" size="sm" onClick={() => setVisitCaptureOpen(true)}>
+                               <FileText className="h-4 w-4 mr-2" /> Ver captura registrada
+                             </Button>
+                           )}
+                           {processIsVisitCompleted && (
+                             <Button
+                               variant="outline"
+                               size="sm"
+                              disabled={!publishedReportSummary || openPublishedReport.isPending}
+                              onClick={() => openPublishedReport.mutate({ id: procesoId })}
+                             >
+                               <Download className="h-4 w-4 mr-2" />
+                              {openPublishedReport.isPending
+                                ? 'Abriendo PDF...'
+                                : publishedReportSummary
+                                  ? `Abrir PDF publicado v${publishedReportSummary.versionNumber}`
+                                  : 'PDF pendiente de publicación'}
+                             </Button>
+                           )}
+                         </div>
+                         <p className="text-xs text-emerald-900/80">
+                           {processIsVisitCompleted
+                            ? publishedReportSummary
+                              ? 'La visita ya fue concluida. El cliente solo puede abrir la última versión publicada por el equipo interno.'
+                              : 'La visita ya fue concluida. El reporte final aparecerá aquí cuando el equipo interno publique una versión de Armados.'
+                             : 'Mientras la visita siga programada o en curso, este es el acceso que recibió el encuestador para capturar la información.'}
+                         </p>
+                       </div>
+                     </CardContent>
+                   </Card>
+                 )}
+
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {blocks.map((block) => {
+                   {resultBlocks.map((block) => {
                       const info = block.render(block.data || {}) as {
                         estado?: string;
                         detalle?: string;
@@ -432,6 +545,22 @@ export default function ClienteProcesoDetalle() {
                  </Card>
                </TabsContent>
             </Tabs>
+
+            <Dialog open={visitCaptureOpen} onOpenChange={setVisitCaptureOpen}>
+              <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden" aria-describedby="client-visit-capture-desc">
+                <DialogHeader>
+                  <DialogTitle>Captura del cuestionario de visita</DialogTitle>
+                </DialogHeader>
+                <p id="client-visit-capture-desc" className="sr-only">Vista de solo lectura con la información capturada en el cuestionario de visita.</p>
+                <div className="space-y-3 overflow-auto pr-1">
+                  <VisitCapturePanel
+                    data={visitCaptureData}
+                    portalUrl={surveyorPortalUrl}
+                    portalStatus={surveyorPortalStatus}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
 
           </div>
         </div>

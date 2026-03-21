@@ -69,6 +69,10 @@ const DEFAULT_WIDTH = 280;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
 
+/**
+ * ARCH-20260320-10 | Respaldo: PROYECTO.md
+ */
+
 export default function DashboardLayout({
   children,
 }: {
@@ -498,6 +502,9 @@ function DashboardLayoutContent({
                 <input
                   type="search"
                   placeholder="Buscar candidato, cliente, puesto, proceso o encuestador..."
+                  spellCheck={true}
+                  autoCorrect="on"
+                  lang="es"
                   className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
                   value={searchTerm}
                   onChange={(e) => {

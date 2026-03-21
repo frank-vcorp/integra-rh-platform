@@ -97,6 +97,11 @@ Estado del Proyecto: Integra-RH v2
 ### PVM - Dashboard del Cliente
  - `[✓]` PVM-DASH-01: Dashboard del Cliente (Modelo Híbrido)
 
+### PDF - Entregable Cliente
+ - `[✓]` PDF-CLI-01: Armados dinámicos internos con publicación y envío controlado para cliente — SPEC: `context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md`
+   - *Validación pendiente:* credenciales locales de Firebase Storage inválidas para validar contra bucket real hoy.
+  - *Aclaración operativa (21/03/2026):* "publicado" en esta etapa significa visible para analistas en entorno publicado de prueba. No implica todavía producción final externa.
+
 ### Siguientes Pasos
 - Pruebas integrales de flujo con data pesada (llenar un proceso completo desde Analista y verlo como Cliente)
 - Fase de QA de UI / Mejoras visuales

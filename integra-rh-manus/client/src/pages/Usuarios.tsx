@@ -191,7 +191,7 @@ export default function Usuarios() {
 
   const getClientName = (clientId: number | null) => {
     if (!clientId) return "-";
-    const client = clients.find((c) => c.id === clientId);
+    const client = clients.find((c: any) => c.id === clientId);
     return client?.nombreEmpresa || "-";
   };
 
@@ -274,7 +274,7 @@ export default function Usuarios() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {users.map((user: any) => (
                       <TableRow key={user.id} className="h-8">
                         <TableCell className="font-medium py-1.5 text-xs max-w-[140px] truncate">
                           <span title={user.name ?? undefined}>{user.name}</span>
@@ -345,7 +345,7 @@ export default function Usuarios() {
 
               {/* Móvil: tarjetas */}
               <div className="space-y-3 md:hidden">
-                {users.map((user) => (
+                {users.map((user: any) => (
                   <div
                     key={user.id}
                     className="rounded-lg border p-3 bg-white shadow-sm"
@@ -468,7 +468,7 @@ export default function Usuarios() {
                       <SelectValue placeholder="Selecciona un cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients.map((client) => (
+                      {clients.map((client: any) => (
                         <SelectItem key={client.id} value={client.id.toString()}>
                           {client.nombreEmpresa}
                         </SelectItem>

@@ -45,7 +45,7 @@ export const auditRouter = router({
       // Filtros sencillos en memoria por ahora para mantener consulta simple
       const rows = await query;
 
-      return rows.filter((row) => {
+      return rows.filter((row: any) => {
         if (input?.userId && row.userId !== input.userId) return false;
         if (input?.action && row.action !== input.action) return false;
         if (input?.entityType && row.entityType !== input.entityType) return false;

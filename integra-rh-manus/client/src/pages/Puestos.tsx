@@ -115,7 +115,7 @@ export default function Puestos() {
   };
 
   const getClientName = (clienteId: number) => {
-    const client = clients.find((c) => c.id === clienteId);
+    const client = clients.find((c: any) => c.id === clienteId);
     return client?.nombreEmpresa || "Cliente no encontrado";
   };
 
@@ -188,7 +188,7 @@ export default function Puestos() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {posts.map((post) => (
+                    {posts.map((post: any) => (
                       <TableRow key={post.id} className="h-8">
                         <TableCell className="font-medium py-1.5 text-xs">
                           {post.nombreDelPuesto}
@@ -229,7 +229,7 @@ export default function Puestos() {
 
               {/* Móvil: tarjetas */}
               <div className="space-y-3 md:hidden">
-                {posts.map((post) => (
+                {posts.map((post: any) => (
                   <div
                     key={post.id}
                     className="rounded-lg border p-3 bg-white shadow-sm"
@@ -305,7 +305,7 @@ export default function Puestos() {
                     <SelectValue placeholder="Selecciona un cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
+                    {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.nombreEmpresa}
                       </SelectItem>

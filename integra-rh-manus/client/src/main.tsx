@@ -11,6 +11,16 @@ import { getLoginUrl } from "./const";
 import "./index.css";
 import { ClientAuthProvider } from "./contexts/ClientAuthContext";
 
+/**
+ * IMPL-20260320-01 | Respaldo: PROYECTO.md
+ */
+const ensureSpanishDocumentLanguage = () => {
+  if (typeof document === "undefined") return;
+
+  document.documentElement.lang = "es";
+  document.documentElement.setAttribute("xml:lang", "es");
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -104,6 +114,7 @@ const startHeartbeat = () => {
 };
 
 startHeartbeat();
+ensureSpanishDocumentLanguage();
 
 // Detectar URL del API según el entorno
 const getApiUrl = () => {

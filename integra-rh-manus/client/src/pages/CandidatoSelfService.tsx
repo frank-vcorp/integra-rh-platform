@@ -404,7 +404,7 @@ export default function CandidatoSelfService() {
     
     if (data.workHistory.length > 0) {
       setJobs(
-        data.workHistory.map((h) => ({
+        data.workHistory.map((h: any) => ({
           id: h.id,
           empresa: h.empresa,
           puesto: h.puesto || "",

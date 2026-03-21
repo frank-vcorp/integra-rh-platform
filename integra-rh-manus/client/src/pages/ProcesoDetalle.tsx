@@ -1,11 +1,12 @@
 /**
- * Panel operativo de procesos con ajustes de compatibilidad tipada.
- * @intervention FIX-20260319-04
+ * Panel operativo de procesos con edición auditada de la captura de visita.
+ * @intervention ARCH-20260320-01
  * @respaldo PROYECTO.md
  */
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,11 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2 } from "lucide-react";
+import { VisitCapturePanel } from "@/components/VisitCapturePanel";
+import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2, MessageCircle } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
 import { useHasPermission } from "@/_core/hooks/usePermission";
+import { getCalificacionLabel } from "@/lib/dictamen";
 import {
   AmbitoType,
   IlaModoType,
@@ -30,6 +33,19 @@ import {
   mapProcesoConfigToTipoProducto,
   parseTipoProductoToConfig,
 } from "@/lib/procesoTipo";
+
+const ARMADOS_SECTION_OPTIONS = [
+  { value: "generales_candidato", label: "Generales del candidato", description: "Datos base del candidato, proceso y puesto." },
+  { value: "documentos", label: "Documentos", description: "Soportes cargados en expediente y cotejo documental." },
+  { value: "investigacion_laboral", label: "Investigación laboral", description: "Historial laboral y dictamen laboral existente." },
+  { value: "investigacion_legal", label: "Investigación legal", description: "Hallazgos legales, notas periodísticas y antecedentes." },
+  { value: "semanas_cotizadas", label: "Semanas cotizadas", description: "Cotejo IMSS y evidencias relacionadas." },
+  { value: "buro_credito", label: "Buró de crédito", description: "Reporte y archivos adicionales del buró." },
+  { value: "visita_domiciliaria", label: "Visita domiciliaria", description: "Captura del encuestador y resumen interno de visita." },
+  { value: "observaciones_conclusion", label: "Observaciones y conclusión", description: "Calificación final y cierre ejecutivo del proceso." },
+] as const;
+
+type ArmadosSectionValue = (typeof ARMADOS_SECTION_OPTIONS)[number]["value"];
 
 // ── Botón para generar y descargar el PDF del estudio socioeconómico ─────────
 function PdfEstudioButton({ processId }: { processId: number }) {
@@ -62,6 +78,63 @@ function PdfEstudioButton({ processId }: { processId: number }) {
   );
 }
 
+function buildStudyPdfWhatsappUrl(phone: string | null | undefined, text: string) {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (!digits) {
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  }
+  return `https://wa.me/${encodeURIComponent(digits)}?text=${encodeURIComponent(text)}`;
+}
+
+function ShareStudyPdfWhatsappButton({
+  processId,
+  phone,
+  clientLabel,
+  candidateLabel,
+}: {
+  processId: number;
+  phone?: string | null;
+  clientLabel?: string | null;
+  candidateLabel?: string | null;
+}) {
+  const sharePdf = trpc.surveyorPortal.generateStudyPDF.useMutation({
+    onSuccess: (data) => {
+      const message = [
+        `Hola ${clientLabel || ""},`,
+        `te compartimos el PDF del estudio socioeconómico${candidateLabel ? ` de ${candidateLabel}` : ""}.`,
+        "",
+        `Consulta el documento aquí: ${data.url}`,
+      ].join("\n");
+      window.open(buildStudyPdfWhatsappUrl(phone, message), "_blank", "noopener,noreferrer");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo preparar el PDF para WhatsApp");
+    },
+  });
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={sharePdf.isPending}
+      onClick={() => sharePdf.mutate({ processId, auditChannel: "whatsapp" })}
+      className="flex items-center gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+    >
+      {sharePdf.isPending ? (
+        <>
+          <span className="animate-spin w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full" />
+          Preparando...
+        </>
+      ) : (
+        <>
+          <MessageCircle className="h-4 w-4" />
+          Compartir PDF
+        </>
+      )}
+    </Button>
+  );
+}
+
 export default function ProcesoDetalle() {
   const params = useParams();
   const processId = parseInt(params.id || "0");
@@ -78,7 +151,10 @@ export default function ProcesoDetalle() {
     }
   });
   const updateCalif = trpc.processes.updateCalificacion.useMutation({
-    onSuccess: () => utils.processes.getById.invalidate({ id: processId }),
+    onSuccess: () => {
+      utils.processes.getById.invalidate({ id: processId });
+      utils.processes.getScoreAudit.invalidate({ id: processId });
+    },
   });
   const genDictamen = trpc.processes.generarDictamen.useMutation({
     onSuccess: () => utils.processes.getById.invalidate({ id: processId }),
@@ -100,6 +176,9 @@ export default function ProcesoDetalle() {
     // initialData asegura data consistente mientras carga
     initialData: [],
   } as any);
+  const { data: clients = [] } = trpc.clients.list.useQuery();
+  const { data: candidates = [] } = trpc.candidates.list.useQuery();
+  const { data: posts = [] } = trpc.posts.list.useQuery();
   const visitAssign = trpc.processes.visitAssign.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const [lastSurveyorToken, setLastSurveyorToken] = useState<string | null>(null);
   const visitSchedule = trpc.processes.visitSchedule.useMutation({
@@ -111,13 +190,153 @@ export default function ProcesoDetalle() {
   const visitUpdate = trpc.processes.visitUpdate.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitDone = trpc.processes.visitMarkDone.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const visitCancel = trpc.processes.visitCancel.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
+  const updateVisitCapture = trpc.processes.updateVisitCapture.useMutation({
+    onSuccess: (data) => {
+      utils.processes.getById.invalidate({ id: processId });
+      utils.processes.getVisitCaptureAudit.invalidate({ id: processId });
+      toast.success(data.changedFields > 0 ? `Captura actualizada (${data.changedFields} cambios)` : "Sin cambios para guardar");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo guardar la captura");
+    },
+  });
   const [visitForm, setVisitForm] = useState<{ encuestadorId: string; fechaHora: string; direccion: string; observaciones: string }>({ encuestadorId: "", fechaHora: "", direccion: "", observaciones: "" });
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [notifySelected, setNotifySelected] = useState<number[]>([]);
   const [suggested, setSuggested] = useState<any[]>([]);
+  const [visitCaptureOpen, setVisitCaptureOpen] = useState(false);
+  const canEditProcess = useHasPermission("procesos", "edit");
   const getSurveyor = (id?: number) => surveyors.find((s: any) => s.id === id);
-  const getCandidate = () => candidates.find((c:any)=> c.id === process?.candidatoId);
-  const getClient = () => clients.find((c:any)=> c.id === process?.clienteId);
+  const surveyorPortalAccess = (process as any)?.surveyorPortalAccess;
+  const surveyorPortalUrl = lastSurveyorToken
+    ? `https://integra-rh.web.app/e/${lastSurveyorToken}`
+    : surveyorPortalAccess?.url || null;
+  const surveyorPortalStatus = lastSurveyorToken ? "PENDIENTE" : surveyorPortalAccess?.status || null;
+  const hasCapturedVisitData = !!(process as any)?.visitaDetalle && Object.keys((process as any).visitaDetalle || {}).length > 0;
+  const processIsVisitCompleted = process?.estatusProceso === "visita_realizada" || process?.visitStatus?.status === "realizada" || surveyorPortalStatus === "COMPLETADO";
+  const candidateRecord = useMemo(
+    () => (candidates.find((candidate: any) => candidate.id === process?.candidatoId) as any) || null,
+    [candidates, process?.candidatoId]
+  );
+  const clientRecord = useMemo(
+    () => (clients.find((client: any) => client.id === process?.clienteId) as any) || null,
+    [clients, process?.clienteId]
+  );
+  const postRecord = useMemo(
+    () => (posts.find((item: any) => item.id === process?.puestoId) as any) || null,
+    [posts, process?.puestoId]
+  );
+  const visitPrivacyAcceptedAt = (process as any)?.visitaDetalle?._privacyAcceptedAt || null;
+  const buildArmadoSnapshot = () => ({
+    generatedAt: new Date().toISOString(),
+    selectedSections: selectedArmadosSections,
+    candidate: candidateRecord || null,
+    client: clientRecord || null,
+    post: postRecord || null,
+    process: {
+      id: process?.id,
+      clave: process?.clave,
+      tipoProducto: process?.tipoProducto,
+      estatusProceso: process?.estatusProceso,
+      calificacionFinal: process?.calificacionFinal,
+      comentarioCalificacion: (process as any)?.comentarioCalificacion || null,
+      investigacionLaboral: (process as any)?.investigacionLaboral || null,
+      investigacionLegal: (process as any)?.investigacionLegal || null,
+      semanasDetalle: (process as any)?.semanasDetalle || null,
+      antecedentesPenales: (process as any)?.antecedentesPenales || null,
+      buroCredito: (process as any)?.buroCredito || null,
+      visitaDetalle: (process as any)?.visitaDetalle || null,
+      visitStatus: (process as any)?.visitStatus || null,
+    },
+    workHistory,
+    documents,
+  });
+  const handleGenerateLegacyDraft = async () => {
+    if (!process) return;
+    if (selectedArmadosSections.length === 0) {
+      toast.error("Selecciona al menos una sección para registrar el borrador");
+      return;
+    }
+
+    await createLegacyReportDraft.mutateAsync({
+      id: processId,
+      sections: selectedArmadosSections,
+      snapshot: buildArmadoSnapshot(),
+    } as any);
+  };
+  const handleOpenReportVersion = async (versionId: number) => {
+    try {
+      const data = await openReportVersion.mutateAsync({ versionId });
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo abrir la versión");
+    }
+  };
+
+  const handlePreviewHtml = async (versionId: number) => {
+    try {
+      const data = await getVersionHtml.mutateAsync({ versionId });
+      if ((data as any)?.html) {
+        const blob = new Blob([(data as any).html], { type: "text/html;charset=utf-8" });
+        const blobUrl = URL.createObjectURL(blob);
+        const win = window.open(blobUrl, "_blank");
+        // Revocar la URL después de 60 s para liberar memoria
+        if (win) {
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo generar la vista previa HTML");
+    }
+  };
+
+  const handleConfirmPublish = (versionId: number) => {
+    setVersionToPublish(versionId);
+    setConfirmPublishOpen(true);
+  };
+  const handleSharePublishedVersion = async () => {
+    if (!publishedReportSummary) return;
+
+    try {
+      const data = await openReportVersion.mutateAsync({ versionId: publishedReportSummary.id });
+      if (!data?.url) {
+        toast.error("La versión publicada no tiene un PDF accesible");
+        return;
+      }
+
+      const message = [
+        `Hola ${clientRecord?.contacto || clientRecord?.nombreEmpresa || ""},`,
+        `te compartimos el PDF publicado del estudio socioeconómico${candidateRecord?.nombreCompleto ? ` de ${candidateRecord.nombreCompleto}` : ""}.`,
+        "",
+        `Consulta el documento aquí: ${data.url}`,
+      ].join("\n");
+      window.open(buildStudyPdfWhatsappUrl(clientRecord?.telefono, message), "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo preparar el PDF publicado para compartir");
+    }
+  };
+  const handleDeleteReportVersion = async (version: any) => {
+    if (version.status === "published") {
+      toast.error("La versión publicada no puede eliminarse desde este flujo");
+      return;
+    }
+
+    const confirmed = confirm(`¿Eliminar la versión v${version.versionNumber}? Esta acción borra también su PDF asociado.`);
+    if (!confirmed) return;
+
+    deleteReportVersion.mutate({ versionId: version.id });
+  };
+  const { data: visitCaptureAudit = [] } = trpc.processes.getVisitCaptureAudit.useQuery(
+    { id: processId },
+    { enabled: !isClientAuth && canEditProcess && visitCaptureOpen }
+  );
+  /** @intervention IMPL-20260320-02 — historial de calificación final */
+  const { data: scoreAudit = [] } = trpc.processes.getScoreAudit.useQuery(
+    { id: processId },
+    { enabled: !isClientAuth && canEditProcess }
+  );
   const buildMapsUrl = (address?: string) => address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '';
   const buildVisitMessage = (opts: { encNombre?: string; candidato?: any; fechaISO?: string; direccion?: string; observaciones?: string; surveyorToken?: string | null; }) => {
     const fecha = opts.fechaISO ? new Date(opts.fechaISO).toLocaleString() : 'Por confirmar';
@@ -228,9 +447,6 @@ export default function ProcesoDetalle() {
     { value: "cerrado", label: "Cerrado" },
     { value: "descartado", label: "Descartado" },
   ];
-  const { data: clients = [] } = trpc.clients.list.useQuery();
-  const { data: candidates = [] } = trpc.candidates.list.useQuery();
-  const { data: posts = [] } = trpc.posts.list.useQuery();
   const { data: users = [] } = trpc.users.list.useQuery(undefined as any, {
     enabled: !isClientAuth,
   } as any);
@@ -238,6 +454,14 @@ export default function ProcesoDetalle() {
     enabled: !isClientAuth,
   } as any);
   const { data: documents = [] } = trpc.documents.getByProcess.useQuery({ procesoId: processId });
+  const { data: reportVersions = [] } = trpc.processes.listReportVersions.useQuery(
+    { id: processId },
+    { enabled: !isClientAuth && processId > 0 }
+  );
+  const { data: publishedReportSummary } = trpc.processes.getPublishedReportSummary.useQuery(
+    { id: processId },
+    { enabled: !isClientAuth && processId > 0 }
+  );
   const createClientLink = trpc.clientAccess.create.useMutation({
     onSuccess: (res:any) => {
       const url = res.url;
@@ -267,12 +491,74 @@ export default function ProcesoDetalle() {
   const uploadProcessDoc = trpc.documents.upload.useMutation({
     onSuccess: () => {
       utils.documents.getByProcess.invalidate({ procesoId: processId });
-      toast.success('Documento del proceso cargado');
     }
   });
+
+  /**
+   * Helper seguro para subir archivos del proceso.
+   * Evita Uncaught Promise y muestra toast de error descriptivo en caso de fallo.
+   * @intervention IMPL-20260320-12
+   * @respaldo context/interconsultas/ARCH-20260320-12
+   */
+  const handleUpload = async (
+    params: Parameters<typeof uploadProcessDoc.mutateAsync>[0],
+    onSuccess: (url: string) => void,
+  ) => {
+    toast.info('Subiendo...');
+    try {
+      const res = await uploadProcessDoc.mutateAsync(params);
+      onSuccess(res.url);
+      toast.success('Documento cargado');
+    } catch (err: any) {
+      const msg: string = err?.message ?? '';
+      const isCredError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('autenticación');
+      toast.error(
+        isCredError
+          ? 'Error de credenciales Firebase. Contacta al administrador del servidor.'
+          : `Error al subir archivo: ${msg || 'intenta de nuevo'}`,
+      );
+    }
+  };
   const deleteDoc = trpc.documents.delete.useMutation({
     onSuccess: () => utils.documents.getByProcess.invalidate({ procesoId: processId })
   });
+  const createLegacyReportDraft = trpc.processes.createLegacyReportDraft.useMutation({
+    onSuccess: async () => {
+      await utils.processes.listReportVersions.invalidate({ id: processId });
+      toast.success("Borrador de Armados registrado");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo registrar el borrador");
+    },
+  });
+  const publishReportVersion = trpc.processes.publishReportVersion.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.processes.listReportVersions.invalidate({ id: processId }),
+        utils.processes.getPublishedReportSummary.invalidate({ id: processId }),
+      ]);
+      toast.success("Versión publicada para cliente");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo publicar la versión");
+    },
+  });
+  const deleteReportVersion = trpc.processes.deleteReportVersion.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.processes.listReportVersions.invalidate({ id: processId }),
+        utils.processes.getPublishedReportSummary.invalidate({ id: processId }),
+      ]);
+      toast.success("Versión eliminada");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo eliminar la versión");
+    },
+  });
+  const openReportVersion = trpc.processes.getReportVersionAccess.useMutation();
+  const getVersionHtml = trpc.processes.getReportVersionHtml.useMutation();
+  const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
+  const [versionToPublish, setVersionToPublish] = useState<number | null>(null);
   const { data: comments = [] } = trpc.processComments.getByProcess.useQuery({ procesoId: processId });
   const createComment = trpc.processComments.create.useMutation({
     onSuccess: () => {
@@ -284,6 +570,17 @@ export default function ProcesoDetalle() {
     onError: (e:any) => toast.error('Error: '+e.message),
   });
   const [commentOpen, setCommentOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("expediente");
+  const [selectedArmadosSections, setSelectedArmadosSections] = useState<ArmadosSectionValue[]>([
+    "generales_candidato",
+    "documentos",
+    "investigacion_laboral",
+    "investigacion_legal",
+    "semanas_cotizadas",
+    "buro_credito",
+    "visita_domiciliaria",
+    "observaciones_conclusion",
+  ]);
   const [panelForm, setPanelForm] = useState({
     especialistaAtraccionId: "",
     especialistaAtraccionNombre: "",
@@ -319,6 +616,10 @@ export default function ProcesoDetalle() {
   const [visitaAmbito, setVisitaAmbito] = useState<AmbitoType>("LOCAL");
   const [calificacion, setCalificacion] = useState("");
   const [comentarioCalificacion, setComentarioCalificacion] = useState("");
+  // IMPL-20260320-07: control de edición posterior a asignación inicial
+  const [editandoCalif, setEditandoCalif] = useState(false);
+  const [motivoEdicion, setMotivoEdicion] = useState("");
+  const [showMotivoDialog, setShowMotivoDialog] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxSection, setLightboxSection] = useState<"legal" | "semanas" | "penales" | "buro" | "visita">("legal");
@@ -327,6 +628,8 @@ export default function ProcesoDetalle() {
     if (process) {
       setCalificacion(process.calificacionFinal || "pendiente");
       setComentarioCalificacion((process as any).comentarioCalificacion || "");
+      setEditandoCalif(false);
+      setMotivoEdicion("");
     }
   }, [process]);
 
@@ -405,8 +708,6 @@ export default function ProcesoDetalle() {
     });
     return counts;
   }, [allProcesses]);
-
-  const canEditProcess = useHasPermission("procesos", "edit");
 
   const getPanelPayload = (form: typeof panelForm) => {
     const config: ProcesoConfig =
@@ -535,38 +836,80 @@ export default function ProcesoDetalle() {
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap bg-gray-50 p-2 rounded-lg border">
-                <div className="flex flex-col">
+            <div className="flex max-w-full flex-wrap items-end justify-start gap-3 rounded-lg border bg-gray-50 p-2 xl:justify-end">
+              <div className="flex min-w-[10rem] flex-col">
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Estatus</span>
                     <select 
                         value={process.estatusProceso} 
-                        onChange={(e) => updateStatus.mutate({ id: processId, estatusProceso: e.target.value as (typeof ESTATUS)[number]["value"] })}
+                      onChange={(e) => updateStatus.mutate({ id: processId, estatusProceso: e.target.value as any })}
                         disabled={!canEditProcess}
-                        className="bg-transparent text-sm font-medium border-none p-0 h-auto focus:ring-0 cursor-pointer w-32"
+                  className="h-auto min-w-0 bg-transparent p-0 text-sm font-medium border-none focus:ring-0 cursor-pointer w-full"
                     >
                         {ESTATUS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
                     </select>
                 </div>
-                <div className="w-px h-8 bg-gray-300 mx-2"></div>
-                <div className="flex flex-col w-48">
+              <div className="mx-1 hidden h-8 w-px bg-gray-300 lg:block"></div>
+              <div className="flex min-w-[14rem] flex-1 flex-col lg:max-w-[18rem]">
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Calif. Final</span>
-                    <div className="flex items-center gap-1">
-                        <select 
-                            value={calificacion} 
-                            onChange={(e) => setCalificacion(e.target.value)}
-                            disabled={!canEditProcess}
-                            className="bg-transparent text-sm font-medium border-none p-0 h-auto focus:ring-0 cursor-pointer flex-1"
-                        >
-                            {CALIF.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
+                <div className="flex flex-wrap items-center gap-1">
+                        {/* IMPL-20260320-07: bloquear edición si ya hay calificación asignada */}
+                        {(() => {
+                          const esCalifAsignada = !!process.calificacionFinal && process.calificacionFinal !== "pendiente";
+                          return (
+                            <>
+                              <select
+                                value={calificacion}
+                                onChange={(e) => setCalificacion(e.target.value)}
+                                disabled={!canEditProcess || (esCalifAsignada && !editandoCalif)}
+                                className="h-auto min-w-[11rem] flex-1 bg-transparent p-0 text-sm font-medium border-none focus:ring-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                {CALIF.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                              </select>
+                              {canEditProcess && esCalifAsignada && !editandoCalif && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditandoCalif(true)}
+                                  className="text-[10px] text-blue-600 underline hover:text-blue-800 whitespace-nowrap ml-1"
+                                  title="Habilitar edición de calificación ya asignada"
+                                >
+                                  Editar
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                     </div>
                 </div>
-                {calificacion !== 'pendiente' && calificacion !== process.calificacionFinal && (
-                    <Button size="sm" onClick={() => updateCalif.mutate({ id: processId, calificacionFinal: calificacion as any, comentarioCalificacion: calificacion !== 'pendiente' ? comentarioCalificacion : undefined })}>
+                {(() => {
+                  const esCalifAsignada = !!process.calificacionFinal && process.calificacionFinal !== "pendiente";
+                  const califCambio = calificacion !== "pendiente" && calificacion !== process.calificacionFinal;
+                  if (!canEditProcess || !califCambio) return null;
+                  if (esCalifAsignada) {
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                        onClick={() => setShowMotivoDialog(true)}
+                      >
                         Guardar Calif.
+                      </Button>
+                    );
+                  }
+                  return (
+                    <Button
+                      size="sm"
+                      onClick={() => updateCalif.mutate({
+                        id: processId,
+                        calificacionFinal: calificacion as any,
+                        comentarioCalificacion: calificacion !== "pendiente" ? comentarioCalificacion : undefined,
+                      })}
+                    >
+                      Guardar Calif.
                     </Button>
-                )}
-                <div className="w-px h-8 bg-gray-300 mx-2"></div>
+                  );
+                })()}
+                <div className="mx-1 hidden h-8 w-px bg-gray-300 lg:block"></div>
                  {!isClientAuth && canEditProcess && (
                     <Button onClick={handleSavePanel} disabled={updatePanelDetail.isPending} className="bg-green-600 hover:bg-green-700 text-white shadow-sm">
                       <Save className="h-4 w-4 mr-2" /> Guardar Todo
@@ -578,10 +921,11 @@ export default function ProcesoDetalle() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-12 space-y-6">
-          <Tabs defaultValue="expediente" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="expediente">Expediente</TabsTrigger>
               <TabsTrigger value="visitas">Visitas</TabsTrigger>
+              <TabsTrigger value="armados">Armados</TabsTrigger>
               <TabsTrigger value="documentos">Documentos</TabsTrigger>
             </TabsList>
 
@@ -637,7 +981,7 @@ export default function ProcesoDetalle() {
                              <span className="text-[10px] uppercase text-gray-400">Completo</span>
                              <input
                                 type="checkbox"
-                                checked={Boolean((getCandidate() as any)?.dictamenLaboral?.completado)}
+                                checked={Boolean(candidateRecord?.dictamenLaboral?.completado)}
                                 disabled={true}
                             />
                          </div>
@@ -646,14 +990,22 @@ export default function ProcesoDetalle() {
                     <div>
                         <Label className="text-xs">Resultado Global</Label>
                         <div className="h-9 px-3 py-2 border rounded-md bg-gray-50 text-sm font-semibold uppercase text-blue-700 mt-1">
-                          {(getCandidate() as any)?.dictamenLaboral?.resultado || "Pendiente"}
+                          {getCalificacionLabel(candidateRecord?.dictamenLaboral?.resultado || "pendiente")}
                         </div>
                     </div>
+                    {(candidateRecord?.dictamenLaboral as any)?.observacionResultado && (
+                      <div>
+                        <Label className="text-xs">Observación del estatus</Label>
+                        <div className="min-h-16 px-3 py-2 border rounded-md bg-amber-50 text-xs text-amber-900 mt-1 break-words whitespace-pre-wrap">
+                          {(candidateRecord?.dictamenLaboral as any).observacionResultado}
+                        </div>
+                      </div>
+                    )}
                     
                     <div>
                         <Label className="text-xs">Comentario o Conclusión General</Label>
                         <div className="min-h-16 px-3 py-2 border rounded-md bg-gray-50 text-xs text-gray-700 mt-1 break-words whitespace-pre-wrap">
-                            {(getCandidate() as any)?.dictamenLaboral?.comentariosGenerales || "Sin comentarios."}
+                          {candidateRecord?.dictamenLaboral?.comentariosGenerales || "Sin comentarios."}
                         </div>
                     </div>
                     
@@ -728,14 +1080,14 @@ export default function ProcesoDetalle() {
                             e.preventDefault();
                             const files = e.clipboardData.files;
                             if (files.length > 0) {
-                               toast.info("Subiendo...");
                                const file = files[0];
                                const arrayBuf = await file.arrayBuffer();
                                let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                const base64 = btoa(binary);
-                               const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste.png`, contentType: file.type, base64 } as any);
-                               setPanelForm(f => ({...f, investigacionLegal: { ...f.investigacionLegal, evidenciasGraficas: [...(f.investigacionLegal as any).evidenciasGraficas, res.url] }}));
-                               toast.success("Subido");
+                               await handleUpload(
+                                 { procesoId: processId, tipoDocumento: 'EVIDENCIA_LEGAL', fileName: `paste.png`, contentType: file.type, base64 } as any,
+                                 (url) => setPanelForm(f => ({...f, investigacionLegal: { ...f.investigacionLegal, evidenciasGraficas: [...(f.investigacionLegal as any).evidenciasGraficas, url] }})),
+                               );
                             }
                         }}
                         >
@@ -763,6 +1115,15 @@ export default function ProcesoDetalle() {
                    <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
                         <FileText className="h-4 w-4 text-teal-600" /> Semanas Cotizadas
                     </div>
+                    {/* IMPL-20260320-01: valores globales del candidato (solo lectura, editables en CandidatoDetalle) */}
+                    {(candidateRecord?.dictamenLaboral as any)?.disposicionSemanasCotizadas && (
+                      <div className="rounded bg-teal-50 border border-teal-200 px-3 py-2 text-xs text-teal-800 space-y-1">
+                        <div><span className="font-semibold">Disposición (global): </span>{(candidateRecord.dictamenLaboral as any).disposicionSemanasCotizadas}</div>
+                        {(candidateRecord.dictamenLaboral as any).motivoDisposicion && (
+                          <div><span className="font-semibold">Motivo: </span>{(candidateRecord.dictamenLaboral as any).motivoDisposicion}</div>
+                        )}
+                      </div>
+                    )}
                     <div>
                         <Label className="text-xs">Comentario Cotejo</Label>
                         <Textarea
@@ -780,13 +1141,13 @@ export default function ProcesoDetalle() {
                                       if (isClientAuth) return;
                                       const file = e.clipboardData.files[0];
                                       if(file) {
-                                          toast.info("Subiendo...");
                                            const arrayBuf = await file.arrayBuffer();
                                            let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                            const base64 = btoa(binary);
-                                           const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste.png`, contentType: file.type, base64 } as any);
-                                           setPanelForm(f => ({...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: [...(f.semanasDetalle as any).evidenciasGraficas, res.url] }}));
-                                           toast.success("Subido");
+                                           await handleUpload(
+                                             { procesoId: processId, tipoDocumento: 'SEMANAS_COTIZADAS', fileName: `paste.png`, contentType: file.type, base64 } as any,
+                                             (url) => setPanelForm(f => ({...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: [...(f.semanasDetalle as any).evidenciasGraficas, url] }})),
+                                           );
                                       }
                                   }}
                                   tabIndex={0}
@@ -796,13 +1157,13 @@ export default function ProcesoDetalle() {
                                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async(e) => {
                                      const file = e.currentTarget.files?.[0];
                                      if(file) {
-                                        toast.info("Subiendo...");
                                         const arrayBuf = await file.arrayBuffer();
                                            let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                            const base64 = btoa(binary);
-                                           const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'SEMANAS_IMSS', fileName: file.name, contentType: file.type, base64 } as any);
-                                           setPanelForm(f => ({...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: [...(f.semanasDetalle as any).evidenciasGraficas, res.url] }}));
-                                           toast.success("Subido");
+                                           await handleUpload(
+                                             { procesoId: processId, tipoDocumento: 'SEMANAS_IMSS', fileName: file.name, contentType: file.type, base64 } as any,
+                                             (url) => setPanelForm(f => ({...f, semanasDetalle: { ...f.semanasDetalle, evidenciasGraficas: [...(f.semanasDetalle as any).evidenciasGraficas, url] }})),
+                                           );
                                      }
                                  }}/>
                              </div>
@@ -842,13 +1203,13 @@ export default function ProcesoDetalle() {
                               if (isClientAuth) return;
                               const file = e.clipboardData.files[0];
                               if(file) {
-                                    toast.info("Subiendo...");
                                     const arrayBuf = await file.arrayBuffer();
                                     let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                     const base64 = btoa(binary);
-                                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'ANTECEDENTES_PENALES', fileName: `paste.png`, contentType: file.type, base64 } as any);
-                                    setPanelForm(f => ({...f, antecedentesPenales: { ...f.antecedentesPenales, evidenciasGraficas: [...(f.antecedentesPenales as any).evidenciasGraficas, res.url] }}));
-                                    toast.success("Subido");
+                                    await handleUpload(
+                                      { procesoId: processId, tipoDocumento: 'ANTECEDENTES_PENALES', fileName: `paste.png`, contentType: file.type, base64 } as any,
+                                      (url) => setPanelForm(f => ({...f, antecedentesPenales: { ...f.antecedentesPenales, evidenciasGraficas: [...(f.antecedentesPenales as any).evidenciasGraficas, url] }})),
+                                    );
                               }
                         }}
                         tabIndex={0}
@@ -888,13 +1249,13 @@ export default function ProcesoDetalle() {
                                 onChange={async(e) => {
                                      const file = e.currentTarget.files?.[0];
                                      if(file) {
-                                        toast.info("Subiendo...");
                                         const arrayBuf = await file.arrayBuffer();
                                         let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                         const base64 = btoa(binary);
-                                        const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO', fileName: file.name, contentType: file.type, base64 } as any);
-                                        setPanelForm(f => ({...f, buroCredito: { ...f.buroCredito, pdfUrl: res.url } as any}));
-                                        toast.success("Subido");
+                                        await handleUpload(
+                                          { procesoId: processId, tipoDocumento: 'BURO_CREDITO', fileName: file.name, contentType: file.type, base64 } as any,
+                                          (url) => setPanelForm(f => ({...f, buroCredito: { ...f.buroCredito, pdfUrl: url } as any})),
+                                        );
                                      }
                                 }}
                             />
@@ -909,12 +1270,13 @@ export default function ProcesoDetalle() {
                                 if (isClientAuth) return;
                                 const file = e.clipboardData.files[0];
                                 if(file) {
-                                    toast.info("Subiendo...");
                                     const arrayBuf = await file.arrayBuffer();
                                     let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                     const base64 = btoa(binary);
-                                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'BURO_CREDITO_ADICIONAL', fileName: `paste.png`, contentType: file.type, base64 } as any);
-                                    setPanelForm(f => ({...f, buroCredito: { ...f.buroCredito, archivosAdicionales: [...(f.buroCredito as any).archivosAdicionales, res.url] }}));
+                                    await handleUpload(
+                                      { procesoId: processId, tipoDocumento: 'BURO_CREDITO_ADICIONAL', fileName: `paste.png`, contentType: file.type, base64 } as any,
+                                      (url) => setPanelForm(f => ({...f, buroCredito: { ...f.buroCredito, archivosAdicionales: [...(f.buroCredito as any).archivosAdicionales, url] }})),
+                                    );
                                 }
                             }}
                         >Paste files</div>
@@ -960,12 +1322,13 @@ export default function ProcesoDetalle() {
                              if(isClientAuth) return;
                              const file = e.clipboardData.files[0];
                               if(file) {
-                                    toast.info("Subiendo...");
                                     const arrayBuf = await file.arrayBuffer();
                                     let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
                                     const base64 = btoa(binary);
-                                    const res = await uploadProcessDoc.mutateAsync({ procesoId: processId, tipoDocumento: 'VISITA_FOTOGRAFIA', fileName: `paste.png`, contentType: file.type, base64 } as any);
-                                    setPanelForm(f => ({...f, visitaDetalle: { ...f.visitaDetalle, evidenciasGraficas: [...(f.visitaDetalle as any).evidenciasGraficas || [], res.url] }}));
+                                    await handleUpload(
+                                      { procesoId: processId, tipoDocumento: 'VISITA_FOTOGRAFIA', fileName: `paste.png`, contentType: file.type, base64 } as any,
+                                      (url) => setPanelForm(f => ({...f, visitaDetalle: { ...f.visitaDetalle, evidenciasGraficas: [...(f.visitaDetalle as any).evidenciasGraficas || [], url] }})),
+                                    );
                               }
                          }}
                     >Paste Photos</div>
@@ -982,9 +1345,434 @@ export default function ProcesoDetalle() {
                                  </div>
                              ))}
                     </div>
+                    {!isClientAuth && (
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Portal del encuestador</div>
+                            <div className="text-xs text-emerald-900">
+                              {surveyorPortalStatus ? `Estado del acceso: ${surveyorPortalStatus}` : "Sin acceso generado todavía"}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {hasCapturedVisitData && (
+                              <Button size="sm" variant="outline" onClick={() => setVisitCaptureOpen(true)}>Ver / editar captura</Button>
+                            )}
+                            {processIsVisitCompleted && (
+                              <Button size="sm" variant="outline" onClick={() => setActiveTab("armados")}>
+                                <FilePlus2 className="h-4 w-4 mr-2" /> Gestionar en Armados
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-emerald-900 break-all">
+                          {surveyorPortalUrl ? surveyorPortalUrl : "Programa la visita para generar la URL del cuestionario."}
+                        </div>
+                        <div className="text-[11px] text-emerald-800">
+                          {processIsVisitCompleted
+                            ? "La visita ya fue concluida. La URL se conserva como referencia del acceso original y la publicación del PDF se controla desde Armados."
+                            : "Mientras la visita esté programada o en curso, esta URL corresponde al acceso activo que se compartió con el encuestador."}
+                        </div>
+                      </div>
+                    )}
+                    {!isClientAuth && (
+                      <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 space-y-1">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-amber-900">Términos, condiciones y confidencialidad</div>
+                        <div className="text-xs text-amber-900">
+                          {visitPrivacyAcceptedAt
+                            ? `Aceptado en el portal de visita el ${new Date(visitPrivacyAcceptedAt).toLocaleString("es-MX")}`
+                            : "Pendiente de aceptación en el portal del encuestador."}
+                        </div>
+                        <div className="text-[11px] text-amber-800">
+                          Este registro es interno del expediente y queda excluido del PDF final del estudio.
+                        </div>
+                      </div>
+                    )}
                 </div>
 
+                {/* 8. Historial de Calificación Final — IMPL-20260320-02 */}
+                {!isClientAuth && canEditProcess && (
+                  <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3 md:col-span-2 xl:col-span-3">
+                    <div className="flex flex-wrap items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
+                      <CheckCircle2 className="h-4 w-4 text-violet-600" /> Historial de Calificación Final
+                      <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                        Control interno
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Este historial es solo para trazabilidad interna del expediente. No se muestra al cliente ni forma parte del PDF final.
+                    </p>
+                    {scoreAudit.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">Sin cambios registrados aún.</p>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {scoreAudit.map((entry: any) => {
+                          const califLabel = (v: string | null) =>
+                            CALIF.find((c) => c.value === v)?.label ?? v ?? "—";
+                          const actor = entry.userName || entry.userEmail || `Usuario #${entry.userId ?? "?"}`;
+                          const fecha = entry.timestamp
+                            ? new Date(entry.timestamp).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+                            : "—";
+                          const det: any = entry.details || {};
+                          return (
+                            <div key={entry.id} className="py-2 text-xs text-gray-700 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                <span className="font-semibold text-gray-900">{actor}</span>
+                                <span className="text-gray-400">{fecha}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]">
+                                {det.calificacionAnterior != null && (
+                                  <span>Anterior: <span className="font-medium">{califLabel(det.calificacionAnterior)}</span></span>
+                                )}
+                                {det.calificacionFinal != null && (
+                                  <span>→ Nuevo: <span className="font-semibold text-violet-700">{califLabel(det.calificacionFinal)}</span></span>
+                                )}
+                              </div>
+                              {det.motivoEdicion && (
+                                <div className="text-[11px] text-amber-700">Motivo: {det.motivoEdicion}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </div>
+            </TabsContent>
+
+            <TabsContent value="armados" className="mt-4">
+      <div className="space-y-4">
+
+        {/* Bloque 1: Estado del armado actual */}
+        <Card>
+          <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FilePlus2 className="h-5 w-5 text-blue-700" /> Armados de cliente
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Control interno de borradores y publicación del PDF visible para cliente.
+              </p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {!publishedReportSummary && reportVersions.length === 0 && (
+                  <Badge variant="outline" className="text-gray-500">Sin armado</Badge>
+                )}
+                {reportVersions.length > 0 && !publishedReportSummary && (
+                  <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">
+                    Borrador disponible (v{reportVersions[0]?.versionNumber})
+                  </Badge>
+                )}
+                {publishedReportSummary && (
+                  <Badge className="bg-green-700 text-white">
+                    Publicado v{publishedReportSummary.versionNumber}
+                  </Badge>
+                )}
+                {publishedReportSummary?.publishedAt && (
+                  <span className="text-xs text-muted-foreground">
+                    Publicado: {new Date(publishedReportSummary.publishedAt).toLocaleDateString("es-MX")}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {publishedReportSummary && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={openReportVersion.isPending}
+                  onClick={() => void handleOpenReportVersion(publishedReportSummary.id)}
+                >
+                  <FileText className="h-4 w-4 mr-2" /> Abrir publicado
+                </Button>
+              )}
+              {publishedReportSummary && (
+                <Button size="sm" variant="outline" disabled={openReportVersion.isPending} onClick={() => void handleSharePublishedVersion()}>
+                  <MessageCircle className="h-4 w-4 mr-2" /> Compartir publicado
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3 text-sm text-blue-800">
+              Elige las secciones que deseas incluir. El borrador se congela como snapshot editorial inmutable — el preview HTML y el PDF derivan del mismo contenido.
+            </div>
+
+            {/* Bloque 2: Checkboxes de secciones */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {ARMADOS_SECTION_OPTIONS.map((section) => {
+                const checked = selectedArmadosSections.includes(section.value);
+                return (
+                  <label key={section.value} className={`flex items-start gap-3 rounded-lg border bg-white p-3 cursor-pointer transition-colors ${checked ? "border-blue-300 bg-blue-50/30" : "hover:bg-gray-50"}`}>
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(value) => {
+                        setSelectedArmadosSections((current) => {
+                          if (value) {
+                            return current.includes(section.value) ? current : [...current, section.value];
+                          }
+                          return current.filter((item) => item !== section.value);
+                        });
+                      }}
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-medium text-gray-900">{section.label}</div>
+                      <div className="text-xs text-muted-foreground">{section.description}</div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Bloque 3: Resumen de selección */}
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedArmadosSections.length === 0 ? (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Selecciona al menos una sección
+                </Badge>
+              ) : (
+                <Badge variant="secondary">{selectedArmadosSections.length} sección{selectedArmadosSections.length !== 1 ? "es" : ""} seleccionada{selectedArmadosSections.length !== 1 ? "s" : ""}</Badge>
+              )}
+              {selectedArmadosSections.map((value) => {
+                const section = ARMADOS_SECTION_OPTIONS.find((item) => item.value === value);
+                return section ? <Badge key={value} variant="outline" className="text-blue-800 border-blue-200 bg-blue-50">{section.label}</Badge> : null;
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => void handleGenerateLegacyDraft()}
+                disabled={!canEditProcess || createLegacyReportDraft.isPending || selectedArmadosSections.length === 0}
+              >
+                <FilePlus2 className="h-4 w-4 mr-2" />
+                {createLegacyReportDraft.isPending ? "Generando borrador..." : "Generar borrador"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bloque 4: Revisión del borrador (draft más reciente) */}
+        {(() => {
+          const latestDraft = reportVersions.find((v: any) => v.status === "draft");
+          if (!latestDraft) return null;
+          return (
+            <Card className="border-amber-200 bg-amber-50/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
+                  <CheckCircle2 className="h-4 w-4" /> Versión en revisión — v{latestDraft.versionNumber}
+                </CardTitle>
+                <p className="text-xs text-amber-700">Revise el armado antes de publicarlo. El preview HTML refleja exactamente el contenido del PDF.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={getVersionHtml.isPending}
+                    onClick={() => void handlePreviewHtml(latestDraft.id)}
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {getVersionHtml.isPending ? "Cargando..." : "Vista previa HTML"}
+                  </Button>
+                  {latestDraft.pdfStoragePath && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={openReportVersion.isPending}
+                      onClick={() => void handleOpenReportVersion(latestDraft.id)}
+                    >
+                      <FileText className="h-4 w-4 mr-2" /> Abrir PDF borrador
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    disabled={publishReportVersion.isPending}
+                    onClick={() => handleConfirmPublish(latestDraft.id)}
+                  >
+                    Publicar para cliente
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Bloque 5: Historial de versiones */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Historial de versiones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {reportVersions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Todavía no hay versiones registradas.</p>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Versión</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Generado por</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Secciones</TableHead>
+                        <TableHead>Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reportVersions.map((version: any) => (
+                        <TableRow key={version.id} className={version.status === "published" ? "bg-green-50/50" : ""}>
+                          <TableCell className="font-medium">v{version.versionNumber}</TableCell>
+                          <TableCell>
+                            <Badge variant={version.status === "published" ? "default" : version.status === "archived" ? "secondary" : "outline"}
+                              className={version.status === "published" ? "bg-green-700" : ""}
+                            >{version.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">{version.createdByName || "Sin dato"}</TableCell>
+                          <TableCell className="text-xs">
+                            {new Date(version.createdAt).toLocaleDateString("es-MX")}
+                            {version.publishedAt && <div className="text-green-700">Pub: {new Date(version.publishedAt).toLocaleDateString("es-MX")}</div>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {(version.sections || []).map((value: string) => {
+                                const section = ARMADOS_SECTION_OPTIONS.find((item) => item.value === value);
+                                return (
+                                  <Badge key={`${version.id}-${value}`} variant="secondary" className="text-[10px]">
+                                    {section?.label || value}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={getVersionHtml.isPending}
+                                onClick={() => void handlePreviewHtml(version.id)}
+                                title="Vista previa HTML"
+                              >
+                                HTML
+                              </Button>
+                              {version.pdfStoragePath && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={openReportVersion.isPending}
+                                  onClick={() => void handleOpenReportVersion(version.id)}
+                                >
+                                  PDF
+                                </Button>
+                              )}
+                              {version.status === "draft" && (
+                                <Button
+                                  size="sm"
+                                  disabled={publishReportVersion.isPending}
+                                  onClick={() => handleConfirmPublish(version.id)}
+                                >
+                                  Publicar
+                                </Button>
+                              )}
+                              {version.status !== "published" && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={deleteReportVersion.isPending}
+                                  onClick={() => void handleDeleteReportVersion(version)}
+                                >
+                                  Eliminar
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="space-y-3 md:hidden">
+                  {reportVersions.map((version: any) => (
+                    <div key={version.id} className={`rounded-lg border p-4 shadow-sm space-y-3 ${version.status === "published" ? "bg-green-50/50 border-green-200" : "bg-white"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">Versión v{version.versionNumber}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{version.createdByName || "Sin dato"}</div>
+                        </div>
+                        <Badge variant={version.status === "published" ? "default" : "outline"}
+                          className={version.status === "published" ? "bg-green-700" : ""}
+                        >{version.status}</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {(version.sections || []).map((value: string) => {
+                          const section = ARMADOS_SECTION_OPTIONS.find((item) => item.value === value);
+                          return <Badge key={`${version.id}-${value}`} variant="secondary" className="text-[10px]">{section?.label || value}</Badge>;
+                        })}
+                      </div>
+                      <div className="flex flex-col gap-2 pt-1">
+                        <Button size="sm" variant="outline" className="w-full" disabled={getVersionHtml.isPending} onClick={() => void handlePreviewHtml(version.id)}>
+                          Vista previa HTML
+                        </Button>
+                        {version.pdfStoragePath && (
+                          <Button size="sm" variant="outline" className="w-full" disabled={openReportVersion.isPending} onClick={() => void handleOpenReportVersion(version.id)}>
+                            Abrir PDF
+                          </Button>
+                        )}
+                        {version.status === "draft" && (
+                          <Button size="sm" className="w-full" disabled={publishReportVersion.isPending} onClick={() => handleConfirmPublish(version.id)}>
+                            Publicar
+                          </Button>
+                        )}
+                        {version.status !== "published" && (
+                          <Button size="sm" variant="destructive" className="w-full" disabled={deleteReportVersion.isPending} onClick={() => void handleDeleteReportVersion(version)}>
+                            Eliminar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bloque 6: Confirmación de publicación */}
+      <Dialog open={confirmPublishOpen} onOpenChange={(open) => { if (!open) { setConfirmPublishOpen(false); setVersionToPublish(null); } }}>
+        <DialogContent className="max-w-md" aria-describedby="confirm-publish-desc">
+          <DialogHeader>
+            <DialogTitle>Confirmar publicación</DialogTitle>
+          </DialogHeader>
+          <p id="confirm-publish-desc" className="text-sm text-muted-foreground">
+            Al publicar esta versión, quedará visible para el cliente en su portal. Las versiones publicadas anteriores quedarán archivadas. Esta acción no puede deshacerse desde aquí.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => { setConfirmPublishOpen(false); setVersionToPublish(null); }}>Cancelar</Button>
+            <Button
+              disabled={publishReportVersion.isPending || versionToPublish === null}
+              onClick={() => {
+                if (versionToPublish === null) return;
+                publishReportVersion.mutate(
+                  { versionId: versionToPublish },
+                  {
+                    onSuccess: () => {
+                      setConfirmPublishOpen(false);
+                      setVersionToPublish(null);
+                    },
+                  }
+                );
+              }}
+            >
+              {publishReportVersion.isPending ? "Publicando..." : "Sí, publicar para cliente"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
             </TabsContent>
 
             <TabsContent value="visitas" className="mt-4">
@@ -995,7 +1783,9 @@ export default function ProcesoDetalle() {
           </CardTitle>
           <div className="flex gap-2">
             {!isClientAuth && process.estatusProceso === "visita_realizada" && (
-              <PdfEstudioButton processId={processId} />
+              <Button size="sm" variant="outline" onClick={() => setActiveTab("armados")}>
+                <FilePlus2 className="h-4 w-4 mr-2" /> Abrir Armados
+              </Button>
             )}
             {!isClientAuth && (
             <Button size="sm" variant="outline" onClick={()=>{
@@ -1074,10 +1864,9 @@ export default function ProcesoDetalle() {
                       <>
                         {enc?.telefono && (
                           <Button size="sm" variant="outline" onClick={()=>{
-                            const cand = getCandidate();
                             const msg = buildVisitMessage({
                               encNombre: enc.nombre,
-                              candidato: cand,
+                              candidato: candidateRecord,
                               fechaISO: process.visitStatus?.scheduledDateTime,
                               direccion: process.visitStatus?.direccion,
                               observaciones: process.visitStatus?.observaciones,
@@ -1127,11 +1916,10 @@ export default function ProcesoDetalle() {
               <Button variant="outline" onClick={()=> setNotifyOpen(false)}>Cerrar</Button>
               <Button onClick={()=>{
                 if (!process) return;
-                const cand = getCandidate();
                 const fechaISO = process.visitStatus?.scheduledDateTime;
                 const msgBase = (encNombre?: string) => buildVisitMessage({
                   encNombre,
-                  candidato: cand,
+                  candidato: candidateRecord,
                   fechaISO,
                   direccion: process.visitStatus?.direccion,
                   observaciones: process.visitStatus?.observaciones,
@@ -1151,6 +1939,30 @@ export default function ProcesoDetalle() {
         </DialogContent>
       </Dialog>
       )}
+      {!isClientAuth && (
+        <Dialog open={visitCaptureOpen} onOpenChange={setVisitCaptureOpen}>
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden" aria-describedby="visit-capture-desc">
+            <DialogHeader>
+              <DialogTitle>Captura del cuestionario del encuestador</DialogTitle>
+            </DialogHeader>
+            <p id="visit-capture-desc" className="sr-only">Vista interna de solo lectura con la información capturada por el encuestador.</p>
+            <div className="space-y-3 overflow-auto pr-1">
+              <div className="text-sm text-muted-foreground">
+                {process?.clave} • {process?.visitStatus?.scheduledDateTime ? new Date(process.visitStatus.scheduledDateTime).toLocaleString() : "Sin fecha programada"}
+              </div>
+              <VisitCapturePanel
+                data={((process as any)?.visitaDetalle || {}) as Record<string, unknown>}
+                portalUrl={surveyorPortalUrl}
+                portalStatus={surveyorPortalStatus}
+                canEdit={!isClientAuth && canEditProcess}
+                isSaving={updateVisitCapture.isPending}
+                onSave={(nextValue) => updateVisitCapture.mutate({ id: processId, visitaDetalle: nextValue as any })}
+                auditEntries={visitCaptureAudit as any}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
             </TabsContent>
             <TabsContent value="documentos" className="mt-4">
       <Card>
@@ -1163,10 +1975,11 @@ export default function ProcesoDetalle() {
                 setEmailDialogOpen(true);
               }}>Generar enlace de acceso</Button>
               <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-                <DialogContent>
+                <DialogContent aria-describedby="email-link-desc">
                   <DialogHeader>
                     <DialogTitle>Enviar enlace de acceso al cliente</DialogTitle>
                   </DialogHeader>
+                  <p id="email-link-desc" className="sr-only">Formulario interno para generar y enviar un enlace de acceso al cliente.</p>
                   <div className="space-y-3">
                     <div>
                       <Label htmlFor="emailTo">Correo del cliente</Label>
@@ -1274,7 +2087,7 @@ export default function ProcesoDetalle() {
       </div>
       
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby="lightbox-desc">
           <DialogHeader>
             <DialogTitle>
               {lightboxSection === "legal" && "Evidencia - Investigación Legal"}
@@ -1284,6 +2097,7 @@ export default function ProcesoDetalle() {
               {lightboxSection === "visita" && "Evidencia - Visita"}
             </DialogTitle>
           </DialogHeader>
+          <p id="lightbox-desc" className="sr-only">Visor interno de evidencias del proceso con navegación entre archivos.</p>
           {
             (() => {
               const getImagesForSection = () => {
@@ -1320,6 +2134,54 @@ export default function ProcesoDetalle() {
               ) : null;
             })()
           }
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de motivo de edición de calificación — IMPL-20260320-07 */}
+      <Dialog open={showMotivoDialog} onOpenChange={(open) => { if (!open) setShowMotivoDialog(false); }}>
+        <DialogContent className="max-w-md" aria-describedby="motivo-calif-desc">
+          <DialogHeader>
+            <DialogTitle>Motivo de edición de calificación</DialogTitle>
+          </DialogHeader>
+          <p id="motivo-calif-desc" className="text-sm text-muted-foreground">
+            La calificación ya estaba asignada como <strong>{CALIF.find(c => c.value === process.calificacionFinal)?.label ?? process.calificacionFinal}</strong>. Ingresa el motivo del cambio para continuar.
+          </p>
+          <div className="space-y-2 mt-2">
+            <Label htmlFor="motivo-edicion-calif">Motivo de edición <span className="text-red-500">*</span></Label>
+            <Textarea
+              id="motivo-edicion-calif"
+              value={motivoEdicion}
+              onChange={(e) => setMotivoEdicion(e.target.value)}
+              placeholder="Ej: Corrección por dato adicional recibido del cliente"
+              rows={3}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowMotivoDialog(false)}>Cancelar</Button>
+            <Button
+              disabled={!motivoEdicion.trim() || updateCalif.isPending}
+              onClick={() => {
+                if (!motivoEdicion.trim()) return;
+                updateCalif.mutate(
+                  {
+                    id: processId,
+                    calificacionFinal: calificacion as any,
+                    comentarioCalificacion: comentarioCalificacion || undefined,
+                    motivoEdicion: motivoEdicion.trim(),
+                  },
+                  {
+                    onSuccess: () => {
+                      setShowMotivoDialog(false);
+                      setEditandoCalif(false);
+                      setMotivoEdicion("");
+                    },
+                  }
+                );
+              }}
+            >
+              {updateCalif.isPending ? "Guardando..." : "Confirmar cambio"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

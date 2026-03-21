@@ -44,27 +44,27 @@ export default function SearchResults() {
   const scopedClients = useMemo(
     () =>
       isClient && user?.clientId
-        ? clients.filter((c) => c.id === user.clientId)
+        ? clients.filter((c: any) => c.id === user.clientId)
         : clients,
     [clients, isClient, user?.clientId],
   );
 
   const getClientName = (clientId: number | null) => {
     if (!clientId) return "-";
-    const client = scopedClients.find((c) => c.id === clientId);
+    const client = scopedClients.find((c: any) => c.id === clientId);
     return client?.nombreEmpresa || "-";
   };
 
   const getPostName = (postId: number | null) => {
     if (!postId) return "-";
-    const post = posts.find((p) => p.id === postId);
+    const post = posts.find((p: any) => p.id === postId);
     return post?.nombreDelPuesto || "-";
   };
 
   const scopedCandidates = useMemo(
     () =>
       isClient && user?.clientId
-        ? allCandidates.filter((c) => c.clienteId === user.clientId)
+        ? allCandidates.filter((c: any) => c.clienteId === user.clientId)
         : allCandidates,
     [allCandidates, isClient, user?.clientId],
   );
@@ -72,7 +72,7 @@ export default function SearchResults() {
   const scopedProcesses = useMemo(
     () =>
       isClient && user?.clientId
-        ? allProcesses.filter((p) => p.clienteId === user.clientId)
+        ? allProcesses.filter((p: any) => p.clienteId === user.clientId)
         : allProcesses,
     [allProcesses, isClient, user?.clientId],
   );
@@ -82,7 +82,7 @@ export default function SearchResults() {
 
   const filteredClients = useMemo(() => {
     if (!term) return [];
-    return scopedClients.filter((c) => {
+    return scopedClients.filter((c: any) => {
       const haystack = [
         c.nombreEmpresa,
         c.contacto,
@@ -99,7 +99,7 @@ export default function SearchResults() {
 
   const filteredCandidates = useMemo(() => {
     if (!term) return [];
-    return scopedCandidates.filter((c) => {
+    return scopedCandidates.filter((c: any) => {
       const haystack = [
         c.nombreCompleto,
         c.email,
@@ -136,7 +136,7 @@ export default function SearchResults() {
         p.tipoProducto,
         getClientName(p.clienteId),
         getPostName(p.puestoId),
-        scopedCandidates.find((c) => c.id === p.candidatoId)?.nombreCompleto,
+        scopedCandidates.find((c: any) => c.id === p.candidatoId)?.nombreCompleto,
       ]
         .join(" ")
         .toLowerCase();
@@ -347,7 +347,7 @@ export default function SearchResults() {
               <div className="space-y-2">
                 {filteredProcesses.slice(0, 20).map((p: any) => {
                   const cand = scopedCandidates.find(
-                    (c) => c.id === p.candidatoId,
+                    (c: any) => c.id === p.candidatoId,
                   );
                   return (
                     <Link

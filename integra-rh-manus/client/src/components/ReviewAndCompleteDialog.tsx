@@ -8,9 +8,177 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CAUSALES_SALIDA } from "@/lib/constants";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, Plus } from "lucide-react";
+
+/**
+ * ARCH-20260321-01 | Respaldo: PROYECTO.md
+ */
+const monthAliases: Record<string, string> = {
+  enero: "01",
+  febrero: "02",
+  marzo: "03",
+  abril: "04",
+  mayo: "05",
+  junio: "06",
+  julio: "07",
+  agosto: "08",
+  septiembre: "09",
+  setiembre: "09",
+  octubre: "10",
+  noviembre: "11",
+  diciembre: "12",
+};
+
+const normalizeText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+
+const normalizeWorkDateDraft = (value: string): string | null => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return "";
+  }
+
+  if (/^\d{4}$/.test(trimmedValue) || /^\d{4}-\d{2}$/.test(trimmedValue) || /^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+    return trimmedValue;
+  }
+
+  const monthSlashYearMatch = /^(\d{1,2})\/(\d{4})$/.exec(trimmedValue);
+  if (monthSlashYearMatch) {
+    const month = Number(monthSlashYearMatch[1]);
+    const year = monthSlashYearMatch[2];
+    if (month >= 1 && month <= 12) {
+      return `${year}-${String(month).padStart(2, "0")}`;
+    }
+    return null;
+  }
+
+  const dayMonthYearMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmedValue);
+  if (dayMonthYearMatch) {
+    const day = Number(dayMonthYearMatch[1]);
+    const month = Number(dayMonthYearMatch[2]);
+    const year = dayMonthYearMatch[3];
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    return null;
+  }
+
+  const normalizedText = normalizeText(trimmedValue);
+  const monthNameYearMatch = /^([a-z]+)\s+(\d{4})$/.exec(normalizedText);
+  if (!monthNameYearMatch) {
+    return null;
+  }
+
+  const month = monthAliases[monthNameYearMatch[1]];
+  if (!month) {
+    return null;
+  }
+
+  return `${monthNameYearMatch[2]}-${month}`;
+};
+
+const formatWorkDateForInput = (value: string): string => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return "";
+  }
+
+  const normalizedValue = normalizeWorkDateDraft(trimmedValue);
+  const displayValue = normalizedValue ?? trimmedValue;
+
+  if (/^\d{4}-\d{2}$/.test(displayValue)) {
+    const [year, month] = displayValue.split("-");
+    return `${month}/${year}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(displayValue)) {
+    const [year, month, day] = displayValue.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  return displayValue;
+};
+
+const maskMonthYearInput = (value: string): string => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return "";
+  }
+
+  if (/[a-zA-Z]/.test(trimmedValue) || trimmedValue.includes("-")) {
+    return trimmedValue;
+  }
+
+  const digitsOnly = trimmedValue.replace(/\D/g, "").slice(0, 6);
+  if (digitsOnly.length <= 2) {
+    return digitsOnly;
+  }
+
+  return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+};
+
+const normalizeDateFieldForPayload = (
+  value: string,
+  label: string,
+): { normalizedValue?: string; error?: string } => {
+  const normalizedValue = normalizeWorkDateDraft(value);
+  if (normalizedValue === null) {
+    return {
+      error: `${label} debe capturarse como YYYY, YYYY-MM, YYYY-MM-DD, MM/YYYY o MES YYYY.`,
+    };
+  }
+
+  if (!normalizedValue) {
+    return {};
+  }
+
+  return { normalizedValue };
+};
+
+const calculateTiempoTrabajadoFormat = (fechaInicio: string, fechaFin: string): string => {
+  if (!fechaInicio || !fechaFin) return "";
+  
+  const start = normalizeWorkDateDraft(fechaInicio);
+  const end = normalizeWorkDateDraft(fechaFin);
+  if (!start || !end) return "";
+
+  const parseDate = (d: string) => {
+    const parts = d.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parts[1] ? parseInt(parts[1], 10) : 1;
+    return new Date(year, month - 1, 1);
+  };
+
+  const startDate = parseDate(start);
+  const endDate = parseDate(end);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return "";
+
+  let months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+
+  if (months < 0) return "";
+  if (months === 0) return "Menos de 1 mes";
+
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+
+  let result = [];
+  if (years === 1) result.push("1 año");
+  else if (years > 1) result.push(`${years} años`);
+
+  if (remainingMonths === 1) result.push("1 mes");
+  else if (remainingMonths > 1) result.push(`${remainingMonths} meses`);
+
+  return result.join(" ");
+};
 
 export interface ReviewAndCompleteDialogProps {
   open: boolean;
@@ -37,77 +205,95 @@ export function ReviewAndCompleteDialog({
   candidatoId,
 }: ReviewAndCompleteDialogProps) {
   const isCreateMode = !workHistoryItem;
+
+  const buildInitialFormData = (item: any) => ({
+    empresa: item?.empresa || "",
+    puesto: item?.puesto || "",
+    fechaInicio: formatWorkDateForInput(item?.fechaInicio || ""),
+    fechaFin: formatWorkDateForInput(item?.fechaFin || ""),
+    tiempoTrabajado: item?.tiempoTrabajado || "",
+    empresaVerificada: item?.investigacionDetalle?.empresa?.nombreComercial || "",
+    puestoVerificado: item?.investigacionDetalle?.puesto?.puestoFinal || "",
+    causalSalidaRH: item?.causalSalidaRH || "",
+    causalSalidaJefeInmediato: item?.causalSalidaJefeInmediato || "",
+    observaciones: item?.observaciones || "",
+    tiempoTrabajadoEmpresa: item?.tiempoTrabajadoEmpresa || "",
+    comentarioInvestigacion: item?.comentarioInvestigacion || "",
+  });
   
   const [activeTab, setActiveTab] = useState<"candidato" | "analista">("candidato");
   const [showCandidateEdit, setShowCandidateEdit] = useState(false);
   const [esActual, setEsActual] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    // Sección A: Candidato / Campos básicos para crear
-    empresa: workHistoryItem?.empresa || "",
-    puesto: workHistoryItem?.puesto || "",
-    fechaInicio: workHistoryItem?.fechaInicio || "",
-    fechaFin: workHistoryItem?.fechaFin || "",
-    tiempoTrabajado: workHistoryItem?.tiempoTrabajado || "",
-
-    // Sección B: Analista (solo en modo revisar)
-    empresaVerificada: workHistoryItem?.investigacionDetalle?.empresa?.nombreComercial || "",
-    puestoVerificado: workHistoryItem?.investigacionDetalle?.puesto?.puestoFinal || "",
-    causalSalidaRH: workHistoryItem?.causalSalidaRH || "",
-    causalSalidaJefeInmediato: workHistoryItem?.causalSalidaJefeInmediato || "",
-    observaciones: workHistoryItem?.observaciones || "",
-    tiempoTrabajadoEmpresa: workHistoryItem?.tiempoTrabajadoEmpresa || "",
-    comentarioInvestigacion: workHistoryItem?.comentarioInvestigacion || "",
-  });
+  const [formData, setFormData] = useState(buildInitialFormData(workHistoryItem));
 
   // Actualizar formData cuando cambia workHistoryItem
   useEffect(() => {
     if (workHistoryItem) {
-      setFormData({
-        empresa: workHistoryItem.empresa || "",
-        puesto: workHistoryItem.puesto || "",
-        fechaInicio: workHistoryItem.fechaInicio || "",
-        fechaFin: workHistoryItem.fechaFin || "",
-        tiempoTrabajado: workHistoryItem.tiempoTrabajado || "",
-        empresaVerificada: workHistoryItem.investigacionDetalle?.empresa?.nombreComercial || "",
-        puestoVerificado: workHistoryItem.investigacionDetalle?.puesto?.puestoFinal || "",
-        causalSalidaRH: workHistoryItem.causalSalidaRH || "",
-        causalSalidaJefeInmediato: workHistoryItem.causalSalidaJefeInmediato || "",
-        observaciones: workHistoryItem.observaciones || "",
-        tiempoTrabajadoEmpresa: workHistoryItem.tiempoTrabajadoEmpresa || "",
-        comentarioInvestigacion: workHistoryItem.comentarioInvestigacion || "",
-      });
+      setFormData(buildInitialFormData(workHistoryItem));
       setEsActual(!workHistoryItem.fechaFin);
+      setValidationError(null);
     } else {
       // Reset para modo crear
-      setFormData({
-        empresa: "",
-        puesto: "",
-        fechaInicio: "",
-        fechaFin: "",
-        tiempoTrabajado: "",
-        empresaVerificada: "",
-        puestoVerificado: "",
-        causalSalidaRH: "",
-        causalSalidaJefeInmediato: "",
-        observaciones: "",
-        tiempoTrabajadoEmpresa: "",
-        comentarioInvestigacion: "",
-      });
+      setFormData(buildInitialFormData(null));
       setEsActual(false);
       setShowCandidateEdit(false);
+      setValidationError(null);
     }
   }, [workHistoryItem]);
 
+  // Recalcular tiempo trabajado automáticamente cuando cambian las fechas
+  useEffect(() => {
+    if (!esActual && formData.fechaInicio && formData.fechaFin) {
+      const startNorm = normalizeWorkDateDraft(formData.fechaInicio);
+      const endNorm = normalizeWorkDateDraft(formData.fechaFin);
+      if (startNorm && endNorm) {
+        const calculated = calculateTiempoTrabajadoFormat(formData.fechaInicio, formData.fechaFin);
+        if (calculated && calculated !== formData.tiempoTrabajado) {
+          setFormData(prev => ({ ...prev, tiempoTrabajado: calculated }));
+        }
+      }
+    }
+  }, [formData.fechaInicio, formData.fechaFin, esActual]);
+
+  const handleDateBlur = (field: "fechaInicio" | "fechaFin") => {
+    setFormData((currentData) => ({
+      ...currentData,
+      [field]: formatWorkDateForInput(currentData[field]),
+    }));
+  };
+
+  const handleDateChange = (field: "fechaInicio" | "fechaFin", nextValue: string) => {
+    setFormData((currentData) => ({
+      ...currentData,
+      [field]: maskMonthYearInput(nextValue),
+    }));
+  };
+
   const handleSave = async () => {
+    setValidationError(null);
+
+    const normalizedStartDate = normalizeDateFieldForPayload(formData.fechaInicio, "Fecha de inicio");
+    if (normalizedStartDate.error) {
+      setValidationError(normalizedStartDate.error);
+      return;
+    }
+
+    const normalizedEndDate = normalizeDateFieldForPayload(formData.fechaFin, "Fecha de fin");
+    if (normalizedEndDate.error) {
+      setValidationError(normalizedEndDate.error);
+      return;
+    }
+
     if (isCreateMode) {
       // Modo crear: payload simple
       const payload = {
         candidatoId,
         empresa: formData.empresa,
         puesto: formData.puesto || undefined,
-        fechaInicio: formData.fechaInicio || undefined,
-        fechaFin: esActual ? undefined : (formData.fechaFin || undefined),
+        fechaInicio: normalizedStartDate.normalizedValue,
+        fechaFin: esActual ? undefined : normalizedEndDate.normalizedValue,
         tiempoTrabajado: formData.tiempoTrabajado || undefined,
       };
       await onSave(payload);
@@ -117,8 +303,8 @@ export function ReviewAndCompleteDialog({
         ...workHistoryItem,
         empresa: formData.empresa,
         puesto: formData.puesto,
-        fechaInicio: formData.fechaInicio,
-        fechaFin: formData.fechaFin,
+        fechaInicio: normalizedStartDate.normalizedValue,
+        fechaFin: esActual ? undefined : normalizedEndDate.normalizedValue,
         tiempoTrabajado: formData.tiempoTrabajado,
         causalSalidaRH: formData.causalSalidaRH,
         causalSalidaJefeInmediato: formData.causalSalidaJefeInmediato,
@@ -143,40 +329,6 @@ export function ReviewAndCompleteDialog({
     onOpenChange(false);
   };
 
-  const CAUSALES_SALIDA = [
-    "RENUNCIA VOLUNTARIA",
-    "VIGENTE",
-    "RECORTE DE PERSONAL",
-    "TÉRMINO DE CONTRATO",
-    "TERMINACIÓN DE PROYECTO",
-    "TÉRMINO DE PERIODO DE PRUEBA",
-    "REESTRUCTURACIÓN",
-    "CAMBIO DE ADMINISTRACIÓN",
-    "CIERRE DE EMPRESA",
-    "POR ANTIGÜEDAD NO HAY INFORMACIÓN EN SISTEMA",
-    "POR POLÍTICAS DE PRIVACIDAD NO DAN REFERENCIAS LABORALES",
-    "BAJO DESEMPEÑO",
-    "AUSENTISMO",
-    "ABANDONO DE EMPLEO",
-    "ACUMULACIÓN DE FALTAS INJUSTIFICADAS",
-    "INCUMPLIMIENTO DE POLÍTICAS INTERNAS",
-    "NO APEGO A POLÍTICAS Y PROCESOS",
-    "CONDUCTA INADECUADA",
-    "CONFLICTIVO",
-    "VIOLACIÓN AL CODIGO DE CONDUCTA Y ÉTICA (DESHONESTIDAD)",
-    "FALTA DE PROBIDAD",
-    "PERDIDA DE CONFIANZA",
-    "NO RENOVACIÓN DE CONTRATO",
-    "BAJA CON CAUSAL",
-    "BAJA ADMINISTRATIVA",
-    "ABUSO DE CONFIANZA",
-    "FALSIFICACIÓN DE DOCUMENTOS",
-    "SUSTRACCIÓN DE COMBUSTIBLE",
-    "ALCOHOLISMO",
-    "PERDIDA DE RECURSOS / MATERIAL DE LA EMPRESA",
-    "DAÑO A UNIDAD VEHICULAR",
-  ];
-
   const ESTATUS_INVESTIGACION = ["en_revision", "revisado", "terminado"];
 
   return (
@@ -199,6 +351,12 @@ export function ReviewAndCompleteDialog({
             ? "Formulario para agregar un nuevo empleo al historial laboral."
             : "Dialog para revisar datos del candidato y completar verificación."}
         </p>
+
+        {validationError ? (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {validationError}
+          </div>
+        ) : null}
 
         {/* MODO CREAR: Formulario simple */}
         {isCreateMode ? (
@@ -232,24 +390,26 @@ export function ReviewAndCompleteDialog({
               </div>
 
               <div>
-                <Label htmlFor="fecha-inicio-new">Fecha de Inicio</Label>
+                <Label htmlFor="fecha-inicio-new">Mes / Año de Inicio</Label>
                 <Input
                   id="fecha-inicio-new"
                   type="text"
-                  placeholder="YYYY-MM (ej. 2023-06)"
+                  placeholder="MM/YYYY o MES YYYY"
                   value={formData.fechaInicio}
-                  onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  onChange={(e) => handleDateChange("fechaInicio", e.target.value)}
+                  onBlur={() => handleDateBlur("fechaInicio")}
                 />
               </div>
 
               <div>
-                <Label htmlFor="fecha-fin-new">Fecha de Fin</Label>
+                <Label htmlFor="fecha-fin-new">Mes / Año de Fin</Label>
                 <Input
                   id="fecha-fin-new"
                   type="text"
-                  placeholder="YYYY-MM (ej. 2024-12)"
+                  placeholder="MM/YYYY o MES YYYY"
                   value={formData.fechaFin}
-                  onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
+                  onChange={(e) => handleDateChange("fechaFin", e.target.value)}
+                  onBlur={() => handleDateBlur("fechaFin")}
                   disabled={esActual}
                   className={esActual ? "bg-gray-100" : ""}
                 />
@@ -338,24 +498,26 @@ export function ReviewAndCompleteDialog({
                 </div>
 
                 <div>
-                  <Label>Fecha de Inicio</Label>
+                  <Label>Mes / Año de Inicio</Label>
                   <Input
                     type="text"
-                    placeholder="YYYY-MM o YYYY"
+                    placeholder="MM/YYYY o MES YYYY"
                     value={formData.fechaInicio}
-                    onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                    onChange={(e) => handleDateChange("fechaInicio", e.target.value)}
+                    onBlur={() => handleDateBlur("fechaInicio")}
                     disabled={!showCandidateEdit}
                     className={!showCandidateEdit ? "bg-gray-50" : ""}
                   />
                 </div>
 
                 <div>
-                  <Label>Fecha de Fin</Label>
+                  <Label>Mes / Año de Fin</Label>
                   <Input
                     type="text"
-                    placeholder="YYYY-MM o YYYY"
+                    placeholder="MM/YYYY o MES YYYY"
                     value={formData.fechaFin}
-                    onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
+                    onChange={(e) => handleDateChange("fechaFin", e.target.value)}
+                    onBlur={() => handleDateBlur("fechaFin")}
                     disabled={!showCandidateEdit}
                     className={!showCandidateEdit ? "bg-gray-50" : ""}
                   />

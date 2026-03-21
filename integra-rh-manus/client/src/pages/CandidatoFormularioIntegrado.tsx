@@ -333,7 +333,7 @@ export default function CandidatoFormularioIntegrado() {
                       <SelectValue placeholder="Selecciona un cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients.map((client) => (
+                      {clients.map((client: any) => (
                         <SelectItem key={client.id} value={client.id.toString()}>
                           {client.nombreEmpresa}
                         </SelectItem>

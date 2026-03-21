@@ -224,7 +224,7 @@ export default function Encuestadores() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {surveyors.map((surveyor) => (
+                    {surveyors.map((surveyor: any) => (
                       <TableRow key={surveyor.id} className="h-8">
                         <TableCell className="font-medium py-1.5 text-xs">
                           <Link
@@ -340,7 +340,7 @@ export default function Encuestadores() {
 
               {/* Móvil: tarjetas */}
               <div className="space-y-3 md:hidden">
-                {surveyors.map((surveyor) => (
+                {surveyors.map((surveyor: any) => (
                   <div
                     key={surveyor.id}
                     className="rounded-lg border p-3 bg-white shadow-sm text-xs"

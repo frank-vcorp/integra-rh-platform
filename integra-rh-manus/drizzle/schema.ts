@@ -1,4 +1,47 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, uniqueIndex } from "drizzle-orm/mysql-core";
+
+/**
+ * ARCH-20260321-01 | Respaldo: PROYECTO.md
+ */
+const WORK_HISTORY_CAUSALES_SALIDA = [
+  "RENUNCIA VOLUNTARIA",
+  "VIGENTE",
+  "RECORTE DE PERSONAL",
+  "TÉRMINO DE CONTRATO",
+  "TERMINACIÓN DE PROYECTO",
+  "TÉRMINO DE PERIODO DE PRUEBA",
+  "REESTRUCTURACIÓN",
+  "CAMBIO DE ADMINISTRACIÓN",
+  "CIERRE DE EMPRESA",
+  "CIERRE DE LA EMPRESA",
+  "POR ANTIGÜEDAD NO HAY INFORMACIÓN EN SISTEMA",
+  "POR POLÍTICAS DE PRIVACIDAD NO DAN REFERENCIAS LABORALES",
+  "BAJO DESEMPEÑO",
+  "AUSENTISMO",
+  "ABANDONO DE EMPLEO",
+  "ABANDONO DE TRABAJO",
+  "ACUMULACIÓN DE FALTAS INJUSTIFICADAS",
+  "ACUMULACIÓN DE FALTAS",
+  "INCUMPLIMIENTO DE POLÍTICAS INTERNAS",
+  "INCUMPLIMIENTO A POLÍTICAS Y PROCESOS",
+  "NO APEGO A POLÍTICAS Y PROCESOS",
+  "CONDUCTA INADECUADA",
+  "CONFLICTIVO",
+  "VIOLACIÓN AL CODIGO DE CONDUCTA Y ÉTICA (DESHONESTIDAD)",
+  "VIOLACIÓN AL CÓDIGO DE CONDUCTA",
+  "FALTA DE PROBIDAD",
+  "PERDIDA DE CONFIANZA",
+  "NO RENOVACIÓN DE CONTRATO",
+  "BAJA CON CAUSAL",
+  "BAJA ADMINISTRATIVA",
+  "ABUSO DE CONFIANZA",
+  "FALSIFICACIÓN DE DOCUMENTOS",
+  "SUSTRACCIÓN DE COMBUSTIBLE",
+  "ALCOHOLISMO",
+  "PERDIDA DE RECURSOS / MATERIAL DE LA EMPRESA",
+  "DAÑO A UNIDAD VEHICULAR",
+  "JUVILACIÓN",
+] as const;
 
 /**
  * INTEGRA-RH Database Schema
@@ -227,11 +270,16 @@ export const candidates = mysqlTable("candidates", {
     };
   }>(),
   // Dictamen global de investigación laboral (heredable a procesos)
+  // IMPL-20260320-01: se agregan disposicionSemanasCotizadas y motivoDisposicion para captura única global
   dictamenLaboral: json("dictamenLaboral").$type<{
     resultado?: string;
     comentariosGenerales?: string;
+    observacionResultado?: string;
     completado?: boolean;
     completadoAt?: string;
+    // Semanas cotizadas: captura global a nivel candidato, no por empleo
+    disposicionSemanasCotizadas?: string;
+    motivoDisposicion?: string;
   }>(),
   // Captura inicial self-service
   selfFilledStatus: mysqlEnum("selfFilledStatus", [
@@ -266,32 +314,8 @@ export const workHistory = mysqlTable("workHistory", {
   // Tiempo reportado por la empresa cuando no se tienen fechas exactas
   tiempoTrabajadoEmpresa: varchar("tiempoTrabajadoEmpresa", { length: 100 }),
   // Causales de salida
-  causalSalidaRH: mysqlEnum("causalSalidaRH", [
-    "RENUNCIA VOLUNTARIA",
-    "TÉRMINO DE CONTRATO",
-    "CIERRE DE LA EMPRESA",
-    "JUVILACIÓN",
-    "ABANDONO DE TRABAJO",
-    "ACUMULACIÓN DE FALTAS",
-    "BAJO DESEMPEÑO",
-    "FALTA DE PROBIDAD",
-    "VIOLACIÓN AL CÓDIGO DE CONDUCTA",
-    "ABUSO DE CONFIANZA",
-    "INCUMPLIMIENTO A POLÍTICAS Y PROCESOS"
-  ]),
-  causalSalidaJefeInmediato: mysqlEnum("causalSalidaJefeInmediato", [
-    "RENUNCIA VOLUNTARIA",
-    "TÉRMINO DE CONTRATO",
-    "CIERRE DE LA EMPRESA",
-    "JUVILACIÓN",
-    "ABANDONO DE TRABAJO",
-    "ACUMULACIÓN DE FALTAS",
-    "BAJO DESEMPEÑO",
-    "FALTA DE PROBIDAD",
-    "VIOLACIÓN AL CÓDIGO DE CONDUCTA",
-    "ABUSO DE CONFIANZA",
-    "INCUMPLIMIENTO A POLÍTICAS Y PROCESOS"
-  ]),
+  causalSalidaRH: mysqlEnum("causalSalidaRH", WORK_HISTORY_CAUSALES_SALIDA),
+  causalSalidaJefeInmediato: mysqlEnum("causalSalidaJefeInmediato", WORK_HISTORY_CAUSALES_SALIDA),
   contactoReferencia: varchar("contactoReferencia", { length: 255 }),
   telefonoReferencia: varchar("telefonoReferencia", { length: 50 }),
   correoReferencia: varchar("correoReferencia", { length: 320 }),
@@ -772,6 +796,38 @@ export const processes = mysqlTable("processes", {
 
 export type Process = typeof processes.$inferSelect;
 export type InsertProcess = typeof processes.$inferInsert;
+
+// ============================================================================
+// VERSIONES DE ARMADOS PARA CLIENTE
+// ============================================================================
+
+/**
+ * @intervention ARCH-20260320-01
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+ */
+export const processReportVersions = mysqlTable("processReportVersions", {
+  id: int("id").autoincrement().primaryKey(),
+  procesoId: int("procesoId").notNull(),
+  versionNumber: int("versionNumber").notNull(),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  reportScope: mysqlEnum("reportScope", ["armado_manual", "legacy_visit_pdf"]).default("armado_manual").notNull(),
+  sections: json("sections").$type<string[]>().notNull(),
+  snapshot: json("snapshot").$type<Record<string, unknown>>().notNull(),
+  pdfFileName: varchar("pdfFileName", { length: 255 }),
+  pdfStoragePath: varchar("pdfStoragePath", { length: 500 }),
+  createdByUserId: int("createdByUserId"),
+  createdByName: varchar("createdByName", { length: 255 }),
+  publishedByUserId: int("publishedByUserId"),
+  publishedByName: varchar("publishedByName", { length: 255 }),
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  procesoVersionUnique: uniqueIndex("process_report_versions_proceso_version_unique").on(table.procesoId, table.versionNumber),
+}));
+
+export type ProcessReportVersion = typeof processReportVersions.$inferSelect;
+export type InsertProcessReportVersion = typeof processReportVersions.$inferInsert;
 
 // ============================================================================
 // COMENTARIOS DE PROCESOS

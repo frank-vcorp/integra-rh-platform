@@ -1,3 +1,9 @@
+/**
+ * Router de documentos con manejo mejorado de errores de Storage.
+ * @intervention IMPL-20260320-12
+ * @respaldo context/interconsultas/ARCH-20260320-12
+ */
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
@@ -8,9 +14,9 @@ export const documentsRouter = router({
     .use(requirePermission("procesos", "view"))
     .input(z.object({ candidatoId: z.number() }))
     .query(async ({ input, ctx }) => {
-      if (ctx.user.role === "client") {
+      if (ctx.user!.role === "client") {
         const candidate = await db.getCandidateById(input.candidatoId);
-        if (candidate?.clienteId !== ctx.user.clientId) return [];
+        if (candidate?.clienteId !== ctx.user!.clientId) return [];
       }
       return db.getDocumentsByCandidate(input.candidatoId);
     }),
@@ -19,9 +25,9 @@ export const documentsRouter = router({
     .use(requirePermission("procesos", "view"))
     .input(z.object({ procesoId: z.number() }))
     .query(async ({ input, ctx }) => {
-      if (ctx.user.role === "client") {
+      if (ctx.user!.role === "client") {
         const process = await db.getProcessById(input.procesoId);
-        if (process?.clienteId !== ctx.user.clientId) return [];
+        if (process?.clienteId !== ctx.user!.clientId) return [];
       }
       return db.getDocumentsByProcess(input.procesoId);
     }),
@@ -43,7 +49,7 @@ export const documentsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const id = await db.createDocument({
         ...input,
-        uploadedBy: ctx.user.name || ctx.user.email || "Admin",
+        uploadedBy: ctx.user!.name || ctx.user!.email || "Admin",
       } as any);
       return { id } as const;
     }),
@@ -76,16 +82,30 @@ export const documentsRouter = router({
       // Usar el bucket por defecto configurado en Firebase Admin para evitar errores de nombre
       const bucket = firebaseStorage.bucket();
       const file = bucket.file(key);
-      await file.save(buffer, {
-        contentType: input.contentType,
-        resumable: false,
-        metadata: { contentType: input.contentType },
-      });
-      // Signed URL (1 year)
-      const [signedUrl] = await file.getSignedUrl({
-        action: "read",
-        expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      });
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      let signedUrl: string;
+      try {
+        await file.save(buffer, {
+          contentType: input.contentType,
+          resumable: false,
+          metadata: { contentType: input.contentType },
+        });
+        const [url] = await file.getSignedUrl({
+          action: "read",
+          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[DocumentsRouter] Storage error:', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar archivo en Storage: ${msg}`,
+        });
+      }
 
       const id = await db.createDocument({
         candidatoId: input.candidatoId,
@@ -95,7 +115,7 @@ export const documentsRouter = router({
         url: signedUrl,
         fileKey: key,
         mimeType: input.contentType,
-        uploadedBy: ctx.user.name || ctx.user.email || "Admin",
+        uploadedBy: ctx.user!.name || ctx.user!.email || "Admin",
       } as any);
       return { id, url: signedUrl, key } as const;
     }),

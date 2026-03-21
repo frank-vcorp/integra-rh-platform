@@ -211,7 +211,7 @@ export default function ClienteCandidatoDetalle() {
                   </Card>
                 ) : (
                   <div className="grid gap-4">
-                    {candidateProcesses.map((process) => (
+                    {candidateProcesses.map((process: any) => (
                       <Card key={process.id} className="group hover:shadow-md transition-all border-l-4 border-l-transparent hover:border-l-blue-600">
                         <CardContent className="p-6">
                           <div className="flex flex-col md:flex-row gap-6">
@@ -236,7 +236,7 @@ export default function ClienteCandidatoDetalle() {
                                     ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                                     : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                                   } border-0 px-3 py-1 font-medium capitalize`}>
-                                  process.estatusProceso.replace(/_/g, ' ')
+                                  {process.estatusProceso.replace(/_/g, ' ')}
                                 </Badge>
                               </div>
 

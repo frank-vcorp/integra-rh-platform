@@ -98,7 +98,7 @@ export const candidateSelfRouter = router({
           medioDeRecepcion: candidate.medioDeRecepcion,
           perfilDetalle: (candidate as any).perfilDetalle ?? null,
         },
-        workHistory: history.map((h) => ({
+        workHistory: history.map((h: any) => ({
           id: h.id,
           empresa: h.empresa,
           puesto: h.puesto,
@@ -327,6 +327,7 @@ export const candidateSelfRouter = router({
    * Subida de documentos por el candidato usando el enlace self-service.
    * Los archivos se guardan asociados al candidato y marcados como
    * uploadedBy = "candidate-self-service".
+   * @intervention IMPL-20260320-14 — Storage hardening: try/catch en save/getSignedUrl
    */
   uploadDocument: publicProcedure
     .input(
@@ -374,16 +375,30 @@ export const candidateSelfRouter = router({
           ? input.contentType
           : "application/octet-stream";
 
-      await file.save(buffer, {
-        contentType,
-        resumable: false,
-        metadata: { contentType },
-      });
-
-      const [signedUrl] = await file.getSignedUrl({
-        action: "read",
-        expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      });
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      let signedUrl: string;
+      try {
+        await file.save(buffer, {
+          contentType,
+          resumable: false,
+          metadata: { contentType },
+        });
+        const [url] = await file.getSignedUrl({
+          action: "read",
+          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[CandidateSelfRouter] Storage error:', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar archivo en Storage: ${msg}`,
+        });
+      }
 
       const id = await db.createDocument({
         candidatoId: tokenRow.candidateId,

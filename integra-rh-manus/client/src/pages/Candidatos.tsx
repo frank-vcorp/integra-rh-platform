@@ -231,13 +231,13 @@ export default function Candidatos() {
 
   const getClientName = (clienteId: number | null) => {
     if (!clienteId) return "-";
-    const client = clients.find((c) => c.id === clienteId);
+    const client = clients.find((c: any) => c.id === clienteId);
     return client?.nombreEmpresa || "-";
   };
 
   const getPostName = (puestoId: number | null) => {
     if (!puestoId) return "-";
-    const post = allPosts.find((p) => p.id === puestoId);
+    const post = allPosts.find((p: any) => p.id === puestoId);
     return post?.nombreDelPuesto || "-";
   };
 
@@ -248,7 +248,7 @@ export default function Candidatos() {
 
   // Filtrar puestos por cliente seleccionado
   const availablePosts = selectedClient
-    ? allPosts.filter((p) => p.clienteId === parseInt(selectedClient))
+    ? allPosts.filter((p: any) => p.clienteId === parseInt(selectedClient))
     : allPosts;
 
   // Filtrar candidatos según rol + buscador global
@@ -261,9 +261,9 @@ export default function Candidatos() {
 
   const candidatesBase = (
     isClient
-      ? allCandidates.filter((c) => c.clienteId === user?.clientId)
+      ? allCandidates.filter((c: any) => c.clienteId === user?.clientId)
       : allCandidates
-  ).filter((c) => {
+  ).filter((c: any) => {
     if (!searchParam) return true;
     const haystack = [
       c.nombreCompleto,
@@ -451,10 +451,10 @@ export default function Candidatos() {
                         <TableCell className="py-1.5 text-xs">{getPostName(candidate.puestoId)}</TableCell>
                         <TableCell className="py-1.5 text-xs">{candidate.medioDeRecepcion || "-"}</TableCell>
                         <TableCell className="py-1.5 text-xs max-w-[150px] truncate">
-                          <span title={candidate.analistaAsignadoId ? (analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || "-") : "-"}>
+                          <span title={candidate.analistaAsignadoId ? (analysts.find((a: any) => a.id === candidate.analistaAsignadoId)?.name || analysts.find((a: any) => a.id === candidate.analistaAsignadoId)?.email || "-") : "-"}>
                           {candidate.analistaAsignadoId 
-                            ? analysts.find(a => a.id === candidate.analistaAsignadoId)?.name || 
-                              analysts.find(a => a.id === candidate.analistaAsignadoId)?.email || 
+                            ? analysts.find((a: any) => a.id === candidate.analistaAsignadoId)?.name || 
+                              analysts.find((a: any) => a.id === candidate.analistaAsignadoId)?.email || 
                               "-"
                             : "-"}
                           </span>
@@ -605,7 +605,7 @@ export default function Candidatos() {
                     <SelectValue placeholder="Selecciona un cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
+                    {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.nombreEmpresa}
                       </SelectItem>
@@ -655,7 +655,7 @@ export default function Candidatos() {
                     <SelectValue placeholder="Selecciona un puesto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availablePosts.map((post) => (
+                    {availablePosts.map((post: any) => (
                       <SelectItem key={post.id} value={post.id.toString()}>
                         {post.nombreDelPuesto}
                       </SelectItem>
@@ -674,7 +674,7 @@ export default function Candidatos() {
                     <SelectValue placeholder="Selecciona un analista" />
                   </SelectTrigger>
                   <SelectContent>
-                    {analysts.map((analyst) => (
+                    {analysts.map((analyst: any) => (
                       <SelectItem key={analyst.id} value={analyst.id.toString()}>
                         {analyst.name || analyst.email}
                       </SelectItem>

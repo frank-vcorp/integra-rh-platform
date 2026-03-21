@@ -52,6 +52,25 @@ const RATING_VALUES = {
 
 const ratingSchema = z.enum(["EXCELENTE", "BUENO", "REGULAR", "MALO"]);
 
+/**
+ * ARCH-20260320-17 | Respaldo: PROYECTO.md
+ */
+function buildAuditChangedFields(
+  currentDetail: Record<string, any>,
+  nextDetail: Record<string, any>,
+): Record<string, { old: unknown; new: unknown }> {
+  const changedFields: Record<string, { old: unknown; new: unknown }> = {};
+
+  Object.entries(nextDetail).forEach(([sectionKey, nextValue]) => {
+    changedFields[sectionKey] = {
+      old: currentDetail?.[sectionKey] ?? null,
+      new: nextValue ?? null,
+    };
+  });
+
+  return changedFields;
+}
+
 const IA_MINI_DICTAMEN_SYSTEM_PROMPT =
   "Eres un analista senior de Recursos Humanos especializado en investigaciones laborales telefónicas en México. " +
   "Tu tarea es ayudar al analista humano a resumir un solo empleo de la historia laboral de un candidato. " +
@@ -598,21 +617,25 @@ export const workHistoryRouter = router({
         resultadoVerificacion = mapping[conclusion.esRecomendable];
       }
 
+      const existingDetail = await db.getWorkHistoryById(id);
+      const currentInvestigacionDetalle =
+        (((existingDetail as any)?.investigacionDetalle ?? {}) as Record<string, any>);
+      const changedFields = buildAuditChangedFields(currentInvestigacionDetalle, details);
+
       // Registrar cambio en audit trail
       const auditEntry = {
         timestamp: new Date().toISOString(),
         changedBy: ctx.user?.name || "desconocido",
         action: "update" as const,
-        changedFields: details as Record<string, any>,
+        changedFields,
       };
 
-      const existingDetail = await db.getWorkHistoryById(id);
       const existingAuditTrail = (existingDetail as any)?.investigacionDetalle?.auditTrail ?? [];
       const updatedAuditTrail = [...existingAuditTrail, auditEntry];
 
       // Preservar campos existentes, agregar nuevos
       const mergedDetails = {
-        ...(existingDetail as any)?.investigacionDetalle ?? {},
+        ...currentInvestigacionDetalle,
         ...details,
         auditTrail: updatedAuditTrail,
       };
@@ -642,7 +665,7 @@ export const workHistoryRouter = router({
 
         if (!ENV.forgeApiKey) {
           throw new TRPCError({
-            code: "FAILED_PRECONDITION",
+            code: "INTERNAL_SERVER_ERROR",
             message: "La API de IA no está configurada (falta API key).",
           });
         }

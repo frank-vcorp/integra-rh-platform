@@ -14,6 +14,10 @@ build/
 .env.test.local
 .env.production.local
 
+# Firebase credentials / secrets — NUNCA versionar (ARCH-20260321-03)
+firebase-admin-sdk.json
+*-service-account*.json
+
 # IDE and editor files
 .vscode/
 .idea/

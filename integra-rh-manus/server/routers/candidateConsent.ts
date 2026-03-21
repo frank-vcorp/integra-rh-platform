@@ -120,6 +120,7 @@ export const candidateConsentRouter = router({
   /**
    * Submits the consent from the candidate.
    * This is a public procedure.
+   * @intervention IMPL-20260320-14 — Storage hardening: try/catch en save/getSignedUrl
    */
   submitConsent: publicProcedure
     .input(z.object({
@@ -153,10 +154,24 @@ export const candidateConsentRouter = router({
       const bucket = firebaseStorage.bucket();
       const signatureFile = bucket.file(signaturePath);
 
-      await signatureFile.save(signatureBuffer, {
-        contentType: "image/png",
-        resumable: false,
-      });
+      // Wrap Storage I/O para traducir errores de auth a mensajes legibles
+      // @intervention IMPL-20260320-14
+      try {
+        await signatureFile.save(signatureBuffer, {
+          contentType: "image/png",
+          resumable: false,
+        });
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[CandidateConsentRouter] Storage error (signature):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar la firma en Storage: ${msg}`,
+        });
+      }
 
       // Generate a simple unique digital signature code for this consent
       const digitalSignatureCode = `CONS-${consent.id}-${consent.token.slice(
@@ -292,15 +307,28 @@ export const candidateConsentRouter = router({
 
       const pdfKey = `consents/${consent.candidatoId}/consent-${consent.id}-${timestamp}.pdf`;
       const pdfFile = bucket.file(pdfKey);
-      await pdfFile.save(Buffer.from(pdfBytes), {
-        contentType: "application/pdf",
-        resumable: false,
-      });
-
-      const [signedUrl] = await pdfFile.getSignedUrl({
-        action: "read",
-        expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      });
+      let signedUrl: string;
+      try {
+        await pdfFile.save(Buffer.from(pdfBytes), {
+          contentType: "application/pdf",
+          resumable: false,
+        });
+        const [url] = await pdfFile.getSignedUrl({
+          action: "read",
+          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        });
+        signedUrl = url;
+      } catch (storageErr) {
+        const msg = (storageErr as Error).message ?? '';
+        const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+        console.error('[CandidateConsentRouter] Storage error (PDF):', msg);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: isAuthError
+            ? 'Error de autenticación con Firebase Storage (invalid_grant). Verifica GOOGLE_APPLICATION_CREDENTIALS en el servidor.'
+            : `Error al guardar el PDF de consentimiento en Storage: ${msg}`,
+        });
+      }
 
       // Register the PDF as a candidate document so it appears in the expediente
       try {
