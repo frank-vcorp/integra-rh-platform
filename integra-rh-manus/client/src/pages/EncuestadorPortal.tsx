@@ -309,6 +309,8 @@ export default function EncuestadorPortal() {
   const [refPersonales, setRefPersonales] = useState<any[]>([]);
 
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // IMPL-20260321-01: ref siempre actualizado para evitar closure stale en autoSave
+  const arraysRef = useRef({ familiares, otrasPersonas, cursos, ingresos, creditos, bienesRaices, vehiculos, negocios, refVecinales, refPersonales });
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -331,7 +333,20 @@ export default function EncuestadorPortal() {
     }
     if (contextQuery.data) {
       loadFromIndexedDB(token!).then((saved) => {
-        if (saved) setFormData(saved);
+        if (saved) {
+          setFormData(saved);
+          // IMPL-20260321-01: hidratar arrays desde borrador guardado en IndexedDB
+          if (Array.isArray(saved.familiares)) setFamiliares(saved.familiares);
+          if (Array.isArray(saved.otrasPersonas)) setOtrasPersonas(saved.otrasPersonas);
+          if (Array.isArray(saved.cursos)) setCursos(saved.cursos);
+          if (Array.isArray(saved.ingresos)) setIngresos(saved.ingresos);
+          if (Array.isArray(saved.creditos)) setCreditos(saved.creditos);
+          if (Array.isArray(saved.bienesRaices)) setBienesRaices(saved.bienesRaices);
+          if (Array.isArray(saved.vehiculos)) setVehiculos(saved.vehiculos);
+          if (Array.isArray(saved.negocios)) setNegocios(saved.negocios);
+          if (Array.isArray(saved.refVecinales)) setRefVecinales(saved.refVecinales);
+          if (Array.isArray(saved.refPersonales)) setRefPersonales(saved.refPersonales);
+        }
         setStep("privacy");
       });
     }
@@ -364,6 +379,19 @@ export default function EncuestadorPortal() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [step]);
 
+  // IMPL-20260321-01: mantener arraysRef siempre actualizado
+  useEffect(() => {
+    arraysRef.current = { familiares, otrasPersonas, cursos, ingresos, creditos, bienesRaices, vehiculos, negocios, refVecinales, refPersonales };
+  }, [familiares, otrasPersonas, cursos, ingresos, creditos, bienesRaices, vehiculos, negocios, refVecinales, refPersonales]);
+
+  // IMPL-20260321-01: autosave cuando cambian los arrays separados
+  useEffect(() => {
+    if (step !== "form") return;
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    autoSaveRef.current = setTimeout(() => autoSave(formData, isOnline), 2000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familiares, otrasPersonas, cursos, ingresos, creditos, bienesRaices, vehiculos, negocios, refVecinales, refPersonales]);
+
   // ── Helpers de actualización ──
   const update = useCallback((path: string, value: any) => {
     setFormData((prev) => {
@@ -380,11 +408,13 @@ export default function EncuestadorPortal() {
   };
 
   const autoSave = async (data: Record<string, any>, online: boolean) => {
+    // IMPL-20260321-01: fusionar arrays separados al persistir
+    const payload = { ...data, ...arraysRef.current };
     setSyncStatus("saving");
-    await saveToIndexedDB(token!, data);
+    await saveToIndexedDB(token!, payload);
     if (online) {
       try {
-        await saveProgressMutation.mutateAsync({ token: token!, data });
+        await saveProgressMutation.mutateAsync({ token: token!, data: payload });
         setSyncStatus("saved");
       } catch {
         setSyncStatus("offline");
@@ -521,8 +551,9 @@ export default function EncuestadorPortal() {
       return results;
     }
 
+    // IMPL-20260321-01: incluir arrays en el payload final
     let finalData = deepSet(
-      deepSet(formData, "_sessionEndedAt", new Date().toISOString()),
+      deepSet({ ...formData, ...arraysRef.current }, "_sessionEndedAt", new Date().toISOString()),
       "_sessionEndGps",
       gps
     );
