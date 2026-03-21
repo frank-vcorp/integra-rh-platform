@@ -101,7 +101,7 @@ export const surveyorPortalRouter = router({
       token: z.string(),
       data: z.any(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de datos no disponible" });
@@ -150,6 +150,17 @@ export const surveyorPortalRouter = router({
         .update(processes)
         .set({ visitaDetalle: mergedDetalle } as any)
         .where(eq(processes.id, tokenRecord.processId));
+
+      // ARCH-20260321-18: audit mínimo para reconstruir incidentes de captura.
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "surveyorPortal_saveProgress",
+        entityId: tokenRecord.processId,
+        details: {
+          tokenId: tokenRecord.id,
+          fieldCount: Object.keys(input.data ?? {}).length,
+        },
+      });
 
       return { ok: true, savedAt: new Date().toISOString() } as const;
     }),
@@ -218,7 +229,7 @@ export const surveyorPortalRouter = router({
       token: z.string(),
       data: z.any(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de datos no disponible" });
@@ -262,6 +273,17 @@ export const surveyorPortalRouter = router({
         .update(processes)
         .set({ estatusProceso: "visita_realizada" })
         .where(eq(processes.id, tokenRecord.processId));
+
+      // ARCH-20260321-18: audit de cierre para reconstrucción forense.
+      await logAuditEvent(ctx, {
+        action: "update",
+        entityType: "surveyorPortal_complete",
+        entityId: tokenRecord.processId,
+        details: {
+          tokenId: tokenRecord.id,
+          fieldCount: Object.keys(input.data ?? {}).length,
+        },
+      });
 
       return { ok: true, completedAt: new Date().toISOString() } as const;
     }),
