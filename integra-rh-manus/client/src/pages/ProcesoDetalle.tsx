@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { VisitCapturePanel } from "@/components/VisitCapturePanel";
-import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2, MessageCircle } from "lucide-react";
+import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2, MessageCircle, Share2 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
@@ -463,10 +463,10 @@ export default function ProcesoDetalle() {
     { enabled: !isClientAuth && processId > 0 }
   );
   const createClientLink = trpc.clientAccess.create.useMutation({
-    onSuccess: (res:any) => {
-      const url = res.url;
-      try { navigator.clipboard?.writeText(url); } catch {}
-      toast.success('Enlace de acceso generado y copiado');
+    onSuccess: async () => {
+      if (process?.clienteId) {
+        await utils.clientAccess.listActiveTokens.invalidate({ clientId: process.clienteId });
+      }
     },
     onError: (e:any)=> toast.error('Error: '+e.message)
   });
@@ -485,6 +485,57 @@ export default function ProcesoDetalle() {
       initialData: [],
     } as any
   );
+
+  /**
+   * @intervention ARCH-20260321-06
+   * @respaldo PROYECTO.md
+   */
+  const handleShareClientDashboardAccess = async () => {
+    if (!process?.clienteId) return;
+
+    const existingToken = (activeTokens as any[])[0]?.token;
+    const dashboardUrl = existingToken
+      ? `${window.location.origin}/cliente/${existingToken}`
+      : (
+          await createClientLink.mutateAsync({
+            clientId: process.clienteId,
+            procesoId: processId,
+            candidatoId: process.candidatoId ?? undefined,
+            ttlDays: 14,
+            baseUrl: window.location.origin,
+            emailContext: {
+              nombreEmpresa: clientRecord?.nombreEmpresa,
+              nombreCandidato: candidateRecord?.nombreCompleto,
+              claveProceso: process?.clave,
+            },
+          } as any)
+        ).url;
+
+    const shareTitle = clientRecord?.nombreEmpresa
+      ? `Dashboard cliente ${clientRecord.nombreEmpresa}`
+      : "Dashboard del cliente";
+    const shareText = candidateRecord?.nombreCompleto
+      ? `Acceso al dashboard del cliente para seguimiento del proceso de ${candidateRecord.nombreCompleto}.`
+      : "Acceso al dashboard del cliente para seguimiento de procesos.";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url: dashboardUrl });
+        toast.success(existingToken ? "URL del cliente compartida" : "Acceso del cliente generado y compartido");
+        return;
+      } catch (error: any) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard?.writeText(dashboardUrl);
+      toast.success(existingToken ? "URL del cliente copiada" : "Acceso del cliente generado y copiado");
+    } catch {
+      window.open(dashboardUrl, "_blank", "noopener,noreferrer");
+      toast.success(existingToken ? "URL del cliente abierta" : "Acceso del cliente generado y abierto");
+    }
+  };
 
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
@@ -829,8 +880,30 @@ export default function ProcesoDetalle() {
                         {process.clave} <Badge variant="secondary">{process.tipoProducto}</Badge>
                     </h1>
                     <div className="text-sm text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 mt-1">
-                        <span className="flex items-center gap-1"><UserCheck className="h-3 w-3"/> {findName(process.candidatoId, candidates, 'nombreCompleto')}</span>
-                        <span className="flex items-center gap-1"><Landmark className="h-3 w-3"/> {findName(process.clienteId, clients, 'nombreEmpresa')}</span>
+                        {process.candidatoId ? (
+                          <Link href={`/candidatos/${process.candidatoId}`}>
+                            <span className="flex cursor-pointer items-center gap-1 transition-colors hover:text-foreground hover:underline">
+                              <UserCheck className="h-3 w-3"/> {findName(process.candidatoId, candidates, 'nombreCompleto')}
+                            </span>
+                          </Link>
+                        ) : (
+                          <span className="flex items-center gap-1"><UserCheck className="h-3 w-3"/> {findName(process.candidatoId, candidates, 'nombreCompleto')}</span>
+                        )}
+                        {process.clienteId ? (
+                          <button
+                            type="button"
+                            onClick={handleShareClientDashboardAccess}
+                            disabled={createClientLink.isPending}
+                            className="flex items-center gap-1 transition-colors hover:text-foreground hover:underline disabled:cursor-wait disabled:opacity-70"
+                            title="Generar o reutilizar la URL del dashboard del cliente y compartirla"
+                          >
+                            <Landmark className="h-3 w-3"/>
+                            <span>{findName(process.clienteId, clients, 'nombreEmpresa')}</span>
+                            <Share2 className="h-3 w-3" />
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-1"><Landmark className="h-3 w-3"/> {findName(process.clienteId, clients, 'nombreEmpresa')}</span>
+                        )}
                         <span className="flex items-center gap-1"><Briefcase className="h-3 w-3"/> {findName(process.puestoId, posts, 'nombreDelPuesto')}</span>
                     </div>
                 </div>
