@@ -443,6 +443,14 @@ export const processesRouter = router({
       }
       assertCanEditProcess(ctx, proc);
 
+      // ARCH-20260321-10: el panel interno solo edita un subconjunto de visitaDetalle;
+      // se debe preservar la captura completa del encuestador ya persistida.
+      const previousVisitCapture = ((proc as any).visitaDetalle || {}) as Record<string, unknown>;
+      const nextVisitCapture = {
+        ...previousVisitCapture,
+        ...(input.visitaDetalle || {}),
+      };
+
       const payload: any = {
         tipoProducto: input.tipoProducto as any ?? proc.tipoProducto,
         especialistaAtraccionId: input.especialistaAtraccionId ?? null,
@@ -454,7 +462,7 @@ export const processesRouter = router({
         semanasDetalle: input.semanasDetalle,
         antecedentesPenales: input.antecedentesPenales,
         buroCredito: input.buroCredito,
-        visitaDetalle: input.visitaDetalle,
+        visitaDetalle: nextVisitCapture,
       };
       await db.updateProcess(input.id, payload);
       return { ok: true } as const;
