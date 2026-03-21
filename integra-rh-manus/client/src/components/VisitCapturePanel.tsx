@@ -279,10 +279,11 @@ export function VisitCapturePanel({
 
   return (
     <Tabs defaultValue="vista" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      {/* IMPL-20260321-01 — cuando canEdit=false el cliente solo ve la pestaña Vista */}
+      <TabsList className={canEdit ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
         <TabsTrigger value="vista">Vista</TabsTrigger>
-        <TabsTrigger value="editor" disabled={!canEdit}>Editor</TabsTrigger>
-        <TabsTrigger value="historial" disabled={!canEdit}>Historial</TabsTrigger>
+        {canEdit && <TabsTrigger value="editor">Editor</TabsTrigger>}
+        {canEdit && <TabsTrigger value="historial">Historial</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="vista" className="space-y-4 pt-4">

@@ -5,12 +5,17 @@ import * as React from "react";
 
 /**
  * IMPL-20260320-11 | Respaldo: PROYECTO.md
+ * IMPL-20260321-01 — spellCheck/autoCorrect/autoCapitalize se extraen como props
+ * nombrados (igual que input.tsx) para que {…props} no los sobrescriba accidentalmente.
  */
 function Textarea({
   className,
   onKeyDown,
   onCompositionStart,
   onCompositionEnd,
+  spellCheck: spellCheckProp,
+  autoCorrect: autoCorrectProp,
+  autoCapitalize: autoCapitalizeProp,
   ...props
 }: React.ComponentProps<"textarea">) {
   // Get dialog composition context if available (will be no-op if not inside Dialog)
@@ -55,10 +60,10 @@ function Textarea({
   return (
     <textarea
       data-slot="textarea"
-      spellCheck={true}
+      spellCheck={spellCheckProp ?? true}
       lang={props.lang ?? "es"}
-      autoCorrect="on"
-      autoCapitalize="sentences"
+      autoCorrect={autoCorrectProp ?? "on"}
+      autoCapitalize={autoCapitalizeProp ?? "sentences"}
       className={cn(
         "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex min-h-[40px] w-full rounded-md border bg-transparent px-2 py-1.5 text-xs shadow-sm transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
         className
