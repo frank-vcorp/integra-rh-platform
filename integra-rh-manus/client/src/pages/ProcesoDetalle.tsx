@@ -179,7 +179,6 @@ export default function ProcesoDetalle() {
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: posts = [] } = trpc.posts.list.useQuery();
-  const visitAssign = trpc.processes.visitAssign.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
   const [lastSurveyorToken, setLastSurveyorToken] = useState<string | null>(null);
   const visitSchedule = trpc.processes.visitSchedule.useMutation({
     onSuccess: (data: any) => {
@@ -1889,11 +1888,6 @@ export default function ProcesoDetalle() {
                     <button key={s.id} className="underline mr-2" onClick={(e)=>{ e.preventDefault(); setVisitForm(f=>({ ...f, encuestadorId: String(s.id) })); }}>{s.nombre}{idx < suggested.length-1 ? ',' : ''}</button>
                   ))}
                   <Button size="sm" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <Button size="sm" variant="outline" disabled={!visitForm.encuestadorId || visitAssign.isPending} onClick={()=>{
-                    visitAssign.mutate({ id: processId, encuestadorId: parseInt(visitForm.encuestadorId) });
-                  }}>Asignar</Button>
                 </div>
               </div>
               <div>
