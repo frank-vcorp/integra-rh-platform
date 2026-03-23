@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { VisitCapturePanel } from "@/components/VisitCapturePanel";
-import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, Home, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2, MessageCircle, Share2 } from "lucide-react";
+import { ArrowLeft, FileText, Save, FilePlus2, CalendarClock, Shield, Landmark, UserCheck, AlertTriangle, ChevronRight, ChevronLeft, Briefcase, CheckCircle2, MessageCircle, Share2 } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { useEffect, useMemo, useState } from "react";
@@ -1408,100 +1408,6 @@ export default function ProcesoDetalle() {
                              ))}
                         </div>
                     </div>
-                </div>
-
-                 {/* 7. Visita Detalle */}
-                <div className="border rounded-lg bg-white shadow-sm p-4 space-y-3">
-                   <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 text-gray-700">
-                        <Home className="h-4 w-4 text-emerald-600" /> Visita (Resumen)
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <Label className="text-xs">Tipo</Label>
-                            <select className="w-full text-xs border rounded h-8" value={panelForm.visitaDetalle.tipo} onChange={e => setPanelForm(f => ({...f, visitaDetalle: {...f.visitaDetalle, tipo: e.target.value}}))}>
-                                <option value="">-</option>
-                                <option value="virtual">Virtual</option>
-                                <option value="presencial">Presencial</option>
-                            </select>
-                        </div>
-                        <div>
-                             <Label className="text-xs">Fecha</Label>
-                            <Input type="date" className="h-8 text-xs" value={panelForm.visitaDetalle.fechaRealizacion} onChange={e => setPanelForm(f => ({...f, visitaDetalle: {...f.visitaDetalle, fechaRealizacion: e.target.value}}))} />
-                        </div>
-                    </div>
-                    <Textarea className="text-xs" rows={2} placeholder="Comentarios..." value={panelForm.visitaDetalle.comentarios} onChange={e => setPanelForm(f => ({...f, visitaDetalle: {...f.visitaDetalle, comentarios: e.target.value}}))} />
-                    
-                    <div className="text-[10px] text-center border border-dashed rounded p-1 cursor-pointer" tabIndex={0}
-                         onPaste={async(e) => {
-                             if(isClientAuth) return;
-                             const file = e.clipboardData.files[0];
-                              if(file) {
-                                    const arrayBuf = await file.arrayBuffer();
-                                    let binary = ''; const bytes = new Uint8Array(arrayBuf); const len = bytes.byteLength; for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-                                    const base64 = btoa(binary);
-                                    await handleUpload(
-                                      { procesoId: processId, tipoDocumento: 'VISITA_FOTOGRAFIA', fileName: `paste.png`, contentType: file.type, base64 } as any,
-                                      (url) => setPanelForm(f => ({...f, visitaDetalle: { ...f.visitaDetalle, evidenciasGraficas: [...(f.visitaDetalle as any).evidenciasGraficas || [], url] }})),
-                                    );
-                              }
-                         }}
-                    >Paste Photos</div>
-                     <div className="flex gap-1 overflow-x-auto mt-1 h-10">
-                             {(panelForm.visitaDetalle as any).evidenciasGraficas?.map((url:string, i:number) => (
-                                 <div key={i} className="h-8 w-8 border rounded flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => { 
-                                     if(url.includes('.pdf')){
-                                         window.open(url, '_blank');
-                                     } else {
-                                         setLightboxSection("visita"); setLightboxIndex(i); setLightboxOpen(true); 
-                                     }
-                                 }}>
-                                     {url.includes('.pdf') ? <FileText className="h-4 w-4"/> : <img src={url} className="h-full w-full object-cover"/>}
-                                 </div>
-                             ))}
-                    </div>
-                    {!isClientAuth && (
-                      <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Portal del encuestador</div>
-                            <div className="text-xs text-emerald-900">
-                              {surveyorPortalStatus ? `Estado del acceso: ${surveyorPortalStatus}` : "Sin acceso generado todavía"}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {hasCapturedVisitData && (
-                              <Button size="sm" variant="outline" onClick={() => setVisitCaptureOpen(true)}>Ver / editar captura</Button>
-                            )}
-                            {processIsVisitCompleted && (
-                              <Button size="sm" variant="outline" onClick={() => setActiveTab("armados")}>
-                                <FilePlus2 className="h-4 w-4 mr-2" /> Gestionar en Armados
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-xs text-emerald-900 break-all">
-                          {surveyorPortalUrl ? surveyorPortalUrl : "Programa la visita para generar la URL del cuestionario."}
-                        </div>
-                        <div className="text-[11px] text-emerald-800">
-                          {processIsVisitCompleted
-                            ? "La visita ya fue concluida. La URL se conserva como referencia del acceso original y la publicación del PDF se controla desde Armados."
-                            : "Mientras la visita esté programada o en curso, esta URL corresponde al acceso activo que se compartió con el encuestador."}
-                        </div>
-                      </div>
-                    )}
-                    {!isClientAuth && (
-                      <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 space-y-1">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-amber-900">Términos, condiciones y confidencialidad</div>
-                        <div className="text-xs text-amber-900">
-                          {visitPrivacyAcceptedAt
-                            ? `Aceptado en el portal de visita el ${new Date(visitPrivacyAcceptedAt).toLocaleString("es-MX")}`
-                            : "Pendiente de aceptación en el portal del encuestador."}
-                        </div>
-                        <div className="text-[11px] text-amber-800">
-                          Este registro es interno del expediente y queda excluido del PDF final del estudio.
-                        </div>
-                      </div>
-                    )}
                 </div>
 
                 {/* 8. Historial de Calificación Final — IMPL-20260320-02 */}
