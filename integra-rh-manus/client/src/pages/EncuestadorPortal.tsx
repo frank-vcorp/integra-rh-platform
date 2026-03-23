@@ -5,12 +5,12 @@
  * @respaldo PROYECTO.md
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Input as BaseInput } from "@/components/ui/input";
+import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -79,6 +79,8 @@ function deepSet(obj: any, path: string, value: any): any {
 // ──────────────────────────────────────────────
 type StepType = "loading" | "error" | "privacy" | "form" | "done";
 type SyncStatus = "idle" | "saving" | "saved" | "offline";
+
+const SPELLCHECK_ENABLED_INPUT_TYPES = new Set(["text", "search"]);
 
 const ESCOLARIDAD_OPTS = [
   "Sin estudios",
@@ -156,6 +158,40 @@ function Field({
       </Label>
       {children}
     </div>
+  );
+}
+
+/**
+ * @intervention ARCH-20260323-18
+ * @respaldo PROYECTO.md
+ */
+function Input(props: ComponentProps<typeof BaseInput>) {
+  const resolvedType = props.type ?? "text";
+  const shouldEnableSpellCheck = SPELLCHECK_ENABLED_INPUT_TYPES.has(resolvedType);
+
+  return (
+    <BaseInput
+      {...props}
+      type={resolvedType}
+      lang="es-MX"
+      spellCheck={props.spellCheck ?? shouldEnableSpellCheck}
+      autoCorrect={props.autoCorrect ?? (shouldEnableSpellCheck ? "on" : "off")}
+    />
+  );
+}
+
+/**
+ * @intervention ARCH-20260323-18
+ * @respaldo PROYECTO.md
+ */
+function Textarea(props: ComponentProps<typeof BaseTextarea>) {
+  return (
+    <BaseTextarea
+      {...props}
+      lang="es-MX"
+      spellCheck={props.spellCheck ?? true}
+      autoCorrect={props.autoCorrect ?? "on"}
+    />
   );
 }
 
