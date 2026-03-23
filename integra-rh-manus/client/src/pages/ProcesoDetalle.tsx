@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -179,16 +180,16 @@ export default function ProcesoDetalle() {
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: candidates = [] } = trpc.candidates.list.useQuery();
   const { data: posts = [] } = trpc.posts.list.useQuery();
+  const [visitSheetOpen, setVisitSheetOpen] = useState(false);
   const [lastSurveyorToken, setLastSurveyorToken] = useState<string | null>(null);
   const visitSchedule = trpc.processes.visitSchedule.useMutation({
     onSuccess: (data: any) => {
       utils.processes.getById.invalidate({ id: processId });
       if (data?.surveyorToken) setLastSurveyorToken(data.surveyorToken);
+      setVisitSheetOpen(false);
     },
   });
-  const visitUpdate = trpc.processes.visitUpdate.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
-  const visitDone = trpc.processes.visitMarkDone.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
-  const visitCancel = trpc.processes.visitCancel.useMutation({ onSuccess: () => utils.processes.getById.invalidate({ id: processId }) });
+  const visitUpdate = trpc.processes.visitUpdate.useMutation({ onSuccess: () => { utils.processes.getById.invalidate({ id: processId }); setVisitSheetOpen(false); } });
   const updateVisitCapture = trpc.processes.updateVisitCapture.useMutation({
     onSuccess: (data) => {
       utils.processes.getById.invalidate({ id: processId });
@@ -213,6 +214,14 @@ export default function ProcesoDetalle() {
   const surveyorPortalStatus = lastSurveyorToken ? "PENDIENTE" : surveyorPortalAccess?.status || null;
   const hasCapturedVisitData = !!(process as any)?.visitaDetalle && Object.keys((process as any).visitaDetalle || {}).length > 0;
   const processIsVisitCompleted = process?.estatusProceso === "visita_realizada" || process?.visitStatus?.status === "realizada" || surveyorPortalStatus === "COMPLETADO";
+  const canManageVisit = !isClientAuth && canEditProcess;
+  const currentVisitSurveyor = process?.visitStatus?.encuestadorId ? getSurveyor(process.visitStatus.encuestadorId) : null;
+  const visitStatusDisplay = processIsVisitCompleted ? "realizada" : process?.visitStatus?.status || "no_asignada";
+  const visitStatusLabel = visitStatusDisplay.replaceAll("_", " ");
+  const visitDateLabel = process?.visitStatus?.scheduledDateTime
+    ? new Date(process.visitStatus.scheduledDateTime).toLocaleString("es-MX")
+    : "Sin fecha programada";
+  const hasScheduledVisit = !!process?.visitStatus?.scheduledDateTime;
   const candidateRecord = useMemo(
     () => (candidates.find((candidate: any) => candidate.id === process?.candidatoId) as any) || null,
     [candidates, process?.candidatoId]
@@ -534,6 +543,39 @@ export default function ProcesoDetalle() {
       window.open(dashboardUrl, "_blank", "noopener,noreferrer");
       toast.success(existingToken ? "URL del cliente abierta" : "Acceso del cliente generado y abierto");
     }
+  };
+
+  const handleCopySurveyorPortalAccess = async () => {
+    if (!surveyorPortalUrl) return;
+
+    try {
+      await navigator.clipboard?.writeText(surveyorPortalUrl);
+      toast.success("URL del encuestador copiada");
+    } catch {
+      window.open(surveyorPortalUrl, "_blank", "noopener,noreferrer");
+      toast.success("URL del encuestador abierta");
+    }
+  };
+
+  const handleShareSurveyorPortalAccess = async () => {
+    if (!surveyorPortalUrl) return;
+
+    const shareTitle = `Visita ${process?.clave || processId}`;
+    const shareText = candidateRecord?.nombreCompleto
+      ? `Acceso del encuestador para la visita de ${candidateRecord.nombreCompleto}.`
+      : "Acceso del encuestador para captura de visita.";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url: surveyorPortalUrl });
+        toast.success("URL del encuestador compartida");
+        return;
+      } catch (error: any) {
+        if (error?.name === "AbortError") return;
+      }
+    }
+
+    await handleCopySurveyorPortalAccess();
   };
 
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -1848,111 +1890,263 @@ export default function ProcesoDetalle() {
             </TabsContent>
 
             <TabsContent value="visitas" className="mt-4">
-      <Card>
-        <CardHeader className="flex items-center justify-between flex-row">
-          <CardTitle className="flex items-center gap-2">
-            <CalendarClock className="h-5 w-5"/> Visitas domiciliarias
-          </CardTitle>
-          <div className="flex gap-2">
-            {!isClientAuth && process.estatusProceso === "visita_realizada" && (
-              <Button size="sm" variant="outline" onClick={() => setActiveTab("armados")}>
-                <FilePlus2 className="h-4 w-4 mr-2" /> Abrir Armados
-              </Button>
-            )}
-            {!isClientAuth && (
-            <Button size="sm" variant="outline" onClick={()=>{
-              setNotifySelected(surveyors.map((s:any)=> s.id));
-              setNotifyOpen(true);
-            }}>Avisar encuestadores</Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="text-sm text-muted-foreground">
-              Estatus: {process.visitStatus?.status || 'no_asignada'}
-              {process.visitStatus?.scheduledDateTime && ` • ${new Date(process.visitStatus.scheduledDateTime).toLocaleString()}`}
-              {process.visitStatus?.encuestadorId && (()=>{ const s = getSurveyor(process.visitStatus?.encuestadorId); return s ? ` • Encuestador: ${s.nombre}` : '' })()}
-              {process.visitStatus?.direccion && ` • ${process.visitStatus.direccion}`}
+      <div className="space-y-4">
+        <Card>
+          <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarClock className="h-5 w-5"/> Visitas domiciliarias
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Resumen operativo de la visita y acceso al cuestionario del encuestador.
+              </p>
             </div>
-            {!isClientAuth && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Encuestador</Label>
-                <select className="mt-1 block w-full border rounded-md h-9 px-2" value={visitForm.encuestadorId} onChange={e=>setVisitForm(f=>({ ...f, encuestadorId: e.target.value }))}>
-                  <option value="">Selecciona encuestador</option>
-                  {surveyors.map((s:any)=> (<option key={s.id} value={s.id}>{s.nombre}{s.telefono ? ` — ${s.telefono}` : ''}</option>))}
-                </select>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Sugeridos por cercanía: {suggested.length === 0 ? '—' : suggested.map((s:any, idx:number)=> (
-                    <button key={s.id} className="underline mr-2" onClick={(e)=>{ e.preventDefault(); setVisitForm(f=>({ ...f, encuestadorId: String(s.id) })); }}>{s.nombre}{idx < suggested.length-1 ? ',' : ''}</button>
-                  ))}
-                  <Button size="sm" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
+            <div className="flex flex-wrap gap-2">
+              {canManageVisit && !processIsVisitCompleted && (
+                <Button size="sm" onClick={() => setVisitSheetOpen(true)}>
+                  Gestionar visita
+                </Button>
+              )}
+              {!isClientAuth && processIsVisitCompleted && (
+                <Button size="sm" variant="outline" onClick={() => setActiveTab("armados")}>
+                  <FilePlus2 className="h-4 w-4 mr-2" /> Abrir Armados
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Visita actual</div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      {processIsVisitCompleted
+                        ? "La visita ya fue cerrada por el cuestionario del encuestador o por cierre operativo previo."
+                        : "La gestión operativa se hace desde el panel lateral para evitar mezclar lectura y edición."}
+                    </div>
+                  </div>
+                  <Badge className={processIsVisitCompleted ? "bg-emerald-700 text-white" : hasScheduledVisit ? "bg-sky-700 text-white" : "bg-slate-200 text-slate-700"}>
+                    {visitStatusLabel}
+                  </Badge>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-white p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fecha y hora</div>
+                    <div className="mt-1 text-sm font-medium text-slate-900">{visitDateLabel}</div>
+                  </div>
+                  <div className="rounded-lg border bg-white p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Encuestador</div>
+                    <div className="mt-1 text-sm font-medium text-slate-900">{currentVisitSurveyor?.nombre || "Sin asignar"}</div>
+                  </div>
+                  <div className="rounded-lg border bg-white p-3 sm:col-span-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Dirección</div>
+                    <div className="mt-1 text-sm text-slate-900">{process.visitStatus?.direccion || "Sin dirección registrada"}</div>
+                  </div>
+                  <div className="rounded-lg border bg-white p-3 sm:col-span-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Observaciones logísticas</div>
+                    <div className="mt-1 text-sm text-slate-900 whitespace-pre-wrap">{process.visitStatus?.observaciones || "Sin observaciones"}</div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label>Fecha y hora</Label>
-                <Input type="datetime-local" value={visitForm.fechaHora} onChange={e=>setVisitForm(f=>({ ...f, fechaHora: e.target.value }))} />
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Button size="sm" disabled={!visitForm.encuestadorId || !visitForm.fechaHora || visitSchedule.isPending} onClick={()=>{
-                    visitSchedule.mutate({ id: processId, fechaHora: new Date(visitForm.fechaHora).toISOString(), direccion: visitForm.direccion || undefined, observaciones: visitForm.observaciones || undefined, encuestadorId: parseInt(visitForm.encuestadorId) });
-                  }}>Programar</Button>
-                  <Button size="sm" variant="outline" disabled={visitUpdate.isPending || !visitForm.fechaHora} onClick={()=>{
-                    visitUpdate.mutate({ id: processId, fechaHora: new Date(visitForm.fechaHora).toISOString(), direccion: visitForm.direccion || undefined, observaciones: visitForm.observaciones || undefined });
-                  }}>Reagendar</Button>
-                </div>
-              </div>
-              <div className="col-span-2">
-                <Label>Dirección</Label>
-                <Input value={visitForm.direccion} onChange={e=>{ const v=e.target.value; setVisitForm(f=>({ ...f, direccion: v })); }} onBlur={()=> refreshSuggestions()} placeholder="Calle, número, colonia, ciudad, estado" />
-              </div>
-              <div className="col-span-2">
-                <Label>Observaciones</Label>
-                <Textarea value={visitForm.observaciones} onChange={e=>setVisitForm(f=>({ ...f, observaciones: e.target.value }))} placeholder="Notas opcionales" />
-              </div>
-              <div className="col-span-2 flex gap-2">
-                <Button size="sm" variant="secondary" disabled={visitDone.isPending} onClick={()=> visitDone.mutate({ id: processId, observaciones: visitForm.observaciones || undefined })}>Marcar realizada</Button>
-                <Button size="sm" variant="destructive" disabled={visitCancel.isPending} onClick={()=>{
-                  if (confirm('¿Cancelar visita?')) visitCancel.mutate({ id: processId, motivo: 'Cancelada desde Proceso' });
-                }}>Cancelar</Button>
+
+              <div className="space-y-4">
+                {!isClientAuth && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-emerald-900">Portal del encuestador</div>
+                        <div className="text-xs text-emerald-800 mt-1">
+                          {surveyorPortalStatus ? `Estado del acceso: ${surveyorPortalStatus}` : "Sin acceso generado todavía"}
+                        </div>
+                      </div>
+                      {surveyorPortalStatus && (
+                        <Badge variant="outline" className="border-emerald-300 bg-white text-emerald-800">
+                          {surveyorPortalStatus}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-emerald-100 bg-white/80 p-3 text-xs text-emerald-950 break-all">
+                      {surveyorPortalUrl || "Programa la visita para generar la URL del cuestionario."}
+                    </div>
+                    {surveyorPortalUrl && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => void handleCopySurveyorPortalAccess()}>
+                          Copiar URL
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => void handleShareSurveyorPortalAccess()}>
+                          <Share2 className="h-4 w-4 mr-2" /> Compartir enlace
+                        </Button>
+                      </div>
+                    )}
+                    <div className="text-[11px] text-emerald-800">
+                      {processIsVisitCompleted
+                        ? "La visita quedó cerrada. Esta URL se conserva como referencia del acceso usado por el encuestador."
+                        : "Comparte este acceso con el encuestador para que capture y cierre la visita desde el cuestionario."}
+                    </div>
+                  </div>
+                )}
+
+                {!isClientAuth && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 space-y-2">
+                    <div className="text-sm font-semibold text-amber-900">Términos y confidencialidad</div>
+                    <div className="text-xs text-amber-900">
+                      {visitPrivacyAcceptedAt
+                        ? `Aceptado en el portal de visita el ${new Date(visitPrivacyAcceptedAt).toLocaleString("es-MX")}`
+                        : "Pendiente de aceptación en el portal del encuestador."}
+                    </div>
+                    <div className="text-[11px] text-amber-800">
+                      Este registro es interno del expediente y no forma parte del PDF final.
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            )}
-            {process.visitStatus?.scheduledDateTime && (
-              <div className="pt-2 border-t">
-                <div className="text-sm font-medium mb-2">Compartir</div>
-                <div className="flex gap-2">
-                  {(() => {
-                    const enc = getSurveyor(process.visitStatus?.encuestadorId);
+
+            <div className="rounded-xl border bg-white p-4 space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Acciones</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Accesos rápidos separados del flujo de edición para evitar mezclar operación y lectura.
+                  </div>
+                </div>
+                {canManageVisit && !processIsVisitCompleted && (
+                  <Button size="sm" variant="outline" onClick={() => setVisitSheetOpen(true)}>
+                    Editar programación
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {hasCapturedVisitData && !isClientAuth && (
+                  <Button size="sm" variant="outline" onClick={() => setVisitCaptureOpen(true)}>
+                    Ver captura del cuestionario
+                  </Button>
+                )}
+                {!isClientAuth && !processIsVisitCompleted && (
+                  <Button size="sm" variant="outline" onClick={()=>{
+                    setNotifySelected(surveyors.map((s:any)=> s.id));
+                    setNotifyOpen(true);
+                  }}>
+                    Avisar encuestadores
+                  </Button>
+                )}
+                {!isClientAuth && processIsVisitCompleted && (
+                  <Button size="sm" variant="outline" onClick={() => setActiveTab("armados")}>
+                    <FilePlus2 className="h-4 w-4 mr-2" /> Abrir Armados
+                  </Button>
+                )}
+                {hasScheduledVisit && currentVisitSurveyor?.telefono && (
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const msg = buildVisitMessage({
+                      encNombre: currentVisitSurveyor.nombre,
+                      candidato: candidateRecord,
+                      fechaISO: process.visitStatus?.scheduledDateTime,
+                      direccion: process.visitStatus?.direccion,
+                      observaciones: process.visitStatus?.observaciones,
+                      surveyorToken: lastSurveyorToken,
+                    });
+                    try { (trpc.surveyorMessages.create as any).mutate({ encuestadorId: currentVisitSurveyor.id, procesoId: process.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
+                    window.open(buildWhatsappUrl(String(currentVisitSurveyor.telefono), msg), '_blank');
+                  }}>
+                    WhatsApp
+                  </Button>
+                )}
+                {hasScheduledVisit && (
+                  <Button size="sm" variant="outline" onClick={() => {
                     const title = `Visita: ${process.clave}`;
-                    const details = `Proceso: ${process.tipoProducto}\nEncuestador: ${enc?.nombre || ''}`;
+                    const details = `Proceso: ${process.tipoProducto}\nEncuestador: ${currentVisitSurveyor?.nombre || ''}`;
                     const gUrl = buildGoogleCalendarUrl(title, process.visitStatus?.scheduledDateTime, 60, details, process.visitStatus?.direccion);
-                    return (
-                      <>
-                        {enc?.telefono && (
-                          <Button size="sm" variant="outline" onClick={()=>{
-                            const msg = buildVisitMessage({
-                              encNombre: enc.nombre,
-                              candidato: candidateRecord,
-                              fechaISO: process.visitStatus?.scheduledDateTime,
-                              direccion: process.visitStatus?.direccion,
-                              observaciones: process.visitStatus?.observaciones,
-                              surveyorToken: lastSurveyorToken,
-                            });
-                            try { (trpc.surveyorMessages.create as any).mutate({ encuestadorId: enc.id, procesoId: process.id, canal: 'whatsapp', contenido: msg } as any); } catch {}
-                            window.open(buildWhatsappUrl(String(enc.telefono), msg), '_blank');
-                          }}>WhatsApp</Button>
-                        )}
-                        <Button size="sm" variant="outline" onClick={()=> window.open(gUrl, '_blank')}>Google Calendar</Button>
-                      </>
-                    );
-                  })()}
-                </div>
+                    window.open(gUrl, '_blank');
+                  }}>
+                    Google Calendar
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+
+        {canManageVisit && (
+          <Sheet open={visitSheetOpen} onOpenChange={setVisitSheetOpen}>
+            <SheetContent side="right" className="sm:max-w-xl overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Gestionar visita</SheetTitle>
+                <SheetDescription>
+                  {processIsVisitCompleted
+                    ? "La visita ya está cerrada. La programación deja de ser el foco principal y el cuestionario capturado pasa a ser la fuente de verdad."
+                    : "Programa o reagenda la visita desde este panel lateral para mantener el resumen limpio en la vista principal."}
+                </SheetDescription>
+              </SheetHeader>
+
+              {processIsVisitCompleted ? (
+                <div className="space-y-4 pt-2">
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 space-y-2">
+                    <div className="text-sm font-semibold text-emerald-900">Visita cerrada</div>
+                    <div className="text-sm text-emerald-900">La visita se considera realizada al completar el cuestionario del encuestador.</div>
+                    <div className="text-xs text-emerald-800">Si necesitas una nueva visita, conviene abrir un nuevo ciclo operativo en vez de seguir editando esta programación cerrada.</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {hasCapturedVisitData && (
+                      <Button size="sm" variant="outline" onClick={() => { setVisitSheetOpen(false); setVisitCaptureOpen(true); }}>
+                        Ver captura
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => { setVisitSheetOpen(false); setActiveTab("armados"); }}>
+                      <FilePlus2 className="h-4 w-4 mr-2" /> Abrir Armados
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <Label>Encuestador</Label>
+                    <select className="mt-1 block w-full border rounded-md h-9 px-2" value={visitForm.encuestadorId} onChange={e=>setVisitForm(f=>({ ...f, encuestadorId: e.target.value }))}>
+                      <option value="">Selecciona encuestador</option>
+                      {surveyors.map((s:any)=> (<option key={s.id} value={s.id}>{s.nombre}{s.telefono ? ` — ${s.telefono}` : ''}</option>))}
+                    </select>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Sugeridos por cercanía: {suggested.length === 0 ? '—' : suggested.map((s:any, idx:number)=> (
+                        <button key={s.id} className="underline mr-2" onClick={(e)=>{ e.preventDefault(); setVisitForm(f=>({ ...f, encuestadorId: String(s.id) })); }}>{s.nombre}{idx < suggested.length-1 ? ',' : ''}</button>
+                      ))}
+                      <Button size="sm" variant="link" onClick={()=> refreshSuggestions()}>(Actualizar)</Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Fecha y hora</Label>
+                    <Input type="datetime-local" value={visitForm.fechaHora} onChange={e=>setVisitForm(f=>({ ...f, fechaHora: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <Label>Dirección</Label>
+                    <Input value={visitForm.direccion} onChange={e=>{ const v=e.target.value; setVisitForm(f=>({ ...f, direccion: v })); }} onBlur={()=> refreshSuggestions()} placeholder="Calle, número, colonia, ciudad, estado" />
+                  </div>
+
+                  <div>
+                    <Label>Observaciones</Label>
+                    <Textarea value={visitForm.observaciones} onChange={e=>setVisitForm(f=>({ ...f, observaciones: e.target.value }))} placeholder="Notas opcionales" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button disabled={!visitForm.encuestadorId || !visitForm.fechaHora || visitSchedule.isPending} onClick={()=>{
+                      visitSchedule.mutate({ id: processId, fechaHora: new Date(visitForm.fechaHora).toISOString(), direccion: visitForm.direccion || undefined, observaciones: visitForm.observaciones || undefined, encuestadorId: parseInt(visitForm.encuestadorId) });
+                    }}>
+                      Programar visita
+                    </Button>
+                    <Button variant="outline" disabled={visitUpdate.isPending || !visitForm.fechaHora} onClick={()=>{
+                      visitUpdate.mutate({ id: processId, fechaHora: new Date(visitForm.fechaHora).toISOString(), direccion: visitForm.direccion || undefined, observaciones: visitForm.observaciones || undefined });
+                    }}>
+                      Reagendar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </SheetContent>
+          </Sheet>
+        )}
+      </div>
       {/* Aviso a encuestadores */}
       {!isClientAuth && canEditProcess && (
       <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>

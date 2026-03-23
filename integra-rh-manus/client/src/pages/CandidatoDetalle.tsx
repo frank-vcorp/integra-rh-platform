@@ -2076,14 +2076,6 @@ export default function CandidatoDetalle() {
                               <div>{p.buroCredito?.estatus || "Sin datos"}</div>
                               {p.buroCredito?.score && <div>Score: {p.buroCredito.score}</div>}
                             </div>
-                            <div className="border rounded p-2 md:col-span-3">
-                              <div className="font-semibold text-gray-900 text-sm">Visita</div>
-                              <div className="flex gap-2 flex-wrap">
-                                <span>Tipo: {p.visitaDetalle?.tipo || "Sin datos"}</span>
-                                {p.visitaDetalle?.fechaRealizacion && <span>• {new Date(p.visitaDetalle.fechaRealizacion).toLocaleDateString()}</span>}
-                                {p.visitaDetalle?.comentarios && <span className="text-gray-700">• {p.visitaDetalle.comentarios}</span>}
-                              </div>
-                            </div>
                           </div>
                         </div>
                       ))}
