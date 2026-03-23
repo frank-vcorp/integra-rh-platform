@@ -226,6 +226,21 @@ export default function ProcesoDetalle() {
     () => (candidates.find((candidate: any) => candidate.id === process?.candidatoId) as any) || null,
     [candidates, process?.candidatoId]
   );
+  const candidateVisitAddress = useMemo(() => {
+    const domicilio = candidateRecord?.perfilDetalle?.domicilio || {};
+    return [
+      domicilio.calle,
+      domicilio.numero,
+      domicilio.interior,
+      domicilio.colonia,
+      domicilio.municipio,
+      domicilio.estado,
+      domicilio.cp,
+    ]
+      .map((value: unknown) => (typeof value === "string" ? value.trim() : String(value || "").trim()))
+      .filter(Boolean)
+      .join(", ");
+  }, [candidateRecord]);
   const clientRecord = useMemo(
     () => (clients.find((client: any) => client.id === process?.clienteId) as any) || null,
     [clients, process?.clienteId]
@@ -786,6 +801,28 @@ export default function ProcesoDetalle() {
       },
     });
   }, [process]);
+
+  /**
+   * @intervention ARCH-20260323-16
+   * @respaldo PROYECTO.md
+   */
+  useEffect(() => {
+    const currentVisitAddress = process?.visitStatus?.direccion?.trim() || "";
+    const inheritedVisitAddress = currentVisitAddress || candidateVisitAddress;
+
+    if (!inheritedVisitAddress) return;
+
+    setVisitForm((currentForm) => {
+      if (currentForm.direccion.trim()) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        direccion: inheritedVisitAddress,
+      };
+    });
+  }, [candidateVisitAddress, process?.visitStatus?.direccion]);
 
   const iaDictamenCliente: any =
     (process as any)?.investigacionLaboral?.iaDictamenCliente || null;
