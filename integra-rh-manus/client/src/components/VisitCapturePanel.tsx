@@ -1,19 +1,21 @@
 /**
  * Panel compartido para visualizar y auditar la captura de visita.
- * @intervention ARCH-20260319-04
+ * @intervention IMPL-20260323-20
  * @respaldo PROYECTO.md
  */
 
 import type { JSX } from "react";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Clock3, ExternalLink, FileImage, FileText, History, PencilLine } from "lucide-react";
+import { CheckCircle2, Clock3, Code2, ExternalLink, FileImage, History, LayoutList, PencilLine } from "lucide-react";
 
 type Primitive = string | number | boolean | null | undefined;
 
@@ -242,6 +244,54 @@ function renderNode(label: string, value: unknown, path: string, depth = 0): JSX
   );
 }
 
+// ── Componentes de apoyo para el editor estructurado ─────────────────────────
+
+function StructuredSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-md border border-slate-200 overflow-hidden">
+      <div className="bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">{title}</div>
+      <div className="p-4 grid gap-3">{children}</div>
+    </div>
+  );
+}
+
+function FieldRow({ children }: { children: React.ReactNode }) {
+  return <div className="grid sm:grid-cols-2 gap-3">{children}</div>;
+}
+
+function StructuredField({
+  label,
+  value,
+  onChange,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs font-medium text-slate-600">{label}</Label>
+      {multiline ? (
+        <Textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-[72px] text-sm resize-y"
+          placeholder={`${label}...`}
+        />
+      ) : (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="text-sm"
+          placeholder={`${label}...`}
+        />
+      )}
+    </div>
+  );
+}
+
 export function VisitCapturePanel({
   data,
   portalUrl,
@@ -251,19 +301,61 @@ export function VisitCapturePanel({
   onSave,
   auditEntries = [],
 }: VisitCapturePanelProps) {
+  // ── Estado del editor JSON (fallback de soporte) ─────────────────────
   const [editorText, setEditorText] = useState("");
   const [editorError, setEditorError] = useState<string | null>(null);
+
+  // ── Estado del editor estructurado ───────────────────────────────────
+  type DeepPartial<T> = { [K in keyof T]?: DeepPartial<T[K]> };
+  const [structuredDraft, setStructuredDraft] = useState<Record<string, any>>({});
 
   useEffect(() => {
     setEditorText(JSON.stringify(data || {}, null, 2));
     setEditorError(null);
+    // Inicializar el draft estructurado con los datos actuales
+    setStructuredDraft({
+      ubicacion: { ...(data?.ubicacion as Record<string, any> || {}) },
+      academica: { ...(data?.academica as Record<string, any> || {}) },
+      inmueble: { ...(data?.inmueble as Record<string, any> || {}) },
+      salud: { ...(data?.salud as Record<string, any> || {}) },
+      conclusion: (data?.conclusion as string) || "",
+      comentarios: (data?.comentarios as string) || "",
+      cierre: { observaciones: (data?.cierre as Record<string, any>)?.observaciones || "" },
+    });
   }, [data]);
 
   const topLevelEntries = useMemo(() => Object.entries(data || {}), [data]);
 
-  const handleSave = () => {
-    if (!onSave) return;
+  // ── Helpers de cambio para editor estructurado ─────────────────────
+  function setField(section: string, key: string, value: string) {
+    setStructuredDraft((prev) => ({
+      ...prev,
+      [section]: { ...(prev[section] || {}), [key]: value },
+    }));
+  }
 
+  function setTopField(key: string, value: string) {
+    setStructuredDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // ── Guardar desde editor estructurado ─────────────────────────────
+  const handleSaveStructured = () => {
+    if (!onSave) return;
+    // Fusiona el draft sobre los datos originales para no perder campos no editados
+    const merged: Record<string, unknown> = { ...(data || {}) };
+    for (const [section, val] of Object.entries(structuredDraft)) {
+      if (val !== null && typeof val === "object" && !Array.isArray(val)) {
+        merged[section] = { ...(merged[section] as Record<string, unknown> || {}), ...(val as Record<string, unknown>) };
+      } else {
+        if (val !== "") merged[section] = val;
+      }
+    }
+    onSave(merged);
+  };
+
+  // ── Guardar desde editor JSON ─────────────────────────────────────
+  const handleSaveJson = () => {
+    if (!onSave) return;
     try {
       const parsed = JSON.parse(editorText) as Record<string, unknown>;
       if (!isPlainObject(parsed)) {
@@ -279,13 +371,25 @@ export function VisitCapturePanel({
 
   return (
     <Tabs defaultValue="vista" className="w-full">
-      {/* IMPL-20260321-01 — cuando canEdit=false el cliente solo ve la pestaña Vista */}
-      <TabsList className={canEdit ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
+      {/* Pestañas disponibles según rol */}
+      <TabsList className={canEdit ? "grid w-full grid-cols-4" : "grid w-full grid-cols-1"}>
         <TabsTrigger value="vista">Vista</TabsTrigger>
-        {canEdit && <TabsTrigger value="editor">Editor</TabsTrigger>}
-        {canEdit && <TabsTrigger value="historial">Historial</TabsTrigger>}
+        {canEdit && (
+          <TabsTrigger value="formulario">
+            <LayoutList className="h-3.5 w-3.5 mr-1.5" />
+            Formulario
+          </TabsTrigger>
+        )}
+        {canEdit && <TabsTrigger value="historial"><History className="h-3.5 w-3.5 mr-1.5" />Historial</TabsTrigger>}
+        {canEdit && (
+          <TabsTrigger value="json">
+            <Code2 className="h-3.5 w-3.5 mr-1.5" />
+            JSON
+          </TabsTrigger>
+        )}
       </TabsList>
 
+      {/* ── PESTAÑA: VISTA ─────────────────────────────────────────────── */}
       <TabsContent value="vista" className="space-y-4 pt-4">
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border bg-white p-4 space-y-1">
@@ -314,58 +418,235 @@ export function VisitCapturePanel({
         )}
       </TabsContent>
 
-      <TabsContent value="editor" className="space-y-4 pt-4">
-        <div className="rounded-lg border bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">Edición controlada de la captura</div>
-              <div className="text-xs text-slate-500">Cada guardado genera un registro de auditoría con el usuario y los campos modificados.</div>
-            </div>
-            <Button onClick={handleSave} disabled={!canEdit || isSaving}>
-              <PencilLine className="h-4 w-4 mr-2" />
-              {isSaving ? "Guardando..." : "Guardar cambios"}
-            </Button>
-          </div>
-          <Separator />
-          <Textarea value={editorText} onChange={(event) => setEditorText(event.target.value)} className="min-h-[420px] font-mono text-xs" />
-          {editorError && <div className="text-sm text-red-600">{editorError}</div>}
-        </div>
-      </TabsContent>
-
-      <TabsContent value="historial" className="space-y-4 pt-4">
-        <div className="rounded-lg border bg-white p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-4">
-            <History className="h-4 w-4" /> Historial de ajustes del analista
-          </div>
-          {auditEntries.length === 0 ? (
-            <div className="text-sm text-slate-500">Aún no hay cambios auditados para esta captura.</div>
-          ) : (
-            <div className="space-y-4">
-              {auditEntries.map((entry) => (
-                <div key={entry.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-slate-900">{entry.userName || entry.userEmail || `Usuario ${entry.userId ?? "interno"}`}</div>
-                    <Badge variant="outline">{new Date(entry.timestamp).toLocaleString()}</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {(entry.details?.changedFields || []).length === 0 ? (
-                      <div className="text-sm text-slate-500">Cambio registrado sin detalle granular.</div>
-                    ) : (
-                      (entry.details?.changedFields || []).map((change, index) => (
-                        <div key={`${entry.id}-${index}`} className="rounded-md bg-slate-50 p-3 text-sm space-y-1">
-                          <div className="font-medium text-slate-900">{change.path || "captura"}</div>
-                          <div className="text-slate-600">Antes: {typeof change.before === "object" ? JSON.stringify(change.before) : formatPrimitive(change.before as Primitive)}</div>
-                          <div className="text-slate-600">Después: {typeof change.after === "object" ? JSON.stringify(change.after) : formatPrimitive(change.after as Primitive)}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+      {/* ── PESTAÑA: FORMULARIO (editor estructurado para analistas) ────── */}
+      {canEdit && (
+        <TabsContent value="formulario" className="space-y-4 pt-4">
+          <div className="rounded-lg border bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Editor estructurado — analistas</div>
+                <div className="text-xs text-slate-500">
+                  Edita los campos operativos del formulario. Los cambios se fusionan con la captura original preservando datos no mostrados aquí.
                 </div>
-              ))}
+              </div>
+              <Button onClick={handleSaveStructured} disabled={isSaving}>
+                <PencilLine className="h-4 w-4 mr-2" />
+                {isSaving ? "Guardando..." : "Guardar cambios"}
+              </Button>
             </div>
-          )}
-        </div>
-      </TabsContent>
+            <Separator />
+
+            <ScrollArea className="h-[60vh] pr-2">
+              <div className="space-y-5">
+
+                {/* Sección: Ubicación y domicilio */}
+                <StructuredSection title="Ubicación y domicilio">
+                  <FieldRow>
+                    <StructuredField
+                      label="Domicilio"
+                      value={(structuredDraft.ubicacion as any)?.domicilio || ""}
+                      onChange={(v) => setField("ubicacion", "domicilio", v)}
+                    />
+                    <StructuredField
+                      label="Código postal"
+                      value={(structuredDraft.ubicacion as any)?.cp || ""}
+                      onChange={(v) => setField("ubicacion", "cp", v)}
+                    />
+                  </FieldRow>
+                  <FieldRow>
+                    <StructuredField
+                      label="Colonia / Municipio"
+                      value={(structuredDraft.ubicacion as any)?.coloniaMunicipio || ""}
+                      onChange={(v) => setField("ubicacion", "coloniaMunicipio", v)}
+                    />
+                    <StructuredField
+                      label="Estado"
+                      value={(structuredDraft.ubicacion as any)?.estado || ""}
+                      onChange={(v) => setField("ubicacion", "estado", v)}
+                    />
+                  </FieldRow>
+                </StructuredSection>
+
+                {/* Sección: Académica */}
+                <StructuredSection title="Información académica">
+                  <FieldRow>
+                    <StructuredField
+                      label="Último grado"
+                      value={(structuredDraft.academica as any)?.ultimoGrado || ""}
+                      onChange={(v) => setField("academica", "ultimoGrado", v)}
+                    />
+                    <StructuredField
+                      label="Institución"
+                      value={(structuredDraft.academica as any)?.institucion || ""}
+                      onChange={(v) => setField("academica", "institucion", v)}
+                    />
+                  </FieldRow>
+                  <FieldRow>
+                    <StructuredField
+                      label="Periodo"
+                      value={(structuredDraft.academica as any)?.periodo || ""}
+                      onChange={(v) => setField("academica", "periodo", v)}
+                    />
+                    <StructuredField
+                      label="Documento obtenido"
+                      value={(structuredDraft.academica as any)?.documentoObtenido || ""}
+                      onChange={(v) => setField("academica", "documentoObtenido", v)}
+                    />
+                  </FieldRow>
+                  <StructuredField
+                    label="Otros conocimientos"
+                    value={(structuredDraft.academica as any)?.otrosConocimientos || ""}
+                    onChange={(v) => setField("academica", "otrosConocimientos", v)}
+                    multiline
+                  />
+                </StructuredSection>
+
+                {/* Sección: Inmueble / Vivienda */}
+                <StructuredSection title="Inmueble / Vivienda">
+                  <FieldRow>
+                    <StructuredField
+                      label="Tipo de inmueble"
+                      value={(structuredDraft.inmueble as any)?.tipoInmueble || ""}
+                      onChange={(v) => setField("inmueble", "tipoInmueble", v)}
+                    />
+                    <StructuredField
+                      label="Estado de la vivienda"
+                      value={(structuredDraft.inmueble as any)?.estadoVivienda || ""}
+                      onChange={(v) => setField("inmueble", "estadoVivienda", v)}
+                    />
+                  </FieldRow>
+                  <FieldRow>
+                    <StructuredField
+                      label="Orden y limpieza"
+                      value={(structuredDraft.inmueble as any)?.ordenLimpieza || ""}
+                      onChange={(v) => setField("inmueble", "ordenLimpieza", v)}
+                    />
+                    <StructuredField
+                      label="Zona"
+                      value={(structuredDraft.inmueble as any)?.zona || ""}
+                      onChange={(v) => setField("inmueble", "zona", v)}
+                    />
+                  </FieldRow>
+                  <FieldRow>
+                    <StructuredField
+                      label="Medio de transporte"
+                      value={(structuredDraft.inmueble as any)?.medioTransporte || ""}
+                      onChange={(v) => setField("inmueble", "medioTransporte", v)}
+                    />
+                    <StructuredField
+                      label="Tiempo de traslado"
+                      value={(structuredDraft.inmueble as any)?.tiempoTraslado || ""}
+                      onChange={(v) => setField("inmueble", "tiempoTraslado", v)}
+                    />
+                  </FieldRow>
+                </StructuredSection>
+
+                {/* Sección: Salud */}
+                <StructuredSection title="Salud y hábitos">
+                  <FieldRow>
+                    <StructuredField
+                      label="Estado de salud"
+                      value={(structuredDraft.salud as any)?.estadoSalud || ""}
+                      onChange={(v) => setField("salud", "estadoSalud", v)}
+                    />
+                    <StructuredField
+                      label="Servicio médico"
+                      value={(structuredDraft.salud as any)?.servicioMedico || ""}
+                      onChange={(v) => setField("salud", "servicioMedico", v)}
+                    />
+                  </FieldRow>
+                </StructuredSection>
+
+                {/* Sección: Conclusión */}
+                <StructuredSection title="Conclusión / Observaciones del encuestador">
+                  <StructuredField
+                    label="Observaciones de cierre"
+                    value={(structuredDraft.cierre as any)?.observaciones || ""}
+                    onChange={(v) =>
+                      setStructuredDraft((prev) => ({
+                        ...prev,
+                        cierre: { ...(prev.cierre as Record<string, any> || {}), observaciones: v },
+                      }))
+                    }
+                    multiline
+                  />
+                  <StructuredField
+                    label="Comentarios generales"
+                    value={(structuredDraft as any).comentarios || ""}
+                    onChange={(v) => setTopField("comentarios", v)}
+                    multiline
+                  />
+                </StructuredSection>
+
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                  <strong>Nota:</strong> Los campos de familiares, referencias, ingresos/egresos detallados y listas complejas se editan desde la pestaña <strong>JSON</strong>. Este editor cubre los campos operativos más frecuentes.
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
+        </TabsContent>
+      )}
+
+      {/* ── PESTAÑA: HISTORIAL ─────────────────────────────────────────── */}
+      {canEdit && (
+        <TabsContent value="historial" className="space-y-4 pt-4">
+          <div className="rounded-lg border bg-white p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-4">
+              <History className="h-4 w-4" /> Historial de ajustes del analista
+            </div>
+            {auditEntries.length === 0 ? (
+              <div className="text-sm text-slate-500">Aún no hay cambios auditados para esta captura.</div>
+            ) : (
+              <div className="space-y-4">
+                {auditEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm font-medium text-slate-900">{entry.userName || entry.userEmail || `Usuario ${entry.userId ?? "interno"}`}</div>
+                      <Badge variant="outline">{new Date(entry.timestamp).toLocaleString()}</Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {(entry.details?.changedFields || []).length === 0 ? (
+                        <div className="text-sm text-slate-500">Cambio registrado sin detalle granular.</div>
+                      ) : (
+                        (entry.details?.changedFields || []).map((change, index) => (
+                          <div key={`${entry.id}-${index}`} className="rounded-md bg-slate-50 p-3 text-sm space-y-1">
+                            <div className="font-medium text-slate-900">{change.path || "captura"}</div>
+                            <div className="text-slate-600">Antes: {typeof change.before === "object" ? JSON.stringify(change.before) : formatPrimitive(change.before as Primitive)}</div>
+                            <div className="text-slate-600">Después: {typeof change.after === "object" ? JSON.stringify(change.after) : formatPrimitive(change.after as Primitive)}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      )}
+
+      {/* ── PESTAÑA: JSON (soporte técnico) ──────────────────────────── */}
+      {canEdit && (
+        <TabsContent value="json" className="space-y-4 pt-4">
+          <div className="rounded-lg border bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Editor JSON — soporte técnico</div>
+                <div className="text-xs text-slate-500">
+                  Edición directa del JSON completo. Usa esta pestaña para campos no disponibles en el editor principal. Cada guardado genera registro de auditoría.
+                </div>
+              </div>
+              <Button onClick={handleSaveJson} disabled={isSaving} variant="outline">
+                <PencilLine className="h-4 w-4 mr-2" />
+                {isSaving ? "Guardando..." : "Guardar JSON"}
+              </Button>
+            </div>
+            <Separator />
+            <Textarea value={editorText} onChange={(event) => setEditorText(event.target.value)} className="min-h-[420px] font-mono text-xs" />
+            {editorError && <div className="text-sm text-red-600">{editorError}</div>}
+          </div>
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

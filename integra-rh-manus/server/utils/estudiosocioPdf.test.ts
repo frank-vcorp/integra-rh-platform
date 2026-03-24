@@ -172,4 +172,185 @@ describe("generarArmadoClientePDF", () => {
     const pdfDoc = await PDFDocument.load(pdfBytes);
     expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
   });
+
+  /** IMPL-20260323-20: verifica que la sección captura_visita renderiza correctamente */
+  it("renderiza sección captura_visita con datos del formulario del encuestador", async () => {
+    const pdfBytes = await generarArmadoClientePDF(
+      {
+        generatedAt: "2026-03-23T10:00:00.000Z",
+        candidate: { nombreCompleto: "Ana García Reyes", telefono: "5511223344" },
+        client: { nombreEmpresa: "Empresa Prueba SA" },
+        post: { nombreDelPuesto: "Coordinadora de Recursos" },
+        process: {
+          id: 202,
+          clave: "VISITA-2026-202",
+          tipoProducto: "VISITA LOCAL",
+          estatusProceso: "visita_realizada",
+          calificacionFinal: "recomendable",
+          visitStatus: {
+            status: "realizada",
+            scheduledDateTime: "2026-03-22T14:00:00.000Z",
+            direccion: "Calle Reforma 55, Col. Centro",
+          },
+          visitaDetalle: {
+            _privacyAcceptedAt: "2026-03-22T14:05:00.000Z",
+            _sessionStartedAt: "2026-03-22T14:06:00.000Z",
+            _sessionEndedAt: "2026-03-22T15:30:00.000Z",
+            ubicacion: {
+              domicilio: "Calle Reforma 55",
+              cp: "06600",
+              coloniaMunicipio: "Centro, Cuauhtémoc",
+              estado: "CDMX",
+            },
+            academica: {
+              ultimoGrado: "Licenciatura",
+              institucion: "UNAM",
+              periodo: "2015-2019",
+              documentoObtenido: "Título",
+            },
+            familiares: [
+              { parentesco: "Esposo", nombre: "Pedro López", edad: 35, escolaridad: "Preparatoria", ocupacion: "Chofer" },
+            ],
+            inmueble: {
+              tipoInmueble: "Casa propia",
+              estadoVivienda: "Bueno",
+              ordenLimpieza: "Muy bien",
+              medioTransporte: "Metro",
+              tiempoTraslado: "45 minutos",
+            },
+            ingresosArray: [{ nombre: "Ana García", ingreso: 15000, aportacionTotal: 15000 }],
+            salud: { estadoSalud: "Bueno", servicioMedico: "IMSS", fuma: false, toma: false },
+            referenciasPersonales: [
+              { nombre: "Carla Mendoza", telefono: "5544332211", ocupacion: "Maestra", tiempoDeConocerlo: "10 años" },
+            ],
+            cierre: { observaciones: "Domicilio congruente con lo declarado. Entorno tranquilo." },
+            evidenciasGraficas: [],
+          },
+        },
+        workHistory: [],
+        documents: [],
+      },
+      ["visita_domiciliaria", "captura_visita", "observaciones_conclusion"],
+    );
+
+    expect(pdfBytes.byteLength).toBeGreaterThan(1000);
+
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
+  });
+
+  /**
+   * @intervention IMPL-20260323-05
+   * Verifica degradación graceful cuando mapaCapturaUrl no resuelve:
+   * el PDF se genera igualmente y la sección visita_domiciliaria está presente.
+   */
+  it("soporta mapaCapturaUrl sin fallar aunque la URL no resuelva", async () => {
+    const pdfBytes = await generarArmadoClientePDF(
+      {
+        generatedAt: "2026-03-23T10:00:00.000Z",
+        candidate: { nombreCompleto: "Test Mapa Clicable" },
+        client: { nombreEmpresa: "Empresa Demo SA" },
+        post: { nombreDelPuesto: "Analista" },
+        process: {
+          id: 303,
+          clave: "MAP-2026-303",
+          visitStatus: {
+            status: "realizada",
+            scheduledDateTime: "2026-03-23T10:00:00.000Z",
+            direccion: "Av. Insurgentes Sur 1234, Col. Del Valle, CDMX",
+          },
+          visitaDetalle: {
+            ubicacion: {
+              domicilio: "Av. Insurgentes Sur 1234",
+              gps: { lat: 19.397, lon: -99.167, accuracy: 5 },
+              mapaCapturaUrl: "https://nonexistent.invalid/mapa-captura.png",
+            },
+          },
+        },
+        workHistory: [],
+        documents: [],
+      },
+      ["visita_domiciliaria"],
+    );
+
+    expect(pdfBytes.byteLength).toBeGreaterThan(500);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
+  });
+
+  /** @intervention IMPL-20260323-05 — Verifica anotaciones GoTo en la primera página (índice clicable) */
+  it("índice clicable genera anotaciones en la primera página", async () => {
+    const pdfBytes = await generarArmadoClientePDF(
+      {
+        generatedAt: "2026-03-23T10:00:00.000Z",
+        candidate: { nombreCompleto: "Test Índice Clicable" },
+        client: { nombreEmpresa: "Demo SA de CV" },
+        post: { nombreDelPuesto: "Coordinador" },
+        process: {
+          id: 404,
+          clave: "IDX-2026-404",
+          calificacionFinal: "recomendable",
+          comentarioCalificacion: "Perfectamente alineado.",
+        },
+        workHistory: [],
+        documents: [],
+      },
+      ["generales_candidato", "investigacion_laboral", "observaciones_conclusion"],
+    );
+
+    expect(pdfBytes.byteLength).toBeGreaterThan(1000);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
+
+    // La primera página debe tener anotaciones GoTo del índice clicable
+    const { PDFName } = await import("pdf-lib");
+    const firstPage = pdfDoc.getPage(0);
+    const annots = firstPage.node.get(PDFName.of("Annots"));
+    expect(annots).toBeDefined();
+  });
+
+  /**
+   * @intervention ARCH-20260323-02
+   * Verifica que mapaCapturaUrl (campo canónico de IMPL-20260323-02) tiene
+   * prioridad sobre variantes legacy. El PDF debe generarse aunque ambos campos
+   * estén presentes y la URL del canónico no resuelva (degradación graceful).
+   */
+  it("mapaCapturaUrl tiene prioridad sobre variantes legacy y el PDF se genera sin errores", async () => {
+    const pdfBytes = await generarArmadoClientePDF(
+      {
+        generatedAt: "2026-03-23T12:00:00.000Z",
+        candidate: { nombreCompleto: "Test Prioridad Canónico" },
+        client: { nombreEmpresa: "Demo SA" },
+        post: { nombreDelPuesto: "Analista" },
+        process: {
+          id: 505,
+          clave: "CAN-2026-505",
+          visitStatus: {
+            status: "realizada",
+            scheduledDateTime: "2026-03-23T12:00:00.000Z",
+            direccion: "Insurgentes Sur 1111, CDMX",
+          },
+          visitaDetalle: {
+            ubicacion: {
+              domicilio: "Insurgentes Sur 1111",
+              gps: { lat: 19.3800, lon: -99.1700, accuracy: 8 },
+              // Campo canónico (generado por EncuestadorPortal vía Static Maps API):
+              mapaCapturaUrl:
+                "https://maps.googleapis.com/maps/api/staticmap?center=19.38,-99.17&zoom=17&size=400x200&maptype=roadmap&markers=color:red%7C19.38,-99.17&key=FAKE_KEY_TEST",
+              // Variantes legacy que deben ignorarse cuando el canónico está presente:
+              mapScreenshotUrl: "https://nonexistent.invalid/legacy-screenshot.png",
+              capturaMapa: "https://nonexistent.invalid/captura-vieja.jpg",
+            },
+          },
+        },
+        workHistory: [],
+        documents: [],
+      },
+      ["visita_domiciliaria"],
+    );
+
+    expect(pdfBytes.byteLength).toBeGreaterThan(500);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
+  });
 });

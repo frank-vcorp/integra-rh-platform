@@ -6,7 +6,7 @@
  * @respaldo context/armado/excel-preview.json
  */
 
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFName, PDFString } from "pdf-lib";
 import https from "node:https";
 import http from "node:http";
 import fs from "node:fs";
@@ -152,6 +152,111 @@ async function fetchMapImage(address: string): Promise<Buffer | null> {
   const url = `https://maps.googleapis.com/maps/api/staticmap?center=${encoded}&zoom=15&size=500x200&maptype=roadmap&markers=color:red%7C${encoded}&key=${apiKey}`;
   const buf = await fetchBuffer(url);
   return buf && buf.length > 1000 ? buf : null;
+}
+
+/**
+ * Construye URL de Google Maps priorizando coordenadas GPS sobre dirección de texto.
+ * @intervention IMPL-20260323-05
+ */
+function buildGoogleMapsUrl(
+  gps?: { lat?: number; lon?: number } | null,
+  address?: string | null,
+): string | null {
+  if (gps?.lat != null && gps?.lon != null) {
+    return `https://www.google.com/maps?q=${gps.lat},${gps.lon}`;
+  }
+  if (address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`;
+  }
+  return null;
+}
+
+/**
+ * Extrae la URL de captura del mapa del encuestador.
+ * `mapaCapturaUrl` es el campo canónico (IMPL-20260323-02): generado en
+ * EncuestadorPortal a partir de coordenadas GPS vía Google Static Maps API.
+ * Las variantes restantes se conservan solo por compatibilidad con registros
+ * históricos anteriores a IMPL-20260323-02.
+ * @intervention IMPL-20260323-05 / ARCH-20260323-02
+ */
+function extractMapScreenshotUrl(ubicacion: Record<string, any>): string | null {
+  const variants = [
+    "mapaCapturaUrl",   // ← canónico (IMPL-20260323-02): URL estable de Google Static Maps
+    "mapaCaptura",      // legado
+    "mapScreenshotUrl", // legado
+    "mapScreenshot",    // legado
+    "capturaMapaUrl",   // legado
+    "capturaMapa",      // legado
+  ];
+  for (const key of variants) {
+    const val = ubicacion[key];
+    if (typeof val === "string" && val.startsWith("http")) return val;
+  }
+  return null;
+}
+
+/**
+ * Agrega una anotación URI clicable (enlace externo) sobre un rectángulo de página PDF.
+ * Usa la API de anotaciones de pdf-lib 1.17.x. Falla silenciosamente.
+ * @intervention IMPL-20260323-05
+ */
+function addUriAnnotation(
+  pdfDoc: PDFDocument,
+  page: PDFPage,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  url: string,
+): void {
+  try {
+    const annotRef = pdfDoc.context.register(
+      pdfDoc.context.obj({
+        Type: PDFName.of("Annot"),
+        Subtype: PDFName.of("Link"),
+        Rect: [x, y, x + width, y + height],
+        Border: [0, 0, 0],
+        A: {
+          Type: PDFName.of("Action"),
+          S: PDFName.of("URI"),
+          URI: PDFString.of(url),
+        },
+      }),
+    );
+    page.node.addAnnot(annotRef);
+  } catch { /* fail silently — viewer sin soporte de anotaciones */ }
+}
+
+/**
+ * Agrega una anotación GoTo para navegación interna entre páginas del PDF.
+ * Al hacer click navega a targetPage con vista FitPage.
+ * @intervention IMPL-20260323-05
+ */
+function addGotoAnnotation(
+  pdfDoc: PDFDocument,
+  sourcePage: PDFPage,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  targetPage: PDFPage,
+): void {
+  try {
+    const annotRef = pdfDoc.context.register(
+      pdfDoc.context.obj({
+        Type: PDFName.of("Annot"),
+        Subtype: PDFName.of("Link"),
+        Rect: [x, y, x + width, y + height],
+        Border: [0, 0, 0],
+        A: {
+          Type: PDFName.of("Action"),
+          S: PDFName.of("GoTo"),
+          D: [targetPage.ref, PDFName.of("Fit")],
+        },
+      }),
+    );
+    sourcePage.node.addAnnot(annotRef);
+  } catch { /* fail silently */ }
 }
 
 // ── Motor de renderizado ─────────────────────────────────────────────────────
@@ -366,83 +471,83 @@ async function embedImage(ctx: Ctx, url: string, maxW = 120, maxH = 100): Promis
   }
 }
 
-// ── Generador principal ──────────────────────────────────────────────────────
+/**
+ * Dibuja evidencias gráficas en dos columnas con etiqueta debajo de cada imagen.
+ * @param ctx Contexto de renderizado PDF
+ * @param items Array de tuplas [label, url] de las imágenes a dibujar
+ * @param maxW Ancho máximo por imagen (default 220)
+ * @param maxH Alto máximo por imagen (default 130)
+ */
+async function drawImagesGrid(
+  ctx: Ctx,
+  items: Array<[string, string]>,
+  maxW = 220,
+  maxH = 130,
+): Promise<void> {
+  const gap = 10;
+  const colW = (A4_W - MARGIN_X * 2 - gap) / 2;
+  for (let i = 0; i < items.length; i += 2) {
+    const [label1, url1] = items[i];
+    const pair = items[i + 1];
+    ensureSpace(ctx, maxH + LINE_H * 2 + 10);
+    const rowY = ctx.y;
+    // Imagen izquierda
+    const buf1 = await fetchBuffer(url1);
+    let img1H = 0;
+    if (buf1 && buf1.length > 100) {
+      try {
+        const img = isPng(buf1) ? await ctx.pdfDoc.embedPng(buf1) : await ctx.pdfDoc.embedJpg(buf1);
+        const scale = Math.min(colW / img.width, maxH / img.height, 1);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.page.drawImage(img, { x: MARGIN_X, y: rowY - h, width: w, height: h });
+        img1H = h;
+      } catch { /* skip */ }
+    }
+    // Etiqueta izquierda debajo de la imagen
+    ctx.page.drawText(label1, {
+      x: MARGIN_X,
+      y: rowY - img1H - LINE_H,
+      size: 7,
+      font: ctx.fontBold,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    // Imagen derecha (si existe)
+    let img2H = 0;
+    if (pair) {
+      const [label2, url2] = pair;
+      const buf2 = await fetchBuffer(url2);
+      if (buf2 && buf2.length > 100) {
+        try {
+          const img2 = isPng(buf2) ? await ctx.pdfDoc.embedPng(buf2) : await ctx.pdfDoc.embedJpg(buf2);
+          const scale2 = Math.min(colW / img2.width, maxH / img2.height, 1);
+          const w2 = img2.width * scale2;
+          const h2 = img2.height * scale2;
+          ctx.page.drawImage(img2, { x: MARGIN_X + colW + gap, y: rowY - h2, width: w2, height: h2 });
+          img2H = h2;
+        } catch { /* skip */ }
+      }
+      // Etiqueta derecha
+      ctx.page.drawText(label2, {
+        x: MARGIN_X + colW + gap,
+        y: rowY - img2H - LINE_H,
+        size: 7,
+        font: ctx.fontBold,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+    }
+    ctx.y -= Math.max(img1H, img2H, maxH) + LINE_H + 8;
+  }
+}
 
-export async function generarEstudioSocioeconomicoPDF(
-  candidato: PdfCandidato,
-  proceso: PdfProceso,
-  detalle: Record<string, any>,
-): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const ctx = createCtx(pdfDoc, font, fontBold);
-
-  const totalIngresos = Array.isArray(detalle.ingresosArray)
-    ? detalle.ingresosArray.reduce((acc: number, item: Record<string, unknown>) => acc + Number(item.aportacionTotal ?? item.ingreso ?? 0), 0)
-    : 0;
-  const totalEgresos = detalle.egresos
-    ? Object.values(detalle.egresos as Record<string, unknown>).reduce((acc: number, item) => {
-        if (!item) return acc;
-        if (typeof item === "object") {
-          return acc + Object.values(item as Record<string, unknown>).reduce((subAcc: number, subItem) => subAcc + Number(subItem ?? 0), 0);
-        }
-        return acc + Number(item ?? 0);
-      }, 0)
-    : 0;
-  const domicilioEjecutivo = detalle.ubicacion?.domicilio || proceso.direccion || "Sin dirección registrada";
-  const fechaVisita = formatDateTime(proceso.scheduledDateTime) || "Pendiente de programación";
-
-  // ── PORTADA EJECUTIVA ───────────────────────────────────────────────────
-  ctx.page.drawRectangle({ x: 0, y: A4_H - 92, width: A4_W, height: 92, color: rgb(0.13, 0.24, 0.36) });
-  ctx.page.drawRectangle({ x: 0, y: A4_H - 98, width: A4_W, height: 6, color: rgb(0.84, 0.67, 0.29) });
-  ctx.page.drawText("ESTUDIO SOCIOECONÓMICO DOMICILIARIO", {
-    x: MARGIN_X, y: A4_H - 34, size: 15, font: fontBold, color: rgb(1, 1, 1),
-  });
-  ctx.page.drawText("Portada ejecutiva de consulta rápida", {
-    x: MARGIN_X, y: A4_H - 55, size: 9, font: fontBold, color: rgb(0.84, 0.9, 0.96),
-  });
-  ctx.page.drawText("Integra RH · Documento confidencial para revisión operativa", {
-    x: MARGIN_X, y: A4_H - 71, size: 8, font, color: rgb(0.75, 0.84, 0.92),
-  });
-
-  drawMetricCard(ctx, "Proceso", proceso.clave || `Proceso ${proceso.id}`, {
-    x: MARGIN_X,
-    y: A4_H - 175,
-    width: 155,
-    height: 58,
-    accent: [0.23, 0.51, 0.76],
-  });
-  drawMetricCard(ctx, "Fecha de visita", fechaVisita, {
-    x: MARGIN_X + 170,
-    y: A4_H - 175,
-    width: 160,
-    height: 58,
-    accent: [0.17, 0.61, 0.53],
-  });
-  drawMetricCard(ctx, "Generado", formatDateTime(new Date().toISOString()) || "", {
-    x: MARGIN_X + 345,
-    y: A4_H - 175,
-    width: 160,
-    height: 58,
-    accent: [0.84, 0.67, 0.29],
-  });
-
-  ctx.y = A4_H - 205;
-
-  sectionHeader(ctx, "RESUMEN EJECUTIVO");
-  fieldPair(ctx, "Candidato", candidato.nombreCompleto, "Teléfono", candidato.telefono);
-  fieldPair(ctx, "CURP", candidato.curp, "Último grado", detalle.academica?.ultimoGrado);
-  field(ctx, "Domicilio visitado", domicilioEjecutivo);
-  fieldPair(ctx, "Tipo de inmueble", detalle.inmueble?.tipoInmueble, "Estado vivienda", detalle.inmueble?.estadoVivienda);
-  fieldPair(ctx, "Orden y limpieza", detalle.inmueble?.ordenLimpieza, "Medio transporte", detalle.inmueble?.medioTransporte);
-  fieldPair(ctx, "Tiempo de traslado", detalle.inmueble?.tiempoTraslado, "Disponibilidad foránea", detalle.dinamicaVivienda?.rutasForaneas === undefined ? null : detalle.dinamicaVivienda?.rutasForaneas ? "Sí" : "No");
-  fieldPair(ctx, "Ingresos familiares", formatCurrency(totalIngresos), "Egresos familiares", formatCurrency(totalEgresos));
-  fieldPair(ctx, "Estado de salud", detalle.salud?.estadoSalud, "Servicio médico", detalle.salud?.servicioMedico);
-  if (proceso.observaciones) field(ctx, "Observaciones logísticas", proceso.observaciones);
-  text(ctx, "Nota: la aceptación de términos, confidencialidad y demás evidencias internas del levantamiento se resguardan en el expediente operativo y no forman parte de este PDF.", { size: 8, color: [0.35, 0.41, 0.47] });
-  divider(ctx);
-
+// ── Cuestionario completo (helper compartido) ──────────────────────────────
+/**
+ * Renderiza en el contexto PDF las secciones completas del cuestionario del
+ * encuestador (§1-§12 del estudio domiciliario). Se comparte entre el PDF
+ * interno del encuestador y el PDF cliente para evitar duplicación de lógica.
+ * @intervention IMPL-20260323-01
+ */
+async function drawCuestionarioCompleto(ctx: Ctx, detalle: Record<string, any>): Promise<void> {
   // ── §1 UBICACIÓN Y DOMICILIO ─────────────────────────────────────────────
   const ub = detalle.ubicacion ?? {};
   if (Object.keys(ub).length > 0) {
@@ -455,7 +560,34 @@ export async function generarEstudioSocioeconomicoPDF(
     field(ctx, "Domicilio", ub.domicilio);
     fieldPair(ctx, "C.P.", ub.cp, "Colonia/Municipio", ub.coloniaMunicipio);
     field(ctx, "Estado", ub.estado);
-    if (proceso.direccion) field(ctx, "Dirección programada", proceso.direccion);
+    // IMPL-20260323-05: Captura de mapa del encuestador si existe, con enlace clicable a Google Maps
+    const screenshotUrlQ = extractMapScreenshotUrl(ub);
+    if (screenshotUrlQ) {
+      const mapBufQ = await fetchBuffer(screenshotUrlQ);
+      if (mapBufQ && mapBufQ.length > 1000) {
+        try {
+          const mapImgQ = isPng(mapBufQ) ? await ctx.pdfDoc.embedPng(mapBufQ) : await ctx.pdfDoc.embedJpg(mapBufQ);
+          const mapMaxWQ = A4_W - MARGIN_X * 2;
+          const mapScaleQ = Math.min(mapMaxWQ / mapImgQ.width, 100 / mapImgQ.height, 1);
+          const mapWQ = mapImgQ.width * mapScaleQ;
+          const mapHQ = mapImgQ.height * mapScaleQ;
+          ensureSpace(ctx, mapHQ + 20);
+          ctx.y -= 4;
+          const mapImgYQ = ctx.y - mapHQ;
+          ctx.page.drawImage(mapImgQ, { x: MARGIN_X, y: mapImgYQ, width: mapWQ, height: mapHQ });
+          const mapsUrlQ = buildGoogleMapsUrl(ub.gps?.lat != null ? ub.gps : null, ub.domicilio);
+          if (mapsUrlQ) {
+            addUriAnnotation(ctx.pdfDoc, ctx.page, MARGIN_X, mapImgYQ, mapWQ, mapHQ, mapsUrlQ);
+            ctx.page.drawText("↗ Ver en Google Maps", {
+              x: MARGIN_X, y: mapImgYQ - 10, size: 7, font: ctx.font, color: rgb(0.10, 0.37, 0.75),
+            });
+            ctx.y -= mapHQ + 18;
+          } else {
+            ctx.y -= mapHQ + 8;
+          }
+        } catch { /* skip si falla la imagen del mapa */ }
+      }
+    }
   }
 
   // ── §2 INFORMACIÓN ACADÉMICA ─────────────────────────────────────────────
@@ -555,15 +687,15 @@ export async function generarEstudioSocioeconomicoPDF(
     sectionHeader(ctx, "§6  REFERENCIAS ECONÓMICAS");
     if (ingresos.length > 0) {
       text(ctx, "Ingresos familiares:", { bold: true, size: 8 });
-      let totalIngresos = 0;
+      let totalIng = 0;
       for (const ing of ingresos) {
-        const nombre = ing.nombre || "";;
+        const nombre = ing.nombre || "";
         const monto = ing.ingreso ? `$${ing.ingreso.toLocaleString("es-MX")}` : "";
-        const aporte = ing.aportacionTotal ? ` → Aportación: $${ing.aportacionTotal.toLocaleString("es-MX")}` : "";
+        const aporte = ing.aportacionTotal ? ` / Aportacion: $${ing.aportacionTotal.toLocaleString("es-MX")}` : "";
         text(ctx, `  ${nombre}${ing.parentesco ? ` (${ing.parentesco})` : ""}: ${monto}${aporte}`, { size: 8 });
-        totalIngresos += Number(ing.aportacionTotal ?? ing.ingreso ?? 0);
+        totalIng += Number(ing.aportacionTotal ?? ing.ingreso ?? 0);
       }
-      if (totalIngresos > 0) text(ctx, `  Total ingresos: $${totalIngresos.toLocaleString("es-MX")}`, { bold: true, size: 8 });
+      if (totalIng > 0) text(ctx, `  Total ingresos: $${totalIng.toLocaleString("es-MX")}`, { bold: true, size: 8 });
       ctx.y -= 4;
     }
     if (Object.keys(egresos).length > 0) {
@@ -580,13 +712,13 @@ export async function generarEstudioSocioeconomicoPDF(
         ["Recreaciones", egresos.recreaciones],
         ["Otros gastos", egresos.otrosGastos],
       ];
-      let totalEgresos = 0;
+      let totalEg = 0;
       for (const [label, val] of egMap) {
         if (!val) continue;
         text(ctx, `  ${label}: $${Number(val).toLocaleString("es-MX")}`, { size: 8 });
-        totalEgresos += Number(val);
+        totalEg += Number(val);
       }
-      if (totalEgresos > 0) text(ctx, `  Total egresos: $${totalEgresos.toLocaleString("es-MX")}`, { bold: true, size: 8 });
+      if (totalEg > 0) text(ctx, `  Total egresos: $${totalEg.toLocaleString("es-MX")}`, { bold: true, size: 8 });
     }
   }
 
@@ -621,7 +753,7 @@ export async function generarEstudioSocioeconomicoPDF(
     if (social.tatuajesPiercings !== undefined) field(ctx, "Tatuajes/Piercings", social.tatuajesPiercings ? "Sí" : "No");
   }
 
-  // ── §9 ÁREA JURÍDICA ─────────────────────────────────────────────────────
+  // ── §9 ÁREA JURÍDICA (DECLARACIÓN DEL CANDIDATO) ─────────────────────────
   const jur = detalle.juridica ?? {};
   if (Object.keys(jur).length > 0) {
     sectionHeader(ctx, "§9  ÁREA JURÍDICA");
@@ -741,7 +873,7 @@ export async function generarEstudioSocioeconomicoPDF(
   }
 
   // ── §15b REFERENCIAS PERSONALES ─────────────────────────────────────────
-  const refPer = detalle.referenciasPersonales ?? [];
+  const refPer = detalle.referenciasPersonales ?? (detalle.refPersonales ?? []);
   if (refPer.length > 0) {
     sectionHeader(ctx, "§15b  REFERENCIAS PERSONALES");
     for (const rp of refPer) {
@@ -763,71 +895,117 @@ export async function generarEstudioSocioeconomicoPDF(
   }
 
   // ── §11 FOTOGRAFÍAS DEL DOMICILIO ────────────────────────────────────────
-  const fotos = detalle.fotos ?? {};
-  const fotoEntries: [string, string][] = [
-    ["Comedor", fotos.comedor],
-    ["Cocina", fotos.cocina],
-    ["Sala", fotos.sala],
-    ["Fachada desde el patio", fotos.fachadaPatio],
-    ["Vista fachada desde la calle", fotos.fachadaCalle],
+  const fotosD = detalle.fotos ?? {};
+  const evidGrafD: string[] = Array.isArray(detalle.evidenciasGraficas)
+    ? detalle.evidenciasGraficas.filter((u: unknown) => typeof u === "string" && u.startsWith("http"))
+    : [];
+  const fotoEntriesD: [string, string][] = [
+    ["Comedor", fotosD.comedor],
+    ["Cocina", fotosD.cocina],
+    ["Sala", fotosD.sala],
+    ["Fachada desde el patio", fotosD.fachadaPatio],
+    ["Vista fachada desde la calle", fotosD.fachadaCalle],
   ].filter((e): e is [string, string] => !!e[1]);
-
-  if (fotoEntries.length > 0) {
+  const grafEntriesD: [string, string][] = evidGrafD.map((url, idx) => [`Evidencia ${idx + 1}`, url]);
+  const allImgsD = [...fotoEntriesD, ...grafEntriesD];
+  if (allImgsD.length > 0) {
     sectionHeader(ctx, "§11  FOTOGRAFÍAS DEL DOMICILIO");
-    // Embebemos en pares (2 por fila)
-    let fotoIdx = 0;
-    while (fotoIdx < fotoEntries.length) {
-      ensureSpace(ctx, 150);
-      const startY = ctx.y;
-      const f1 = fotoEntries[fotoIdx];
-      const f2 = fotoEntries[fotoIdx + 1];
-
-      // Etiqueta izquierda
-      ctx.page.drawText(f1[0], { x: MARGIN_X, y: startY, size: 7, font: ctx.fontBold, color: rgb(0.3, 0.3, 0.3) });
-      // Etiqueta derecha
-      if (f2) ctx.page.drawText(f2[0], { x: COL_RIGHT, y: startY, size: 7, font: ctx.fontBold, color: rgb(0.3, 0.3, 0.3) });
-
-      ctx.y -= LINE_H;
-
-      // Embeber imagen izquierda
-      const buf1 = await fetchBuffer(f1[1]);
-      if (buf1 && buf1.length > 100) {
-        try {
-          const img = isPng(buf1) ? await pdfDoc.embedPng(buf1) : await pdfDoc.embedJpg(buf1);
-          const maxW = 220; const maxH = 130;
-          const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-          ctx.page.drawImage(img, { x: MARGIN_X, y: ctx.y - img.height * scale, width: img.width * scale, height: img.height * scale });
-        } catch { /* skip */ }
-      }
-
-      // Embeber imagen derecha
-      if (f2) {
-        const buf2 = await fetchBuffer(f2[1]);
-        if (buf2 && buf2.length > 100) {
-          try {
-            const img2 = isPng(buf2) ? await pdfDoc.embedPng(buf2) : await pdfDoc.embedJpg(buf2);
-            const maxW = 220; const maxH = 130;
-            const scale2 = Math.min(maxW / img2.width, maxH / img2.height, 1);
-            ctx.page.drawImage(img2, { x: COL_RIGHT, y: ctx.y - img2.height * scale2, width: img2.width * scale2, height: img2.height * scale2 });
-          } catch { /* skip */ }
-        }
-      }
-
-      ctx.y -= 135;
-      fotoIdx += 2;
-    }
+    await drawImagesGrid(ctx, allImgsD);
   }
 
-  // ── §12 RESUMEN Y FIRMA ──────────────────────────────────────────────────
+  // ── §12 OBSERVACIONES DE VISITA (DEL ENCUESTADOR) ────────────────────────
   const cierre = detalle.cierre ?? {};
-  if (cierre.observaciones) {
-    sectionHeader(ctx, "§12  OBSERVACIONES DE VISITA");
-    if (cierre.observaciones) {
-      text(ctx, "Observaciones registradas en sitio:", { bold: true, size: 8 });
-      text(ctx, cierre.observaciones, { size: 8 });
-      ctx.y -= 6;
-    }
+  const conclusionDirecta = (detalle.conclusion as string) || (detalle.comentarios as string) || null;
+  const textoObservaciones = cierre.observaciones || conclusionDirecta;
+  if (textoObservaciones) {
+    sectionHeader(ctx, "§12  OBSERVACIONES DEL ENCUESTADOR");
+    text(ctx, textoObservaciones, { size: 8 });
+    ctx.y -= 6;
   }
+}
+
+// ── Generador principal ──────────────────────────────────────────────────────
+
+export async function generarEstudioSocioeconomicoPDF(
+  candidato: PdfCandidato,
+  proceso: PdfProceso,
+  detalle: Record<string, any>,
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const ctx = createCtx(pdfDoc, font, fontBold);
+
+  const totalIngresos = Array.isArray(detalle.ingresosArray)
+    ? detalle.ingresosArray.reduce((acc: number, item: Record<string, unknown>) => acc + Number(item.aportacionTotal ?? item.ingreso ?? 0), 0)
+    : 0;
+  const totalEgresos = detalle.egresos
+    ? Object.values(detalle.egresos as Record<string, unknown>).reduce((acc: number, item) => {
+        if (!item) return acc;
+        if (typeof item === "object") {
+          return acc + Object.values(item as Record<string, unknown>).reduce((subAcc: number, subItem) => subAcc + Number(subItem ?? 0), 0);
+        }
+        return acc + Number(item ?? 0);
+      }, 0)
+    : 0;
+  const domicilioEjecutivo = detalle.ubicacion?.domicilio || proceso.direccion || "Sin dirección registrada";
+  const fechaVisita = formatDateTime(proceso.scheduledDateTime) || "Pendiente de programación";
+
+  // ── PORTADA EJECUTIVA ───────────────────────────────────────────────────
+  ctx.page.drawRectangle({ x: 0, y: A4_H - 92, width: A4_W, height: 92, color: rgb(0.13, 0.24, 0.36) });
+  ctx.page.drawRectangle({ x: 0, y: A4_H - 98, width: A4_W, height: 6, color: rgb(0.84, 0.67, 0.29) });
+  ctx.page.drawText("ESTUDIO SOCIOECONÓMICO DOMICILIARIO", {
+    x: MARGIN_X, y: A4_H - 34, size: 15, font: fontBold, color: rgb(1, 1, 1),
+  });
+  ctx.page.drawText("Portada ejecutiva de consulta rápida", {
+    x: MARGIN_X, y: A4_H - 55, size: 9, font: fontBold, color: rgb(0.84, 0.9, 0.96),
+  });
+  ctx.page.drawText("Integra RH · Documento confidencial para revisión operativa", {
+    x: MARGIN_X, y: A4_H - 71, size: 8, font, color: rgb(0.75, 0.84, 0.92),
+  });
+
+  drawMetricCard(ctx, "Proceso", proceso.clave || `Proceso ${proceso.id}`, {
+    x: MARGIN_X,
+    y: A4_H - 175,
+    width: 155,
+    height: 58,
+    accent: [0.23, 0.51, 0.76],
+  });
+  drawMetricCard(ctx, "Fecha de visita", fechaVisita, {
+    x: MARGIN_X + 170,
+    y: A4_H - 175,
+    width: 160,
+    height: 58,
+    accent: [0.17, 0.61, 0.53],
+  });
+  drawMetricCard(ctx, "Generado", formatDateTime(new Date().toISOString()) || "", {
+    x: MARGIN_X + 345,
+    y: A4_H - 175,
+    width: 160,
+    height: 58,
+    accent: [0.84, 0.67, 0.29],
+  });
+
+  ctx.y = A4_H - 205;
+
+  sectionHeader(ctx, "RESUMEN EJECUTIVO");
+  fieldPair(ctx, "Candidato", candidato.nombreCompleto, "Teléfono", candidato.telefono);
+  fieldPair(ctx, "CURP", candidato.curp, "Último grado", detalle.academica?.ultimoGrado);
+  field(ctx, "Domicilio visitado", domicilioEjecutivo);
+  fieldPair(ctx, "Tipo de inmueble", detalle.inmueble?.tipoInmueble, "Estado vivienda", detalle.inmueble?.estadoVivienda);
+  fieldPair(ctx, "Orden y limpieza", detalle.inmueble?.ordenLimpieza, "Medio transporte", detalle.inmueble?.medioTransporte);
+  fieldPair(ctx, "Tiempo de traslado", detalle.inmueble?.tiempoTraslado, "Disponibilidad foránea", detalle.dinamicaVivienda?.rutasForaneas === undefined ? null : detalle.dinamicaVivienda?.rutasForaneas ? "Sí" : "No");
+  fieldPair(ctx, "Ingresos familiares", formatCurrency(totalIngresos), "Egresos familiares", formatCurrency(totalEgresos));
+  fieldPair(ctx, "Estado de salud", detalle.salud?.estadoSalud, "Servicio médico", detalle.salud?.servicioMedico);
+  if (proceso.observaciones) field(ctx, "Observaciones logísticas", proceso.observaciones);
+  text(ctx, "Nota: la aceptación de términos, confidencialidad y demás evidencias internas del levantamiento se resguardan en el expediente operativo y no forman parte de este PDF.", { size: 8, color: [0.35, 0.41, 0.47] });
+  divider(ctx);
+
+  // ── §1-§12 CUESTIONARIO COMPLETO DEL ENCUESTADOR ────────────────────────
+  // La lógica de render vive en drawCuestionarioCompleto (helper compartido).
+  await drawCuestionarioCompleto(ctx, detalle);
+  // Dato del sistema (no del formulario): dirección programada del proceso
+  if (proceso.direccion) field(ctx, "Dirección programada", proceso.direccion);
 
   // ── PIE DE PÁGINA EN CADA PÁGINA ─────────────────────────────────────────
   const pageCount = pdfDoc.getPageCount();
@@ -861,12 +1039,13 @@ function formatSectionLabel(section: string) {
   const map: Record<string, string> = {
     generales_candidato: "Generales del candidato",
     documentos: "Documentos",
-    investigacion_laboral: "Investigación laboral",
+    investigacion_laboral: "Historial laboral verificado",
     investigacion_legal: "Investigación legal",
     semanas_cotizadas: "Semanas cotizadas",
     buro_credito: "Buró de crédito",
     visita_domiciliaria: "Visita domiciliaria",
-    observaciones_conclusion: "Observaciones y conclusión",
+    captura_visita: "Cuestionario socioeconómico domiciliario",
+    observaciones_conclusion: "Conclusión del analista",
   };
   return map[section] || section;
 }
@@ -954,16 +1133,18 @@ export async function generarArmadoClientePDF(
   }
 
   // ── ÍNDICE DINÁMICO ─────────────────────────────────────────────────────
-  // @intervention IMPL-20260320-01 | Índice visual de secciones incluidas
+  // @intervention IMPL-20260323-20 | Índice visual de secciones incluidas
+  // @intervention IMPL-20260323-05 | Tracking para anotaciones GoTo clicables
   const PDF_INDEX_SECTION_LABELS: Record<string, string> = {
     generales_candidato: "Generales del candidato",
     documentos: "Documentos",
-    investigacion_laboral: "Investigación laboral",
+    investigacion_laboral: "Historial laboral verificado",
     investigacion_legal: "Investigación legal",
     semanas_cotizadas: "Semanas cotizadas",
     buro_credito: "Buró de crédito",
     visita_domiciliaria: "Visita domiciliaria",
-    observaciones_conclusion: "Observaciones y conclusión",
+    captura_visita: "Cuestionario socioeconómico domiciliario",
+    observaciones_conclusion: "Conclusión del analista",
   };
   const PDF_SECTION_ORDER = [
     "generales_candidato",
@@ -973,13 +1154,20 @@ export async function generarArmadoClientePDF(
     "semanas_cotizadas",
     "buro_credito",
     "visita_domiciliaria",
+    "captura_visita",
     "observaciones_conclusion",
   ];
   const includedSections = PDF_SECTION_ORDER.filter((s) => sections.includes(s));
+  // Tracking para anotaciones clicables del índice — se resuelven al final del render
+  type IndexAnnotEntry = { sectionKey: string; page: PDFPage; x: number; y: number; w: number; h: number };
+  type SectionTarget = { sectionKey: string; targetPage: PDFPage };
+  const indexAnnotsPending: IndexAnnotEntry[] = [];
+  const sectionPageStarts: SectionTarget[] = [];
   if (includedSections.length > 0) {
     const indexBlockH = 18 + includedSections.length * 14 + 12;
     ensureSpace(ctx, indexBlockH + 10);
     ctx.y -= 4;
+    const idxPage = ctx.page; // Página donde se dibuja el índice
     ctx.page.drawRectangle({
       x: MARGIN_X - 3,
       y: ctx.y - indexBlockH,
@@ -1022,19 +1210,23 @@ export async function generarArmadoClientePDF(
         ctx.page.drawText(".", { x: dotX, y: idxY, size: 8, font, color: rgb(0.8, 0.8, 0.8) });
         dotX += 4;
       }
+      // IMPL-20260323-05: guardar bounding box para anotación GoTo (resuelta al final)
+      indexAnnotsPending.push({
+        sectionKey: sec,
+        page: idxPage,
+        x: MARGIN_X + 6,
+        y: idxY - 2,
+        w: A4_W - MARGIN_X * 2 - 12,
+        h: 12,
+      });
       idxY -= 14;
     });
     ctx.y -= indexBlockH + 10;
   }
 
-  sectionHeader(ctx, "DATOS DEL CANDIDATO");
-  fieldPair(ctx, "Nombre", candidate.nombreCompleto, "Teléfono", candidate.telefono);
-  fieldPair(ctx, "Correo", candidate.email, "Puesto solicitado", post.nombreDelPuesto || post.nombre || null);
-  fieldPair(ctx, "Tipo de estudio", process.tipoProducto, "Fecha de reporte", generatedAt);
-  divider(ctx);
-
   if (sections.includes("generales_candidato")) {
     sectionHeader(ctx, "GENERALES DEL CANDIDATO");
+    sectionPageStarts.push({ sectionKey: "generales_candidato", targetPage: ctx.page });
     fieldPair(ctx, "Nombre completo", candidate.nombreCompleto, "Teléfono", candidate.telefono);
     fieldPair(ctx, "Correo", candidate.email, "Puesto", post.nombreDelPuesto || post.nombre || null);
     fieldPair(ctx, "CURP", generales.curp, "RFC", generales.rfc);
@@ -1053,13 +1245,13 @@ export async function generarArmadoClientePDF(
 
   if (sections.includes("documentos")) {
     sectionHeader(ctx, "DOCUMENTOS");
+    sectionPageStarts.push({ sectionKey: "documentos", targetPage: ctx.page });
     if (documents.length === 0) {
       text(ctx, "Sin documentos adjuntados.", { size: 8 });
     } else {
       for (const doc of documents) {
         ensureSpace(ctx, LINE_H * 2);
         fieldPair(ctx, "Tipo", doc.tipoDocumento, "Archivo", doc.nombreArchivo);
-        fieldPair(ctx, "Cargado por", doc.uploadedBy, "Fecha", formatDateTime(doc.createdAt));
         // Embeber imagen si el documento tiene URL y es formato de imagen
         const docUrl: string | undefined = doc.url ?? doc.downloadUrl ?? doc.fileUrl;
         if (docUrl) {
@@ -1076,6 +1268,7 @@ export async function generarArmadoClientePDF(
 
   if (sections.includes("investigacion_laboral")) {
     sectionHeader(ctx, "INVESTIGACIÓN LABORAL");
+    sectionPageStarts.push({ sectionKey: "investigacion_laboral", targetPage: ctx.page });
     field(ctx, "Resultado global", formatDictamenValue(process.investigacionLaboral?.resultado || candidate.dictamenLaboral?.resultado || null));
     field(ctx, "Observación del estatus", candidate.dictamenLaboral?.observacionResultado || null);
     field(ctx, "Detalle general", process.investigacionLaboral?.detalles || candidate.dictamenLaboral?.comentariosGenerales || null);
@@ -1094,6 +1287,7 @@ export async function generarArmadoClientePDF(
 
   if (sections.includes("investigacion_legal")) {
     sectionHeader(ctx, "INVESTIGACIÓN LEGAL");
+    sectionPageStarts.push({ sectionKey: "investigacion_legal", targetPage: ctx.page });
     field(ctx, "Antecedentes", process.investigacionLegal?.antecedentes || null);
     field(ctx, "Riesgo detectado", process.investigacionLegal?.flagRiesgo === undefined ? null : process.investigacionLegal?.flagRiesgo ? "Sí" : "No");
     field(ctx, "Notas periodísticas", process.investigacionLegal?.notasPeriodisticas || null);
@@ -1102,6 +1296,7 @@ export async function generarArmadoClientePDF(
 
   if (sections.includes("semanas_cotizadas")) {
     sectionHeader(ctx, "SEMANAS COTIZADAS");
+    sectionPageStarts.push({ sectionKey: "semanas_cotizadas", targetPage: ctx.page });
     // IMPL-20260320-01: disposición global del candidato (no de cada empleo)
     field(ctx, "Disposición IMSS (global)", candidate.dictamenLaboral?.disposicionSemanasCotizadas || null);
     field(ctx, "Motivo disposición", candidate.dictamenLaboral?.motivoDisposicion || null);
@@ -1112,6 +1307,7 @@ export async function generarArmadoClientePDF(
 
   if (sections.includes("buro_credito")) {
     sectionHeader(ctx, "BURÓ DE CRÉDITO");
+    sectionPageStarts.push({ sectionKey: "buro_credito", targetPage: ctx.page });
     fieldPair(ctx, "Estatus", process.buroCredito?.estatus || null, "Score", process.buroCredito?.score || null);
     field(ctx, "Resultado", process.buroCredito?.aprobado === undefined ? null : process.buroCredito?.aprobado ? "Aprobado" : "No aprobado");
     const adicionales = Array.isArray(process.buroCredito?.archivosAdicionales) ? process.buroCredito.archivosAdicionales.length : 0;
@@ -1120,49 +1316,70 @@ export async function generarArmadoClientePDF(
 
   if (sections.includes("visita_domiciliaria")) {
     sectionHeader(ctx, "VISITA DOMICILIARIA");
+    sectionPageStarts.push({ sectionKey: "visita_domiciliaria", targetPage: ctx.page });
     fieldPair(ctx, "Estatus", process.visitStatus?.status || process.estatusProceso || null, "Fecha", formatDateTime(process.visitStatus?.scheduledDateTime));
     const visitDir: string | null = process.visitStatus?.direccion || process.visitaDetalle?.ubicacion?.domicilio || null;
     field(ctx, "Dirección", visitDir);
-    // Mapa estático de la dirección
-    if (visitDir) {
-      const mapBuf = await fetchMapImage(visitDir);
-      if (mapBuf) {
-        try {
-          ensureSpace(ctx, 115);
-          ctx.y -= 4;
-          const mapImg = isPng(mapBuf) ? await pdfDoc.embedPng(mapBuf) : await pdfDoc.embedJpg(mapBuf);
-          const mapMaxW = A4_W - MARGIN_X * 2;
-          const mapScale = Math.min(mapMaxW / mapImg.width, 100 / mapImg.height, 1);
-          const mapW = mapImg.width * mapScale;
-          const mapH = mapImg.height * mapScale;
-          ctx.page.drawImage(mapImg, { x: MARGIN_X, y: ctx.y - mapH, width: mapW, height: mapH });
+    // IMPL-20260323-05: Mapa con soporte de captura del encuestador + enlace clicable a Google Maps
+    const visitGps = process.visitaDetalle?.ubicacion?.gps ?? null;
+    const mapsClickUrl = buildGoogleMapsUrl(visitGps, visitDir);
+    const ubicVD: Record<string, any> = process.visitaDetalle?.ubicacion ?? {};
+    const screenshotUrl = extractMapScreenshotUrl(ubicVD);
+    // Prioridad: captura del encuestador → mapa estático por API
+    let mapBuf: Buffer | null = null;
+    if (screenshotUrl) {
+      const raw = await fetchBuffer(screenshotUrl);
+      if (raw && raw.length > 1000) mapBuf = raw;
+    }
+    if (!mapBuf && visitDir) mapBuf = await fetchMapImage(visitDir);
+    if (mapBuf) {
+      try {
+        ensureSpace(ctx, 115);
+        ctx.y -= 4;
+        const mapImg = isPng(mapBuf) ? await pdfDoc.embedPng(mapBuf) : await pdfDoc.embedJpg(mapBuf);
+        const mapMaxW = A4_W - MARGIN_X * 2;
+        const mapScale = Math.min(mapMaxW / mapImg.width, 100 / mapImg.height, 1);
+        const mapW = mapImg.width * mapScale;
+        const mapH = mapImg.height * mapScale;
+        const mapImgY = ctx.y - mapH;
+        ctx.page.drawImage(mapImg, { x: MARGIN_X, y: mapImgY, width: mapW, height: mapH });
+        // Anotación URI clicable hacia Google Maps
+        if (mapsClickUrl) {
+          addUriAnnotation(pdfDoc, ctx.page, MARGIN_X, mapImgY, mapW, mapH, mapsClickUrl);
+          ctx.page.drawText("↗ Ver en Google Maps", {
+            x: MARGIN_X, y: mapImgY - 10, size: 7, font, color: rgb(0.10, 0.37, 0.75),
+          });
+          ctx.y -= mapH + 18;
+        } else {
           ctx.y -= mapH + 8;
-        } catch { /* skip si falla el mapa */ }
-      }
+        }
+      } catch { /* skip si falla el mapa */ }
     }
     field(ctx, "Observaciones logísticas", process.visitStatus?.observaciones || null);
-    field(ctx, "Observaciones de visita", process.visitaDetalle?.cierre?.observaciones || process.visitaDetalle?.comentarios || null);
-    fieldPair(ctx, "Tipo de inmueble", process.visitaDetalle?.inmueble?.tipoInmueble || null, "Estado vivienda", process.visitaDetalle?.inmueble?.estadoVivienda || null);
-    fieldPair(ctx, "Ingresos familiares", formatCurrency(Array.isArray(process.visitaDetalle?.ingresosArray)
-      ? process.visitaDetalle.ingresosArray.reduce((acc: number, item: Record<string, unknown>) => acc + Number(item.aportacionTotal ?? item.ingreso ?? 0), 0)
-      : 0), "Egresos familiares", formatCurrency(process.visitaDetalle?.egresos
-        ? Object.values(process.visitaDetalle.egresos as Record<string, unknown>).reduce((acc: number, item) => {
-            if (!item) return acc;
-            if (typeof item === "object") {
-              return acc + Object.values(item as Record<string, unknown>).reduce((subAcc: number, subItem) => subAcc + Number(subItem ?? 0), 0);
-            }
-            return acc + Number(item ?? 0);
-          }, 0)
-        : 0));
+  }
+
+  if (sections.includes("captura_visita")) {
+    // IMPL-20260323-01: Cuestionario completo del encuestador.
+    // Se reutiliza drawCuestionarioCompleto (helper compartido con generarEstudioSocioeconomicoPDF).
+    // Evita duplicación y garantiza paridad editorial entre ambos PDFs.
+    sectionHeader(ctx, "CUESTIONARIO SOCIOECONÓMICO DOMICILIARIO");
+    sectionPageStarts.push({ sectionKey: "captura_visita", targetPage: ctx.page });
+    const vd = process.visitaDetalle || {};
+    // Excluir claves de metadatos internos de captura (_*) y trazabilidad
+    const vdPublico: Record<string, any> = {};
+    for (const [k, v] of Object.entries(vd)) {
+      if (!k.startsWith("_")) vdPublico[k] = v;
+    }
+    if (Object.keys(vdPublico).length === 0) {
+      text(ctx, "Sin captura registrada para esta visita.", { size: 8, color: [0.5, 0.5, 0.5] });
+    } else {
+      await drawCuestionarioCompleto(ctx, vdPublico);
+    }
   }
 
   if (sections.includes("observaciones_conclusion")) {
     sectionHeader(ctx, "CONCLUSIÓN");
-    // Si el banner de calificación no se pintó al inicio (proceso sin calificación al generar),
-    // mostrarlo aquí como fallback
-    if (process.calificacionFinal && !sections.includes("generales_candidato") && !sections.includes("documentos")) {
-      drawCalificacionBanner(ctx, process.calificacionFinal, process.comentarioCalificacion || null);
-    }
+    sectionPageStarts.push({ sectionKey: "observaciones_conclusion", targetPage: ctx.page });
     field(ctx, "Resumen ejecutivo", process.investigacionLaboral?.iaDictamenCliente?.resumenEjecutivoCliente || null);
     if (Array.isArray(process.investigacionLaboral?.iaDictamenCliente?.recomendacionesCliente) && process.investigacionLaboral.iaDictamenCliente.recomendacionesCliente.length > 0) {
       text(ctx, "Recomendaciones:", { bold: true, size: 8 });
@@ -1173,5 +1390,12 @@ export async function generarArmadoClientePDF(
   }
 
   addPdfFooter(pdfDoc, font, folioBase);
+  // IMPL-20260323-05: Resolver anotaciones GoTo del índice ahora que se conocen las páginas destino
+  for (const pending of indexAnnotsPending) {
+    const target = sectionPageStarts.find((s) => s.sectionKey === pending.sectionKey);
+    if (target) {
+      addGotoAnnotation(pdfDoc, pending.page, pending.x, pending.y, pending.w, pending.h, target.targetPage);
+    }
+  }
   return pdfDoc.save();
 }

@@ -37,6 +37,7 @@ const ALL_SECTION_META: Record<string, SectionMeta> = {
   semanas_cotizadas: { title: "Semanas cotizadas", anchor: "sec-semanas" },
   buro_credito: { title: "Buró de crédito", anchor: "sec-buro" },
   visita_domiciliaria: { title: "Visita domiciliaria", anchor: "sec-visita" },
+  captura_visita: { title: "Formulario del encuestador", anchor: "sec-captura" },
   observaciones_conclusion: { title: "Observaciones y conclusión", anchor: "sec-conclusiones" },
 };
 
@@ -239,8 +240,6 @@ function buildDocumentos(snapshot: Record<string, any>): string {
     <tr>
       <td>${esc(doc.tipoDocumento || "—")}</td>
       <td>${esc(doc.nombreArchivo || "—")}</td>
-      <td>${esc(doc.uploadedBy || "—")}</td>
-      <td>${esc(formatDateTime(doc.createdAt))}</td>
     </tr>`,
     )
     .join("");
@@ -248,7 +247,7 @@ function buildDocumentos(snapshot: Record<string, any>): string {
   <table class="data-table">
     <thead>
       <tr>
-        <th>Tipo</th><th>Archivo</th><th>Cargado por</th><th>Fecha</th>
+        <th>Tipo</th><th>Archivo</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
@@ -403,15 +402,13 @@ function buildBuroCredito(snapshot: Record<string, any>): string {
 function buildVisitaDomiciliaria(snapshot: Record<string, any>): string {
   const process = snapshot.process || {};
   const visitStatus = process.visitStatus || {};
-  const visitaDetalle = process.visitaDetalle || {};
-  const inmueble = visitaDetalle.inmueble || {};
 
   let body = "";
 
   const fechaVisita = visitStatus.scheduledDateTime
     ? formatDateTime(visitStatus.scheduledDateTime)
     : "—";
-  const direccion = visitStatus.direccion || visitaDetalle.ubicacion?.domicilio || null;
+  const direccion = visitStatus.direccion || process.visitaDetalle?.ubicacion?.domicilio || null;
 
   body += `
   <div class="metrics-row">
@@ -421,44 +418,348 @@ function buildVisitaDomiciliaria(snapshot: Record<string, any>): string {
 
   body += field("Dirección visitada", direccion);
   body += field("Observaciones logísticas", visitStatus.observaciones || null);
-  body += field("Observaciones de visita", visitaDetalle.cierre?.observaciones || visitaDetalle.comentarios || null);
 
-  if (inmueble && Object.keys(inmueble).length > 0) {
-    body += '<div class="subsection-title">Características del inmueble</div>';
-    body += fieldPair("Tipo de inmueble", inmueble.tipoInmueble || null, "Estado de la vivienda", inmueble.estadoVivienda || null);
-    body += fieldPair("Orden y limpieza", inmueble.ordenLimpieza || null, "Medio de transporte", inmueble.medioTransporte || null);
-    body += field("Tiempo de traslado", inmueble.tiempoTraslado || null);
+  return body;
+}
+
+/**
+ * Renderiza de forma ejecutiva y legible el formulario completo capturado
+ * por el encuestador en sitio. Muestra todas las subsecciones relevantes
+ * con los datos recibidos, indicando "Sin registro" cuando aplique.
+ * @intervention IMPL-20260323-20
+ */
+function buildCapturaVisita(snapshot: Record<string, any>): string {
+  const process = snapshot.process || {};
+  const vd: Record<string, any> = process.visitaDetalle || {};
+
+  if (Object.keys(vd).filter((k) => !k.startsWith("_")).length === 0) {
+    return '<p class="empty-note">Sin captura registrada. El encuestador aún no ha enviado el formulario o no se ha sincronizado.</p>';
   }
 
-  // Resumen económico si existe la captura
-  const ingresos: any[] = Array.isArray(visitaDetalle.ingresosArray) ? visitaDetalle.ingresosArray : [];
-  const egresos = visitaDetalle.egresos || {};
-  if (ingresos.length > 0 || Object.keys(egresos).length > 0) {
-    body += '<div class="subsection-title">Resumen económico del hogar</div>';
-    const totalIngresos = ingresos.reduce(
-      (acc: number, item: any) => acc + Number(item.aportacionTotal ?? item.ingreso ?? 0),
-      0,
-    );
-    const totalEgresos = Object.values(egresos as Record<string, unknown>).reduce((acc: number, item) => {
-      if (!item) return acc;
-      if (typeof item === "object") {
-        return (
-          acc +
-          Object.values(item as Record<string, unknown>).reduce(
-            (subAcc: number, subItem) => subAcc + Number(subItem ?? 0),
-            0,
-          )
-        );
-      }
-      return acc + Number(item ?? 0);
-    }, 0);
+  let body = "";
 
-    body += fieldPair(
-      "Ingresos familiares",
-      totalIngresos > 0 ? formatCurrency(totalIngresos) : null,
-      "Egresos familiares",
-      totalEgresos > 0 ? formatCurrency(totalEgresos) : null,
-    );
+  // ── Ubicación y domicilio ──────────────────────────────────────────────
+  const ub: Record<string, any> = vd.ubicacion || {};
+  if (Object.keys(ub).length > 0) {
+    body += '<div class="subsection-title">Ubicación y domicilio</div>';
+    body += field("Domicilio", ub.domicilio);
+    body += fieldPair("C.P.", ub.cp, "Colonia / Municipio", ub.coloniaMunicipio);
+    body += field("Estado", ub.estado);
+    if (ub.gps?.lat) body += field("GPS (lat, lon)", `${ub.gps.lat.toFixed(6)}, ${ub.gps.lon.toFixed(6)}`);
+  }
+
+  // ── Información académica ───────────────────────────────────────────────
+  const ac: Record<string, any> = vd.academica || {};
+  if (Object.keys(ac).length > 0) {
+    body += '<div class="subsection-title">Información académica</div>';
+    body += fieldPair("Último grado", ac.ultimoGrado, "Institución", ac.institucion);
+    body += fieldPair("Periodo", ac.periodo, "Documento obtenido", ac.documentoObtenido);
+    if (ac.estudiaActualmente !== undefined) body += field("Estudia actualmente", ac.estudiaActualmente ? "Sí" : "No");
+    if (ac.equiposMaquinas) body += field("Equipos/Maquinaria", ac.equiposMaquinas);
+    if (ac.programas) body += field("Programas", ac.programas);
+    if (ac.otrosConocimientos) body += field("Otros conocimientos", ac.otrosConocimientos);
+  }
+
+  // ── Cotejo de documentos ───────────────────────────────────────────────
+  const docs: Record<string, any> = vd.documentos || {};
+  if (Object.keys(docs).length > 0) {
+    body += '<div class="subsection-title">Cotejo de documentos</div>';
+    const docItems: Array<[string, any]> = [
+      ["Acta de nacimiento", docs.actaNacimiento?.tiene],
+      ["Credencial de elector", docs.credencialElector?.tiene],
+      ["Comprobante de domicilio", docs.comprobanteDomicilio?.tiene],
+      ["Cartilla militar", docs.cartillaMilitar?.tiene],
+      ["Pasaporte", docs.pasaporte?.tiene],
+      ["Cartas de recomendación", docs.cartasRecomendacion?.tiene],
+      ["Licencia de conducir", docs.licenciaConducir?.tiene],
+      ["Certificado/Título", docs.certificadoTitulo?.tiene],
+    ];
+    const hasAny = docItems.some(([, v]) => v !== undefined);
+    if (hasAny) {
+      body += '<div class="field-pair">';
+      for (const [label, val] of docItems) {
+        if (val === undefined) continue;
+        const mark = val ? "✓" : "✗";
+        const color = val ? "#16a34a" : "#dc2626";
+        body += `<div class="field-row"><span class="field-label">${esc(label)}</span><span class="field-value" style="color:${color};font-weight:600">${mark} ${val ? "Presentó" : "No presentó"}</span></div>`;
+      }
+      body += "</div>";
+    }
+  }
+
+  // ── Familiares ─────────────────────────────────────────────────────────
+  const fams: any[] = Array.isArray(vd.familiares) ? vd.familiares : [];
+  const otrasPersonas: any[] = Array.isArray(vd.otrasPersonasDomicilio) ? vd.otrasPersonasDomicilio : [];
+  if (fams.length > 0 || otrasPersonas.length > 0) {
+    body += '<div class="subsection-title">Familiares y personas en el domicilio</div>';
+    if (fams.length > 0) {
+      body += `<table class="data-table"><thead><tr><th>Parentesco</th><th>Nombre</th><th>Edad</th><th>Escolaridad</th><th>Ocupación</th></tr></thead><tbody>`;
+      for (const f of fams) {
+        body += `<tr><td>${esc(f.parentesco || "—")}</td><td>${esc(f.nombre || "—")}</td><td>${esc(f.edad || "—")}</td><td>${esc(f.escolaridad || "—")}</td><td>${esc(f.ocupacion || "—")}</td></tr>`;
+      }
+      body += "</tbody></table>";
+    }
+    if (otrasPersonas.length > 0) {
+      body += '<div class="field-row" style="margin-top:8px"><span class="field-label">Otras personas en domicilio</span><span class="field-value">' + esc(String(otrasPersonas.length)) + " persona(s)" + "</span></div>";
+    }
+  }
+
+  // ── §5 Dinámica familiar ───────────────────────────────────────────────
+  const din: Record<string, any> = vd.dinamicaFamiliar || {};
+  if (Object.keys(din).length > 0) {
+    body += '<div class="subsection-title">Dinámica familiar</div>';
+    if (din.vivenSolos) body += field("¿Viven solos?", din.vivenSolos);
+    if (din.quienCuidaHijos) body += field("¿Quién cuida a los hijos?", din.quienCuidaHijos);
+    if (din.dondeViveQuienCuida) body += field("¿Dónde vive quien cuida?", din.dondeViveQuienCuida);
+    if (din.edadHijos) body += field("Edades de hijos", din.edadHijos);
+    if (din.parejaDacuerdo) body += field("Pareja de acuerdo con el trabajo", din.parejaDacuerdo);
+    if (din.esposaEmbarazada) body += field("Esposa embarazada", din.esposaEmbarazada);
+    if (din.tieneDeudas !== undefined) body += field("Tiene deudas", din.tieneDeudas ? `Sí${din.institucionDeuda ? ` — ${din.institucionDeuda}` : ""}` : "No");
+    if (din.pensionAlimenticia !== undefined) body += field("Pensión alimenticia", din.pensionAlimenticia ? "Sí" : "No");
+    if (din.trabajoEstadosUnidos !== undefined) body += field("Trabajó en EE.UU.", din.trabajoEstadosUnidos ? "Sí" : "No");
+  }
+
+  // ── Inmueble / Vivienda ────────────────────────────────────────────────
+  const inm: Record<string, any> = vd.inmueble || {};
+  if (Object.keys(inm).length > 0) {
+    body += '<div class="subsection-title">Características del inmueble</div>';
+    body += fieldPair("Tipo de inmueble", inm.tipoInmueble, "Estado de la vivienda", inm.estadoVivienda);
+    body += fieldPair("Orden y limpieza", inm.ordenLimpieza, "Zona", inm.zona);
+    body += fieldPair("Superficie", inm.superficie, "Fachada", inm.fachada);
+    body += fieldPair("Recámaras", inm.numeroRecamaras ? String(inm.numeroRecamaras) : null, "Baños", inm.numeroBanos ? String(inm.numeroBanos) : null);
+    body += fieldPair("Pisos", inm.pisos, "Niveles", inm.niveles ? String(inm.niveles) : null);
+    body += fieldPair("Paredes", inm.paredes, "Predial", inm.predial);
+    body += fieldPair("Medio de transporte", inm.medioTransporte, "Tiempo de traslado", inm.tiempoTraslado);
+    body += fieldPair("Valor aproximado", inm.valorAprox ? `$${Number(inm.valorAprox).toLocaleString("es-MX")}` : null, "Tiempo residencia actual", inm.tiempoResidenciaActual);
+    if (Array.isArray(inm.serviciosPublicos) && inm.serviciosPublicos.length > 0) {
+      body += field("Servicios públicos", inm.serviciosPublicos.join(", "));
+    }
+    const cuartos = [
+      inm.tieneSala && "Sala",
+      inm.tieneComedor && "Comedor",
+      inm.tieneCocina && "Cocina",
+      inm.tieneJardin && "Jardín",
+      inm.tienePatio && "Patio",
+      inm.tieneCochera && "Cochera",
+    ].filter(Boolean);
+    if (cuartos.length > 0) body += field("Espacios", cuartos.join(", "));
+    if (inm.estadoMuebles) body += field("Estado de muebles", inm.estadoMuebles);
+    if (inm.precioPasaje) body += field("Precio de pasaje", `$${inm.precioPasaje}`);
+  }
+
+  // ── §10 Dinámica de vivienda ───────────────────────────────────────────
+  const dv: Record<string, any> = vd.dinamicaVivienda || {};
+  if (Object.keys(dv).length > 0) {
+    body += '<div class="subsection-title">Dinámica de vivienda</div>';
+    if (dv.personasDiscapacidad !== undefined) {
+      body += field("Personas con discapacidad", dv.personasDiscapacidad ? `Sí — ${dv.discapacidadQuien || ""}${dv.discapacidadTipo ? ` (${dv.discapacidadTipo})` : ""}` : "No");
+    }
+    if (dv.numeroDependientes) body += field("N° dependientes económicos", String(dv.numeroDependientes));
+    if (dv.dependientesDetalle) body += field("Detalle dependientes", dv.dependientesDetalle);
+    if (dv.matrimoniosAnteriores !== undefined) body += field("Matrimonios anteriores", dv.matrimoniosAnteriores ? "Sí" : "No");
+    if (dv.hijosMatrimoniosAnteriores !== undefined) body += field("Hijos de relaciones anteriores", dv.hijosMatrimoniosAnteriores ? `Sí (${dv.hijosMatrimoniosCuantos || "?"})` : "No");
+    if (dv.pensionAlimenticia !== undefined) body += field("Pensión alimenticia", dv.pensionAlimenticia ? `Sí ($${dv.pensionMonto || "?"} mensuales)` : "No");
+    if (dv.quienCuidaHijos) body += field("¿Quién cuida hijos?", dv.quienCuidaHijos);
+    if (dv.quienCuidaDonde) body += field("¿Dónde vive quien cuida?", dv.quienCuidaDonde);
+    if (dv.parejaDeAcuerdo !== undefined) body += field("Pareja de acuerdo", dv.parejaDeAcuerdo ? "Sí" : "No");
+    if (dv.esposaEmbarazada !== undefined) body += field("Esposa embarazada", dv.esposaEmbarazada ? "Sí" : "No");
+    if (dv.rutasForaneas !== undefined) body += field("Disponible para rutas foráneas", dv.rutasForaneas ? "Sí" : "No");
+    if (dv.inconvenienteAusencia !== undefined) body += field("Inconveniente por ausencia", dv.inconvenienteAusencia ? "Sí" : "No");
+    if (dv.comprendActividades) body += field("Comprende las actividades del puesto", dv.comprendActividades);
+  }
+
+  // ── Patrimonio e ingresos ──────────────────────────────────────────────
+  const ingresos: any[] = Array.isArray(vd.ingresosArray) ? vd.ingresosArray : [];
+  const egresos: Record<string, any> = vd.egresos || {};
+  if (ingresos.length > 0 || Object.keys(egresos).length > 0) {
+    body += '<div class="subsection-title">Referencias económicas (ingresos y egresos)</div>';
+    if (ingresos.length > 0) {
+      let totalIng = 0;
+      body += `<table class="data-table"><thead><tr><th>Nombre</th><th>Parentesco</th><th>Ingreso</th><th>Aportación</th></tr></thead><tbody>`;
+      for (const ing of ingresos) {
+        const monto = ing.ingreso ? formatCurrency(ing.ingreso) : "—";
+        const aporte = ing.aportacionTotal ? formatCurrency(ing.aportacionTotal) : "—";
+        totalIng += Number(ing.aportacionTotal ?? ing.ingreso ?? 0);
+        body += `<tr><td>${esc(ing.nombre || "—")}</td><td>${esc(ing.parentesco || "—")}</td><td>${esc(monto)}</td><td>${esc(aporte)}</td></tr>`;
+      }
+      body += "</tbody></table>";
+      if (totalIng > 0) body += field("Total ingresos familiares", formatCurrency(totalIng));
+    }
+    if (Object.keys(egresos).length > 0) {
+      const egMap: Array<[string, number | undefined]> = [
+        ["Alimentación / Despensa", egresos.alimentacionDespensa],
+        ["Vestido / Calzado", egresos.vestidoCalzado],
+        ["Colegiaturas", egresos.colegiaturas],
+        ["Tarjetas de crédito", egresos.tarjetasCredito],
+        ["Transportación", egresos.transportacion],
+        ["Renta / Hipoteca / Infonavit", egresos.rentaHipotecaInfonavit],
+        ["Gastos médicos", egresos.gastosMedicos],
+        ["Recreaciones", egresos.recreaciones],
+        ["Otros gastos", egresos.otrosGastos],
+      ];
+      if (egresos.servicios && typeof egresos.servicios === "object") {
+        const totalServicios = Object.values(egresos.servicios as Record<string, unknown>).reduce((a, v) => a + (Number(v) || 0), 0);
+        if (totalServicios > 0) egMap.unshift(["Servicios (agua/luz/gas/tel)", totalServicios]);
+      }
+      let totalEg = 0;
+      const egRows = egMap.filter(([, v]) => v).map(([label, val]) => {
+        totalEg += Number(val);
+        return `<tr><td>${esc(label)}</td><td>${esc(formatCurrency(Number(val)))}</td></tr>`;
+      });
+      if (egRows.length > 0) {
+        body += `<table class="data-table" style="margin-top:8px"><thead><tr><th>Concepto egreso</th><th>Monto mensual</th></tr></thead><tbody>${egRows.join("")}</tbody></table>`;
+        body += field("Total egresos familiares", formatCurrency(totalEg));
+      }
+    }
+  }
+
+  // ── §13 Créditos, propiedades y patrimonio ─────────────────────────────
+  const creds: any[] = Array.isArray(vd.creditos) ? vd.creditos : [];
+  const bienes: any[] = Array.isArray(vd.bienesRaices) ? vd.bienesRaices : [];
+  const vehs: any[] = Array.isArray(vd.vehiculos) ? vd.vehiculos : [];
+  const negs: any[] = Array.isArray(vd.negocios) ? vd.negocios : [];
+  if (creds.length > 0 || bienes.length > 0 || vehs.length > 0 || negs.length > 0) {
+    body += '<div class="subsection-title">Créditos, propiedades y patrimonio</div>';
+    if (creds.length > 0) {
+      body += `<table class="data-table"><thead><tr><th>Institución</th><th>Monto</th><th>Mensualidad</th><th>Adeudo</th></tr></thead><tbody>`;
+      for (const c of creds) {
+        body += `<tr><td>${esc(c.institucion || "—")}</td><td>${esc(c.montoCredito ? `$${c.montoCredito}` : "—")}</td><td>${esc(c.mensualidad ? `$${c.mensualidad}` : "—")}</td><td>${esc(c.adeudo ? `$${c.adeudo}` : "—")}</td></tr>`;
+      }
+      body += "</tbody></table>";
+    }
+    if (bienes.length > 0) {
+      body += '<div class="field-row"><span class="field-label">Bienes raíces</span><span class="field-value">';
+      body += bienes.map((b) => `${esc(b.tipoPropiedad || "—")} — ${esc(b.ubicacion || "")} — A nombre de: ${esc(b.aNombreDe || "")}`).join("; ");
+      body += "</span></div>";
+    }
+    if (vehs.length > 0) {
+      body += '<div class="field-row"><span class="field-label">Vehículos</span><span class="field-value">';
+      body += vehs.map((v) => `${esc(v.marcaModelo || "—")} — A nombre de: ${esc(v.aNombreDe || "")}`).join("; ");
+      body += "</span></div>";
+    }
+    if (negs.length > 0) {
+      body += '<div class="field-row"><span class="field-label">Negocios</span><span class="field-value">';
+      body += negs.map((n) => `${esc(n.tipoNegocio || "—")} — ${esc(n.ubicacion || "")}`).join("; ");
+      body += "</span></div>";
+    }
+  }
+
+  // ── Salud y hábitos ────────────────────────────────────────────────────
+  const salud: Record<string, any> = vd.salud || {};
+  if (Object.keys(salud).length > 0) {
+    body += '<div class="subsection-title">Salud y hábitos</div>';
+    body += fieldPair("Estado de salud", salud.estadoSalud, "Servicio médico", salud.servicioMedico);
+    if (salud.fuma !== undefined) body += field("Fuma", salud.fuma ? `Sí (${salud.cigarrosDiarios || "?"} cigarros/día)` : "No");
+    if (salud.toma !== undefined) body += field("Consume alcohol", salud.toma ? `Sí — ${salud.tomaTipoBebida || ""} (${salud.tomaCadaCuando || ""})` : "No");
+    if (salud.drogas !== undefined) body += field("Consumo de drogas", salud.drogas ? `Sí: ${salud.drogasCuales || ""}` : "No");
+  }
+
+  // ── §8 Información social y pasatiempos ───────────────────────────────
+  const social: Record<string, any> = vd.social || {};
+  if (Object.keys(social).length > 0) {
+    body += '<div class="subsection-title">Información social y pasatiempos</div>';
+    if (social.pasatiempos) body += field("Pasatiempos", social.pasatiempos);
+    if (social.deporte !== undefined) body += field("Deporte", social.deporte ? `Sí — ${social.deporteCual || ""}${social.deporteFrecuencia ? ` (${social.deporteFrecuencia})` : ""}` : "No");
+    if (social.actividadFamiliar !== undefined) body += field("Actividad familiar", social.actividadFamiliar ? `Sí — ${social.actividadFamiliarCual || ""}${social.actividadFamiliarFrecuencia ? ` (${social.actividadFamiliarFrecuencia})` : ""}` : "No");
+    if (social.discotecas !== undefined) body += field("Antros / Discotecas", social.discotecas ? `Sí — ${social.discotecasCual || ""}${social.discotecasFrecuencia ? ` (${social.discotecasFrecuencia})` : ""}` : "No");
+    if (social.eventosReligiosos !== undefined) body += field("Eventos religiosos", social.eventosReligiosos ? `Sí (${social.eventosReligiososFrecuencia || ""})` : "No");
+    if (social.grupoDeportivo !== undefined) body += field("Grupo deportivo", social.grupoDeportivo ? `Sí — ${social.grupoDeportivoCual || ""}` : "No");
+    if (social.partidoPolitico !== undefined) body += field("Partido político", social.partidoPolitico ? `Sí — ${social.partidoPoliticoCual || ""}` : "No");
+    if (social.tatuajesPiercings !== undefined) body += field("Tatuajes / Piercings", social.tatuajesPiercings ? "Sí" : "No");
+  }
+
+  // ── §9 Área jurídica ──────────────────────────────────────────────────
+  const jur: Record<string, any> = vd.juridica || {};
+  if (Object.keys(jur).length > 0) {
+    body += '<div class="subsection-title">Área jurídica (declaración del candidato)</div>';
+    if (jur.procesoLegal !== undefined) body += field("Proceso legal", jur.procesoLegal ? `Sí — ${jur.procesoLegalPorQue || ""}${jur.procesoLegalQuien ? ` | ¿Quién?: ${jur.procesoLegalQuien}` : ""}` : "No");
+    if (jur.privadoLibertad !== undefined) body += field("Privado de libertad", jur.privadoLibertad ? `Sí — ${jur.privadoLibertadPorQue || ""}${jur.privadoLibertadQuien ? ` | ¿Quién?: ${jur.privadoLibertadQuien}` : ""}` : "No");
+    if (jur.problemasLaborales !== undefined) body += field("Problemas laborales", jur.problemasLaborales ? `Sí — ${jur.problemasLaboralesPorQue || ""}` : "No");
+    if (jur.partidoPolitico !== undefined) body += field("Afiliación política", jur.partidoPolitico ? `Sí — ${jur.partidoPoliticoCual || ""}` : "No");
+    if (jur.sindicato !== undefined) body += field("Sindicato", jur.sindicato ? `Sí — ${jur.sindicatoCual || ""}` : "No");
+    if (jur.puestosPoliticos !== undefined) body += field("Puestos políticos o sindicales", jur.puestosPoliticos ? `Sí — ${jur.puestosPoliticosCual || ""}` : "No");
+  }
+
+  // ── §16 Otros datos ────────────────────────────────────────────────────
+  const otros: Record<string, any> = vd.otrosDatos || {};
+  if (Object.keys(otros).length > 0) {
+    body += '<div class="subsection-title">Otros datos</div>';
+    if (otros.trabajoEnGrupo !== undefined) {
+      body += field("Trabajó en empresa del grupo", otros.trabajoEnGrupo ? `Sí — ${otros.trabajoEnGrupoCual || ""}${otros.trabajoEnGrupoPeriodo ? ` | Periodo: ${otros.trabajoEnGrupoPeriodo}` : ""}${otros.trabajoEnGrupoMotivoSalida ? ` | Motivo salida: ${otros.trabajoEnGrupoMotivoSalida}` : ""}` : "No");
+    }
+    if (otros.familiaresEnGrupo !== undefined) {
+      body += field("Familiares en la empresa", otros.familiaresEnGrupo ? `Sí — ${otros.familiarNombre || ""}${otros.familiarPuestoDepto ? ` — ${otros.familiarPuestoDepto}` : ""}` : "No");
+    }
+  }
+
+  // ── Referencias personales ─────────────────────────────────────────────
+  const refPer: any[] = Array.isArray(vd.referenciasPersonales) ? vd.referenciasPersonales
+    : (Array.isArray(vd.refPersonales) ? vd.refPersonales : []);
+  if (refPer.length > 0) {
+    body += `<div class="subsection-title">Referencias personales (${refPer.length})</div>`;
+    body += `<table class="data-table"><thead><tr><th>Nombre</th><th>Teléfono</th><th>Ocupación</th><th>Tiempo de conocerlo</th></tr></thead><tbody>`;
+    for (const rp of refPer) {
+      body += `<tr><td>${esc(rp.nombre || "—")}</td><td>${esc(rp.telefono || "—")}</td><td>${esc(rp.ocupacion || "—")}</td><td>${esc(rp.tiempoDeConocerlo || "—")}</td></tr>`;
+    }
+    body += "</tbody></table>";
+  }
+
+  // ── Referencias vecinales ──────────────────────────────────────────────
+  const refVec: any[] = Array.isArray(vd.referenciasVecinales) ? vd.referenciasVecinales
+    : (Array.isArray(vd.refVecinales) ? vd.refVecinales : []);
+  if (refVec.length > 0) {
+    body += `<div class="subsection-title">Referencias vecinales (${refVec.length})</div>`;
+    body += `<table class="data-table"><thead><tr><th>Nombre</th><th>Teléfono</th><th>Ocupación</th><th>Tiempo de conocerlo</th></tr></thead><tbody>`;
+    for (const rv of refVec) {
+      body += `<tr><td>${esc(rv.nombre || "—")}</td><td>${esc(rv.telefono || "—")}</td><td>${esc(rv.ocupacion || "—")}</td><td>${esc(rv.tiempoDeConocerlo || "—")}</td></tr>`;
+    }
+    body += "</tbody></table>";
+  }
+
+  // ── Conclusión del encuestador ─────────────────────────────────────────
+  const conclusion = (vd.conclusion as string) || null;
+  const comentarios = (vd.comentarios as string) || null;
+  const cierreObs = (vd.cierre as Record<string, any>)?.observaciones || null;
+  if (conclusion || comentarios || cierreObs) {
+    body += '<div class="subsection-title">Conclusión del encuestador</div>';
+    const texto = cierreObs || conclusion || comentarios || "";
+    body += `<div class="narrative-block">${esc(texto)}</div>`;
+  }
+
+  // ── Evidencias gráficas — solo URLs (HTML no incrusta imágenes externas seguras) ─
+  const fotos: Record<string, string> = vd.fotos || {};
+  const fotoEntries: Array<[string, string]> = [
+    ["Comedor", fotos.comedor],
+    ["Cocina", fotos.cocina],
+    ["Sala", fotos.sala],
+    ["Fachada - patio", fotos.fachadaPatio],
+    ["Fachada - calle", fotos.fachadaCalle],
+  ].filter((e): e is [string, string] => typeof e[1] === "string" && e[1].startsWith("http"));
+
+  const evidGraf: string[] = Array.isArray(vd.evidenciasGraficas)
+    ? vd.evidenciasGraficas.filter((u: unknown) => typeof u === "string" && (u as string).startsWith("http"))
+    : [];
+  const grafEntries: Array<[string, string]> = evidGraf.map((url, idx) => [`Evidencia ${idx + 1}`, url]);
+  const allImgs = [...fotoEntries, ...grafEntries];
+
+  if (allImgs.length > 0) {
+    body += `<div class="subsection-title">Evidencias gráficas (${allImgs.length} imagen${allImgs.length !== 1 ? "es" : ""})</div>`;
+    body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">`;
+    for (const [label, url] of allImgs) {
+      body += `<div style="text-align:center">
+        <img src="${esc(url)}" alt="${esc(label)}"
+          style="max-width:100%;max-height:220px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"
+          onerror="this.style.display='none'" />
+        <div style="font-size:11px;color:#64748b;margin-top:4px;font-weight:600">${esc(label)}</div>
+      </div>`;
+    }
+    body += "</div>";
+  } else {
+    body += field("Evidencias gráficas", "Sin imágenes adjuntas");
+  }
+
+  if (!body.trim()) {
+    body = '<p class="empty-note">Sin información detallada capturada por el encuestador.</p>';
   }
 
   return body;
@@ -466,22 +767,11 @@ function buildVisitaDomiciliaria(snapshot: Record<string, any>): string {
 
 function buildObservacionesConclusion(snapshot: Record<string, any>): string {
   const process = snapshot.process || {};
+  const cal = process.calificacionFinal || null;
   const inv = process.investigacionLaboral || {};
   const iaDictamen = inv.iaDictamenCliente || {};
-  const cal = process.calificacionFinal || null;
-  const comentarioCal = process.comentarioCalificacion || null;
 
   let body = "";
-
-  if (cal && cal !== "pendiente") {
-    const calColors = calificacionColors(cal);
-    body += `
-    <div class="cal-banner" style="background:${calColors.bg};border-color:${calColors.border};border-left:6px solid ${calColors.accent}">
-      <div class="cal-label">DICTAMEN FINAL</div>
-      <div class="cal-value" style="color:${calColors.text};font-size:20px">${esc(CALIFICACION_LABELS[cal] || cal)}</div>
-      ${comentarioCal ? `<div class="cal-comment">${esc(comentarioCal)}</div>` : ""}
-    </div>`;
-  }
 
   if (iaDictamen.resumenEjecutivoCliente) {
     body += '<div class="subsection-title">Resumen ejecutivo</div>';
@@ -1100,6 +1390,7 @@ export async function renderArmadoHtml(
     "semanas_cotizadas",
     "buro_credito",
     "visita_domiciliaria",
+    "captura_visita",
     "observaciones_conclusion",
   ];
 
@@ -1148,12 +1439,8 @@ export async function renderArmadoHtml(
   const execHtml = `
   <div class="exec-summary" id="exec-summary">
     <div class="exec-summary-title">Resumen ejecutivo</div>
-    <div class="exec-row"><span class="exec-key">Candidato</span><span class="exec-val">${candidateName}</span></div>
-    ${clientName ? `<div class="exec-row"><span class="exec-key">Empresa cliente</span><span class="exec-val">${clientName}</span></div>` : ""}
-    <div class="exec-row"><span class="exec-key">Puesto solicitado</span><span class="exec-val">${postName}</span></div>
     <div class="exec-row"><span class="exec-key">Tipo de estudio</span><span class="exec-val">${esc(process.tipoProducto || "—")}</span></div>
     ${perfil.escolaridad ? `<div class="exec-row"><span class="exec-key">Escolaridad</span><span class="exec-val">${esc(perfil.escolaridad)}</span></div>` : ""}
-    ${calLabel ? `<div class="exec-row"><span class="exec-key">Dictamen final</span><span class="exec-val" style="font-weight:700;color:${calColors.accent}">${esc(calLabel)}</span></div>` : ""}
     <div class="exec-row">
       <span class="exec-key">Secciones incluidas</span>
       <span class="exec-val">${selectedOrdered.map((k) => esc(ALL_SECTION_META[k]?.title || k)).join(" · ") || "—"}</span>
@@ -1170,6 +1457,7 @@ export async function renderArmadoHtml(
     semanas_cotizadas: () => buildSemanasWotizadas(snapshot),
     buro_credito: () => buildBuroCredito(snapshot),
     visita_domiciliaria: () => buildVisitaDomiciliaria(snapshot),
+    captura_visita: () => buildCapturaVisita(snapshot),
     observaciones_conclusion: () => buildObservacionesConclusion(snapshot),
   };
 
@@ -1211,11 +1499,9 @@ export async function renderArmadoHtml(
       <span class="footer-brand">Sinergia RH</span>
       &nbsp;·&nbsp;
       Folio: ${esc(folio)}
-      &nbsp;·&nbsp;
-      Generado: ${generatedAt}
     </div>
     <div>
-      <span class="footer-confidential">CONFIDENCIAL — USO INTERNO</span>
+      <span class="footer-confidential">DOCUMENTO CONFIDENCIAL</span>
     </div>
   </footer>
 </div>

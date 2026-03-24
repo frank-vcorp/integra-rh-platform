@@ -102,6 +102,7 @@ const reportSectionValues = [
   "semanas_cotizadas",
   "buro_credito",
   "visita_domiciliaria",
+  "captura_visita",
   "observaciones_conclusion",
 ] as const;
 

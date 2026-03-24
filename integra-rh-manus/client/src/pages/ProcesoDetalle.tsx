@@ -42,7 +42,8 @@ const ARMADOS_SECTION_OPTIONS = [
   { value: "investigacion_legal", label: "Investigación legal", description: "Hallazgos legales, notas periodísticas y antecedentes." },
   { value: "semanas_cotizadas", label: "Semanas cotizadas", description: "Cotejo IMSS y evidencias relacionadas." },
   { value: "buro_credito", label: "Buró de crédito", description: "Reporte y archivos adicionales del buró." },
-  { value: "visita_domiciliaria", label: "Visita domiciliaria", description: "Captura del encuestador y resumen interno de visita." },
+  { value: "visita_domiciliaria", label: "Visita domiciliaria", description: "Resumen operativo de la visita programada y datos del inmueble." },
+  { value: "captura_visita", label: "Formulario del encuestador", description: "Cuestionario completo capturado por el encuestador en sitio: académica, familiares, vivienda, salud, referencias y evidencias." },
   { value: "observaciones_conclusion", label: "Observaciones y conclusión", description: "Calificación final y cierre ejecutivo del proceso." },
 ] as const;
 
@@ -686,6 +687,7 @@ export default function ProcesoDetalle() {
     "semanas_cotizadas",
     "buro_credito",
     "visita_domiciliaria",
+    "captura_visita",
     "observaciones_conclusion",
   ]);
   const [panelForm, setPanelForm] = useState({

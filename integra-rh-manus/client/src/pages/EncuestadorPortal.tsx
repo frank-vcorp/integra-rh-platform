@@ -13,6 +13,7 @@ import { Input as BaseInput } from "@/components/ui/input";
 import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { MapPicker } from "@/components/MapPicker";
 
 // ──────────────────────────────────────────────
 // IndexedDB helpers
@@ -870,6 +871,14 @@ export default function EncuestadorPortal() {
                 const gps = await captureGPS();
                 if (gps) {
                   update("ubicacion.gps", { ...gps, locked: true });
+                  // IMPL-20260323-02: URL canónica de Static Maps para el PDF (campo mapaCapturaUrl)
+                  const _apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+                  if (_apiKey) {
+                    update(
+                      "ubicacion.mapaCapturaUrl",
+                      `https://maps.googleapis.com/maps/api/staticmap?center=${gps.lat},${gps.lon}&zoom=17&size=400x200&maptype=roadmap&markers=color:red%7C${gps.lat},${gps.lon}&key=${_apiKey}`,
+                    );
+                  }
                 } else {
                   alert("⚠️ No se pudo obtener el GPS. Continúa sin él.");
                 }
@@ -885,6 +894,42 @@ export default function EncuestadorPortal() {
             ) : (
               <p className="text-xs text-amber-600">⚠️ Sin GPS</p>
             )}
+            {/* Mapa interactivo: confirmar / ajustar el punto GPS — IMPL-20260323-01 */}
+            <MapPicker
+              value={
+                val("ubicacion.gps.lat")
+                  ? { lat: Number(val("ubicacion.gps.lat")), lng: Number(val("ubicacion.gps.lon")) }
+                  : null
+              }
+              onChange={(coords) => {
+                if (coords) {
+                  update("ubicacion.gps", {
+                    lat: coords.lat,
+                    lon: coords.lng,
+                    accuracy: Number(val("ubicacion.gps.accuracy")) || 0,
+                    locked: true,
+                  });
+                  // IMPL-20260323-02: Persistir URL canónica de Static Maps → PDF usa este campo sin heurísticas
+                  const _apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+                  if (_apiKey) {
+                    update(
+                      "ubicacion.mapaCapturaUrl",
+                      `https://maps.googleapis.com/maps/api/staticmap?center=${coords.lat},${coords.lng}&zoom=17&size=400x200&maptype=roadmap&markers=color:red%7C${coords.lat},${coords.lng}&key=${_apiKey}`,
+                    );
+                  }
+                } else {
+                  // Limpieza del mapa: borrar también el campo canónico
+                  update("ubicacion.mapaCapturaUrl", null);
+                }
+              }}
+              address={[
+                val("ubicacion.domicilio"),
+                val("ubicacion.coloniaMunicipio"),
+                val("ubicacion.estado"),
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            />
             <Field label="DOMICILIO (CALLE Y ENTRE CALLES)">
               <Textarea
                 value={val("ubicacion.domicilio")}
