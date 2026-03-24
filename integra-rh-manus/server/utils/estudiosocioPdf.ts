@@ -39,6 +39,16 @@ const pdfCalificacionLabels: Record<string, string> = {
   con_reservas_con_observacion: "Con Reservas con Observación",
 };
 
+/**
+ * @intervention FIX-20260323-02
+ * @respaldo context/interconsultas/DICTAMEN_FIX-20260323-02.md
+ */
+const pdfAsciiSafeLabels = {
+  googleMapsLink: "-> Ver en Google Maps",
+  checked: "[X]",
+  unchecked: "[ ]",
+} as const;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Descarga una URL y devuelve el Buffer. Soporta http/https. */
@@ -578,7 +588,7 @@ async function drawCuestionarioCompleto(ctx: Ctx, detalle: Record<string, any>):
           const mapsUrlQ = buildGoogleMapsUrl(ub.gps?.lat != null ? ub.gps : null, ub.domicilio);
           if (mapsUrlQ) {
             addUriAnnotation(ctx.pdfDoc, ctx.page, MARGIN_X, mapImgYQ, mapWQ, mapHQ, mapsUrlQ);
-            ctx.page.drawText("↗ Ver en Google Maps", {
+            ctx.page.drawText(pdfAsciiSafeLabels.googleMapsLink, {
               x: MARGIN_X, y: mapImgYQ - 10, size: 7, font: ctx.font, color: rgb(0.10, 0.37, 0.75),
             });
             ctx.y -= mapHQ + 18;
@@ -630,7 +640,7 @@ async function drawCuestionarioCompleto(ctx: Ctx, detalle: Record<string, any>):
     for (const [label, val] of docMap) {
       if (val === undefined) continue;
       const x = col === 0 ? MARGIN_X : COL_RIGHT;
-      const mark = val ? "☑" : "☐";
+      const mark = val ? pdfAsciiSafeLabels.checked : pdfAsciiSafeLabels.unchecked;
       ctx.page.drawText(`${mark} ${label}`, { x, y: rowStartY, size: 8, font: ctx.font, color: rgb(0,0,0) });
       if (col === 1) { rowStartY -= LINE_H; col = 0; } else { col = 1; }
     }
@@ -1346,7 +1356,7 @@ export async function generarArmadoClientePDF(
         // Anotación URI clicable hacia Google Maps
         if (mapsClickUrl) {
           addUriAnnotation(pdfDoc, ctx.page, MARGIN_X, mapImgY, mapW, mapH, mapsClickUrl);
-          ctx.page.drawText("↗ Ver en Google Maps", {
+          ctx.page.drawText(pdfAsciiSafeLabels.googleMapsLink, {
             x: MARGIN_X, y: mapImgY - 10, size: 7, font, color: rgb(0.10, 0.37, 0.75),
           });
           ctx.y -= mapH + 18;

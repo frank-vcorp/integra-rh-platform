@@ -173,6 +173,57 @@ describe("generarArmadoClientePDF", () => {
     expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
   });
 
+  /**
+   * @intervention FIX-20260323-02
+   * @respaldo context/interconsultas/DICTAMEN_FIX-20260323-02.md
+   */
+  it("renderiza cotejo documental y enlace de Google Maps con literales ASCII seguros", async () => {
+    const pdfBytes = await generarArmadoClientePDF(
+      {
+        generatedAt: "2026-03-23T16:00:00.000Z",
+        candidate: { nombreCompleto: "Proceso 82 En Memoria" },
+        client: { nombreEmpresa: "Cliente Proceso 82" },
+        post: { nombreDelPuesto: "Inspector de Campo" },
+        process: {
+          id: 82,
+          clave: "ESE-2026-082",
+          tipoProducto: "VISITA LOCAL",
+          estatusProceso: "visita_realizada",
+          visitStatus: {
+            status: "realizada",
+            scheduledDateTime: "2026-03-23T16:00:00.000Z",
+            direccion: "Av. Reforma 100, CDMX",
+          },
+          visitaDetalle: {
+            ubicacion: {
+              domicilio: "Av. Reforma 100",
+              gps: { lat: 19.4326, lon: -99.1332, accuracy: 7 },
+            },
+            documentos: {
+              actaNacimiento: { tiene: "si" },
+              credencialElector: { tiene: "si" },
+              comprobanteDomicilio: { tiene: "no", nombreTitular: "Ana Pérez" },
+              cartillaMilitar: { tiene: "no" },
+              pasaporte: { tiene: "si" },
+              visaAmericana: { tiene: "no" },
+              cartasRecomendacion: { tiene: "si" },
+              licenciaConducir: { tiene: "si" },
+              certificadoTitulo: { tiene: "si" },
+            },
+          },
+        },
+        workHistory: [],
+        documents: [],
+      },
+      ["visita_domiciliaria", "captura_visita"],
+    );
+
+    expect(pdfBytes.byteLength).toBeGreaterThan(1000);
+
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    expect(pdfDoc.getPageCount()).toBeGreaterThan(0);
+  });
+
   /** IMPL-20260323-20: verifica que la sección captura_visita renderiza correctamente */
   it("renderiza sección captura_visita con datos del formulario del encuestador", async () => {
     const pdfBytes = await generarArmadoClientePDF(

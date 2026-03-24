@@ -5,17 +5,18 @@
  */
 
 import type { JSX } from "react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, Clock3, Code2, ExternalLink, FileImage, History, LayoutList, PencilLine } from "lucide-react";
+import { CheckCircle2, Clock3, Code2, ExternalLink, FileImage, History, LayoutList, PencilLine, ZoomIn } from "lucide-react";
 
 type Primitive = string | number | boolean | null | undefined;
 
@@ -124,12 +125,28 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function isUrl(value: string) {
+function isUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
-function isImageUrl(value: string) {
-  return /\.(png|jpe?g|webp|gif)$/i.test(value);
+/** Detecta extensión de imagen ignorando query-params y encoding (ej. Firebase Storage URLs). */
+function isImageUrl(value: string): boolean {
+  const path = value.split("?")[0].split("#")[0];
+  try {
+    return /\.(png|jpe?g|webp|gif|svg)$/i.test(decodeURIComponent(path));
+  } catch {
+    return /\.(png|jpe?g|webp|gif|svg)$/i.test(path);
+  }
+}
+
+/** Detecta data URLs de imagen (ej. data:image/png;base64,...). */
+function isImageDataUrl(value: string): boolean {
+  return /^data:image\//i.test(value);
+}
+
+/** True si el string es una imagen (URL HTTP o data URL base64). */
+function isImageSrc(value: string): boolean {
+  return isImageDataUrl(value) || (isUrl(value) && isImageUrl(value));
 }
 
 function formatPrimitive(value: Primitive) {
@@ -138,15 +155,58 @@ function formatPrimitive(value: Primitive) {
   return String(value);
 }
 
-function renderPrimitiveValue(value: Primitive) {
+/**
+ * Miniatura clicable para imágenes. onImageClick recibe la src; el label se inyecta desde el contexto padre.
+ * @intervention IMPL-20260323-21
+ */
+function ImageThumbnail({ src, label, onClick }: { src: string; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative overflow-hidden rounded border border-slate-200 bg-slate-50 hover:border-blue-400 transition-colors cursor-zoom-in"
+      title={`Ampliar: ${label || "imagen"}`}
+    >
+      <img
+        src={src}
+        alt={label || "Imagen"}
+        className="h-20 w-28 object-cover group-hover:opacity-90 transition-opacity"
+      />
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 transition-opacity">
+        <ZoomIn className="h-5 w-5 text-white drop-shadow" />
+      </div>
+    </button>
+  );
+}
+
+function renderPrimitiveValue(value: Primitive, onImageClick?: (src: string) => void): JSX.Element {
   if (typeof value === "boolean") {
     return <Badge variant="outline">{value ? "Sí" : "No"}</Badge>;
+  }
+
+  if (typeof value === "string" && isImageSrc(value)) {
+    if (onImageClick) {
+      return (
+        <ImageThumbnail
+          src={value}
+          label={isImageDataUrl(value) ? "imagen base64" : value}
+          onClick={() => onImageClick(value)}
+        />
+      );
+    }
+    // Sin callback: link de respaldo
+    return (
+      <a href={value} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-700 underline break-all">
+        <FileImage className="h-4 w-4" />
+        {isImageDataUrl(value) ? "[imagen base64]" : value}
+      </a>
+    );
   }
 
   if (typeof value === "string" && isUrl(value)) {
     return (
       <a href={value} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-700 underline break-all">
-        {isImageUrl(value) ? <FileImage className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
+        <ExternalLink className="h-4 w-4" />
         {value}
       </a>
     );
@@ -155,12 +215,23 @@ function renderPrimitiveValue(value: Primitive) {
   return <span className="text-sm text-slate-800 whitespace-pre-wrap break-words">{formatPrimitive(value)}</span>;
 }
 
-function renderNode(label: string, value: unknown, path: string, depth = 0): JSX.Element {
+function renderNode(
+  label: string,
+  value: unknown,
+  path: string,
+  onImageClick?: (src: string, label: string) => void,
+  depth = 0
+): JSX.Element {
   if (isPrimitive(value)) {
     return (
       <div key={path} className="space-y-1 rounded-md border bg-white p-3">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-        <div>{renderPrimitiveValue(value)}</div>
+        <div>
+          {renderPrimitiveValue(
+            value,
+            onImageClick ? (src) => onImageClick(src, label) : undefined
+          )}
+        </div>
       </div>
     );
   }
@@ -177,13 +248,39 @@ function renderNode(label: string, value: unknown, path: string, depth = 0): JSX
 
     const allPrimitive = value.every((item) => isPrimitive(item));
     if (allPrimitive) {
+      // Si todos los items son imágenes, renderizar grilla de miniaturas
+      const allImages = !!onImageClick && value.every((item) => typeof item === "string" && isImageSrc(item));
+      if (allImages) {
+        return (
+          <div key={path} className="space-y-2 rounded-md border bg-white p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {value.map((item, index) => {
+                const imgLabel = `${label} ${index + 1}`;
+                return (
+                  <ImageThumbnail
+                    key={`${path}.${index}`}
+                    src={item as string}
+                    label={imgLabel}
+                    onClick={() => onImageClick!(item as string, imgLabel)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div key={path} className="space-y-2 rounded-md border bg-white p-3">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
           <div className="flex flex-col gap-2">
             {value.map((item, index) => (
               <div key={`${path}.${index}`} className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-2">
-                {renderPrimitiveValue(item as Primitive)}
+                {renderPrimitiveValue(
+                  item as Primitive,
+                  onImageClick ? (src) => onImageClick(src, `${label} ${index + 1}`) : undefined
+                )}
               </div>
             ))}
           </div>
@@ -203,9 +300,9 @@ function renderNode(label: string, value: unknown, path: string, depth = 0): JSX
               <CardContent className="grid gap-3 md:grid-cols-2">
                 {isPlainObject(item)
                   ? Object.entries(item).map(([childKey, childValue]) =>
-                      renderNode(humanizeKey(childKey), childValue, `${path}.${index}.${childKey}`, depth + 1)
+                      renderNode(humanizeKey(childKey), childValue, `${path}.${index}.${childKey}`, onImageClick, depth + 1)
                     )
-                  : renderNode(`${humanizeKey(label)} ${index + 1}`, item, `${path}.${index}`, depth + 1)}
+                  : renderNode(`${humanizeKey(label)} ${index + 1}`, item, `${path}.${index}`, onImageClick, depth + 1)}
               </CardContent>
             </Card>
           ))}
@@ -231,7 +328,7 @@ function renderNode(label: string, value: unknown, path: string, depth = 0): JSX
           <CardTitle className={depth === 0 ? "text-base text-slate-900" : "text-sm text-slate-800"}>{label}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
-          {entries.map(([childKey, childValue]) => renderNode(humanizeKey(childKey), childValue, `${path}.${childKey}`, depth + 1))}
+          {entries.map(([childKey, childValue]) => renderNode(humanizeKey(childKey), childValue, `${path}.${childKey}`, onImageClick, depth + 1))}
         </CardContent>
       </Card>
     );
@@ -301,6 +398,13 @@ export function VisitCapturePanel({
   onSave,
   auditEntries = [],
 }: VisitCapturePanelProps) {
+  // ── Estado lightbox de imágenes ──────────────────────────────────────
+  const [lightbox, setLightbox] = useState<{ open: boolean; src: string; label: string }>({ open: false, src: "", label: "" });
+
+  const handleImageClick = useCallback((src: string, label: string) => {
+    setLightbox({ open: true, src, label });
+  }, []);
+
   // ── Estado del editor JSON (fallback de soporte) ─────────────────────
   const [editorText, setEditorText] = useState("");
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -370,6 +474,7 @@ export function VisitCapturePanel({
   };
 
   return (
+    <>
     <Tabs defaultValue="vista" className="w-full">
       {/* Pestañas disponibles según rol */}
       <TabsList className={canEdit ? "grid w-full grid-cols-4" : "grid w-full grid-cols-1"}>
@@ -412,7 +517,7 @@ export function VisitCapturePanel({
         ) : (
           <ScrollArea className="h-[58vh] pr-3">
             <div className="space-y-4">
-              {topLevelEntries.map(([sectionKey, sectionValue]) => renderNode(humanizeKey(sectionKey), sectionValue, sectionKey))}
+              {topLevelEntries.map(([sectionKey, sectionValue]) => renderNode(humanizeKey(sectionKey), sectionValue, sectionKey, handleImageClick))}
             </div>
           </ScrollArea>
         )}
@@ -648,5 +753,44 @@ export function VisitCapturePanel({
         </TabsContent>
       )}
     </Tabs>
+
+      {/* ── LIGHTBOX de imágenes ──────────────────────────────────────── */}
+      <Dialog open={lightbox.open} onOpenChange={(open) => setLightbox((prev) => ({ ...prev, open }))}>
+        <DialogContent
+          className="max-w-3xl p-2 gap-2"
+          aria-describedby="visit-lightbox-desc"
+        >
+          <DialogHeader className="px-4 pt-4 pb-1">
+            <DialogTitle className="text-sm truncate">
+              {lightbox.label || "Imagen"}
+            </DialogTitle>
+          </DialogHeader>
+          <p id="visit-lightbox-desc" className="sr-only">Visor ampliado de imagen de la visita de campo</p>
+          <div className="flex items-center justify-center bg-slate-100 rounded overflow-hidden" style={{ minHeight: "12rem", maxHeight: "72vh" }}>
+            {lightbox.src && (
+              <img
+                src={lightbox.src}
+                alt={lightbox.label || "Imagen ampliada"}
+                className="max-w-full object-contain"
+                style={{ maxHeight: "72vh" }}
+              />
+            )}
+          </div>
+          {lightbox.src && isUrl(lightbox.src) && !isImageDataUrl(lightbox.src) && (
+            <div className="flex justify-end px-2 pb-2">
+              <a
+                href={lightbox.src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-700 underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Abrir en nueva pestaña
+              </a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
