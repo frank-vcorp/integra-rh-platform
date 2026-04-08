@@ -518,6 +518,33 @@ export default function ProcesoDetalle() {
     if (!process?.clienteId) return;
 
     const existingToken = (activeTokens as any[])[0]?.token;
+
+  /**
+   * Prioriza el motivo de salida como referencia operativa rápida en la tarjeta interna del proceso.
+   * @intervention ARCH-20260408-09
+   * @respaldo PROYECTO.md
+   */
+  const getInternalWorkHistorySummary = (item: any) => {
+    const motivoSalida =
+      item.causalSalidaRH ||
+      item.causalSalidaJefeInmediato ||
+      item.investigacionDetalle?.incidencias?.motivoSeparacionEmpresa ||
+      item.investigacionDetalle?.incidencias?.motivoSeparacionCandidato;
+
+    if (motivoSalida) {
+      return {
+        label: "Motivo de salida",
+        value: motivoSalida,
+      };
+    }
+
+    const fechaInicio = item.fechaInicio || "-";
+    const fechaFin = item.fechaFin || "Actual";
+    return {
+      label: "Periodo",
+      value: `${fechaInicio} - ${fechaFin}`,
+    };
+  };
     const dashboardUrl = existingToken
       ? `${window.location.origin}/cliente/${existingToken}`
       : (
@@ -1179,6 +1206,10 @@ export default function ProcesoDetalle() {
                         <div className="space-y-3">
                             {workHistory.map((wh: any) => (
                             <div key={wh.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                {(() => {
+                                  const summary = getInternalWorkHistorySummary(wh);
+                                  return (
+                                    <>
                                 <div className="flex justify-between items-start mb-1">
                                 <span className="font-medium text-xs text-gray-900 line-clamp-1" title={wh.empresa}>
                                     {wh.empresa}
@@ -1187,9 +1218,15 @@ export default function ProcesoDetalle() {
                                     {(wh.resultadoVerificacion || 'PENDIENTE').substring(0, 10)}
                                 </Badge>
                                 </div>
-                                <div className="text-[10px] text-gray-600">
-                                {wh.fechaInicio} - {wh.fechaFin}
+                                <div className="text-[10px] text-gray-500 uppercase tracking-wide">
+                                {summary.label}
                                 </div>
+                                <div className="text-[10px] text-gray-700 line-clamp-2" title={summary.value}>
+                                {summary.value}
+                                </div>
+                                    </>
+                                  );
+                                })()}
                             </div>
                             ))}
                         </div>
