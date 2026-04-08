@@ -7,7 +7,7 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
-import { storage as firebaseStorage } from "../firebase";
+import { storage as firebaseStorage, refreshStorageUrl } from "../firebase";
 
 export const documentsRouter = router({
   getByCandidate: protectedProcedure
@@ -29,7 +29,13 @@ export const documentsRouter = router({
         const process = await db.getProcessById(input.procesoId);
         if (process?.clienteId !== ctx.user!.clientId) return [];
       }
-      return db.getDocumentsByProcess(input.procesoId);
+      const docs = await db.getDocumentsByProcess(input.procesoId);
+      return Promise.all(
+        docs.map(async (doc: any) => ({
+          ...doc,
+          url: doc.url ? await refreshStorageUrl(doc.url, doc.fileKey) : doc.url,
+        }))
+      );
     }),
 
   create: adminProcedure

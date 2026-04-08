@@ -1,7 +1,7 @@
 import { router, publicProcedure, protectedProcedure, adminProcedure, hasPermission, requirePermission } from "../_core/trpc";
 import { z } from "zod";
 import * as db from "../db";
-import { storage as firebaseStorage } from "../firebase";
+import { storage as firebaseStorage, refreshStorageUrl, refreshStorageUrls } from "../firebase";
 import { TRPCError } from "@trpc/server";
 import { logAuditEvent } from "../_core/audit";
 import { invokeLLM } from "../_core/llm";
@@ -13,6 +13,40 @@ import { generarArmadoClientePDF } from "../utils/estudiosocioPdf";
 /** IMPL-20260320-15: blindado operaciones de Storage (getPublishedReportAccess, getReportVersionAccess, createLegacyReportDraft, generarDictamen) */
 import { surveyorTokens, auditLogs, users } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
+
+/**
+ * Refresca las URLs embebidas de Storage en el payload del proceso antes de entregarlo al frontend.
+ * @intervention IMPL-20260408-07
+ * @respaldo PROYECTO.md
+ */
+async function refreshProcessEmbeddedUrls(p: any): Promise<void> {
+  if (!p) return;
+  const inv = p.investigacionLegal;
+  if (inv) {
+    if (inv.archivoAdjuntoUrl) inv.archivoAdjuntoUrl = await refreshStorageUrl(inv.archivoAdjuntoUrl);
+    if (inv.evidenciaImgUrl) inv.evidenciaImgUrl = await refreshStorageUrl(inv.evidenciaImgUrl);
+    if (Array.isArray(inv.evidenciasGraficas) && inv.evidenciasGraficas.length > 0)
+      inv.evidenciasGraficas = await refreshStorageUrls(inv.evidenciasGraficas);
+  }
+  const sem = p.semanasDetalle;
+  if (sem && Array.isArray(sem.evidenciasGraficas) && sem.evidenciasGraficas.length > 0)
+    sem.evidenciasGraficas = await refreshStorageUrls(sem.evidenciasGraficas);
+  const ant = p.antecedentesPenales;
+  if (ant && Array.isArray(ant.evidenciasGraficas) && ant.evidenciasGraficas.length > 0)
+    ant.evidenciasGraficas = await refreshStorageUrls(ant.evidenciasGraficas);
+  const buro = p.buroCredito;
+  if (buro) {
+    if (buro.pdfUrl) buro.pdfUrl = await refreshStorageUrl(buro.pdfUrl);
+    if (Array.isArray(buro.archivosAdicionales) && buro.archivosAdicionales.length > 0)
+      buro.archivosAdicionales = await refreshStorageUrls(buro.archivosAdicionales);
+  }
+  const vis = p.visitaDetalle;
+  if (vis) {
+    if (vis.enlaceReporteUrl) vis.enlaceReporteUrl = await refreshStorageUrl(vis.enlaceReporteUrl);
+    if (Array.isArray(vis.evidenciasGraficas) && vis.evidenciasGraficas.length > 0)
+      vis.evidenciasGraficas = await refreshStorageUrls(vis.evidenciasGraficas);
+  }
+}
 
 function assertCanEditProcess(ctx: any, proc: any) {
   if (!ctx.user) {
@@ -189,6 +223,7 @@ export const processesRouter = router({
       if (ctx.user.role === "client" && process?.clienteId !== ctx.user.clientId) {
         return null;
       }
+      await refreshProcessEmbeddedUrls(process);
       return process;
     }),
 
