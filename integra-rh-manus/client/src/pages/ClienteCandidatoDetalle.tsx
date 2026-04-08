@@ -55,12 +55,18 @@ function resolverPeriodoVerificado(job: any, fmt: (v?: string | null) => string)
 
 /**
  * IMPL-20260408-01 | Resuelve el tiempo trabajado verificado para el portal cliente.
- * Precedencia: 1) tiempoTrabajadoEmpresa, 2) antiguedadTexto de periodo, 3) tiempoTrabajado, 4) cálculo.
+ * Precedencia: 1) tiempoTrabajadoEmpresa, 2) antiguedadTexto de periodo,
+ * 3) cálculo con fechaIngreso-fechaSalida validadas por RH, 4) tiempoTrabajado declarado,
+ * 5) cálculo sobre fechas declaradas.
  */
 function resolverTiempoVerificado(job: any, calcFn: (fi?: string, ff?: string) => string): string {
+  const fechaIngresoRh = (job.investigacionDetalle as any)?.periodo?.fechaIngreso;
+  const fechaSalidaRh = (job.investigacionDetalle as any)?.periodo?.fechaSalida;
+
   return (
     job.tiempoTrabajadoEmpresa ||
     (job.investigacionDetalle as any)?.periodo?.antiguedadTexto ||
+    calcFn(fechaIngresoRh ?? undefined, fechaSalidaRh ?? undefined) ||
     job.tiempoTrabajado ||
     calcFn(job.fechaInicio ?? undefined, job.fechaFin ?? undefined) ||
     "S/D"
