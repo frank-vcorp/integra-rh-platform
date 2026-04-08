@@ -229,22 +229,58 @@ export default function ClienteProcesoDetalle() {
       })
     : null;
 
-  // IMPL-20260408-01: recolectar evidencias embebidas en los campos del proceso
-  type EvidenceItem = { label: string; url: string };
-  const embeddedEvidences: EvidenceItem[] = [];
-  const invLegal = (process as any)?.investigacionLegal;
-  if (invLegal?.archivoAdjuntoUrl) embeddedEvidences.push({ label: 'Archivo Adjunto Legal', url: invLegal.archivoAdjuntoUrl });
-  (invLegal?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia Gráfica Legal ${i + 1}`, url }); });
-  const semanas = (process as any)?.semanasDetalle;
-  (semanas?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia IMSS/Semanas ${i + 1}`, url }); });
-  const antPenales = (process as any)?.antecedentesPenales;
-  (antPenales?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia Antecedentes Penales ${i + 1}`, url }); });
-  const buro = (process as any)?.buroCredito;
-  if (buro?.pdfUrl) embeddedEvidences.push({ label: 'PDF Buró de Crédito', url: buro.pdfUrl });
-  (buro?.archivosAdicionales || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Archivo Adicional Buró ${i + 1}`, url }); });
-  const visitDet = (process as any)?.visitaDetalle;
-  if (visitDet?.enlaceReporteUrl) embeddedEvidences.push({ label: 'Enlace Reporte Visita', url: visitDet.enlaceReporteUrl });
-  (visitDet?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia Gráfica Visita ${i + 1}`, url }); });
+  // IMPL-20260408-06: secciones documentales del proceso agrupadas por fuente (reemplaza lista plana)
+  type DocItem = {
+    label: string;
+    url: string;
+    kind: 'auto' | 'image' | 'file';
+  };
+
+  type DocSection = {
+    key: string;
+    label: string;
+    icon: JSX.Element;
+    notes?: string;
+    items: DocItem[];
+  };
+  const docSections: DocSection[] = [];
+
+  const _invLegal = (process as any)?.investigacionLegal;
+  const _invLegalItems: DocItem[] = [];
+  if (_invLegal?.archivoAdjuntoUrl) _invLegalItems.push({ label: 'Archivo adjunto legal', url: _invLegal.archivoAdjuntoUrl, kind: 'auto' });
+  if (_invLegal?.evidenciaImgUrl) _invLegalItems.push({ label: 'Imagen legal', url: _invLegal.evidenciaImgUrl, kind: 'image' });
+  (_invLegal?.evidenciasGraficas || []).forEach((u: string, i: number) => { if (u) _invLegalItems.push({ label: `Evidencia gráfica ${i + 1}`, url: u, kind: 'image' }); });
+  const _invLegalNotes: string | undefined = [_invLegal?.notasPeriodisticas, _invLegal?.observacionesImss].filter(Boolean).join('\n\n') || undefined;
+  if (_invLegalItems.length > 0 || _invLegalNotes)
+    docSections.push({ key: 'invLegal', label: 'Investigación Legal', icon: <Landmark className="h-4 w-4 text-indigo-500" />, notes: _invLegalNotes, items: _invLegalItems });
+
+  const _semanas = (process as any)?.semanasDetalle;
+  const _semanasItems: DocItem[] = [];
+  (_semanas?.evidenciasGraficas || []).forEach((u: string, i: number) => { if (u) _semanasItems.push({ label: `Evidencia IMSS/Semanas ${i + 1}`, url: u, kind: 'image' }); });
+  const _semanasNotes: string | undefined = _semanas?.comentario || undefined;
+  if (_semanasItems.length > 0 || _semanasNotes)
+    docSections.push({ key: 'semanas', label: 'Semanas Cotizadas', icon: <Calendar className="h-4 w-4 text-blue-500" />, notes: _semanasNotes, items: _semanasItems });
+
+  const _antPenales = (process as any)?.antecedentesPenales;
+  const _antPenalesItems: DocItem[] = [];
+  (_antPenales?.evidenciasGraficas || []).forEach((u: string, i: number) => { if (u) _antPenalesItems.push({ label: `Evidencia Antecedentes ${i + 1}`, url: u, kind: 'image' }); });
+  const _antPenalesNotes: string | undefined = _antPenales?.comentarios || undefined;
+  if (_antPenalesItems.length > 0 || _antPenalesNotes)
+    docSections.push({ key: 'antPenales', label: 'Antecedentes Penales', icon: <Shield className="h-4 w-4 text-red-500" />, notes: _antPenalesNotes, items: _antPenalesItems });
+
+  const _buro = (process as any)?.buroCredito;
+  const _buroItems: DocItem[] = [];
+  if (_buro?.pdfUrl) _buroItems.push({ label: 'PDF Buró de Crédito', url: _buro.pdfUrl, kind: 'file' });
+  (_buro?.archivosAdicionales || []).forEach((u: string, i: number) => { if (u) _buroItems.push({ label: `Archivo adicional Buró ${i + 1}`, url: u, kind: 'auto' }); });
+  if (_buroItems.length > 0)
+    docSections.push({ key: 'buro', label: 'Buró de Crédito', icon: <FileText className="h-4 w-4 text-amber-500" />, items: _buroItems });
+
+  const _visitDet = (process as any)?.visitaDetalle;
+  const _visitDetItems: DocItem[] = [];
+  if (_visitDet?.enlaceReporteUrl) _visitDetItems.push({ label: 'Reporte de visita', url: _visitDet.enlaceReporteUrl, kind: 'file' });
+  (_visitDet?.evidenciasGraficas || []).forEach((u: string, i: number) => { if (u) _visitDetItems.push({ label: `Evidencia Visita ${i + 1}`, url: u, kind: 'image' }); });
+  if (_visitDetItems.length > 0)
+    docSections.push({ key: 'visita', label: 'Visita Domiciliaria', icon: <Home className="h-4 w-4 text-emerald-500" />, items: _visitDetItems });
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -582,48 +618,59 @@ export default function ClienteProcesoDetalle() {
                    </CardContent>
                  </Card>
 
-                 {/* Evidencias embebidas en los campos del proceso */}
-                 {embeddedEvidences.length > 0 ? (
-                   <Card className="shadow-sm">
+                 {/* Secciones documentales por fuente — IMPL-20260408-06 */}
+                 {docSections.map((section) => (
+                   <Card key={section.key} className="shadow-sm">
                      <CardHeader className="bg-gray-50/50 border-b pb-3">
-                       <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                         <ImageIcon className="h-5 w-5 text-gray-500" /> Evidencias e Imágenes
-                       </CardTitle>
-                     </CardHeader>
-                     <CardContent className="pt-4">
-                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                         {embeddedEvidences.map((ev, idx) =>
-                           isImageUrl(ev.url) ? (
-                             <a key={idx} href={ev.url} target="_blank" rel="noopener noreferrer"
-                               className="group block rounded-md overflow-hidden border bg-gray-50 hover:border-blue-300 transition-colors">
-                               <img
-                                 src={ev.url}
-                                 alt={ev.label}
-                                 className="w-full h-28 object-cover"
-                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                               />
-                               <div className="px-2 py-1.5">
-                                 <p className="text-xs text-gray-600 truncate group-hover:text-blue-600">{ev.label}</p>
-                               </div>
-                             </a>
-                           ) : (
-                             <a key={idx} href={ev.url} target="_blank" rel="noopener noreferrer"
-                               className="flex items-start gap-2 p-3 rounded-md border bg-gray-50 hover:border-blue-300 hover:bg-blue-50 transition-colors">
-                               <Paperclip className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
-                               <p className="text-xs text-gray-700 truncate">{ev.label}</p>
-                             </a>
-                           )
+                       <div className="flex items-center justify-between">
+                         <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                           {section.icon} {section.label}
+                         </CardTitle>
+                         {section.items.length > 0 && (
+                           <Badge variant="secondary" className="text-xs">{section.items.length}</Badge>
                          )}
                        </div>
+                     </CardHeader>
+                     <CardContent className="pt-4 space-y-3">
+                       {section.notes && (
+                         <p className="text-sm text-gray-600 bg-gray-50 rounded-md p-3 border whitespace-pre-wrap">{section.notes}</p>
+                       )}
+                       {section.items.length > 0 ? (
+                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                           {section.items.map((ev, idx) =>
+                             (ev.kind === 'image' || (ev.kind === 'auto' && isImageUrl(ev.url))) ? (
+                               <a key={idx} href={ev.url} target="_blank" rel="noopener noreferrer"
+                                 className="group block rounded-md overflow-hidden border bg-gray-50 hover:border-blue-300 transition-colors">
+                                 <img
+                                   src={ev.url}
+                                   alt={ev.label}
+                                   className="w-full h-28 object-cover"
+                                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                 />
+                                 <div className="px-2 py-1.5">
+                                   <p className="text-xs text-gray-600 truncate group-hover:text-blue-600">{ev.label}</p>
+                                 </div>
+                               </a>
+                             ) : (
+                               <a key={idx} href={ev.url} target="_blank" rel="noopener noreferrer"
+                                 className="flex items-start gap-2 p-3 rounded-md border bg-gray-50 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                                 <Paperclip className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
+                                 <p className="text-xs text-gray-700 truncate">{ev.label}</p>
+                               </a>
+                             )
+                           )}
+                         </div>
+                       ) : (
+                         section.notes && <p className="text-xs text-gray-400 italic mt-1">Solo notas en esta sección, sin archivos adjuntos.</p>
+                       )}
                      </CardContent>
                    </Card>
-                 ) : (
-                   processDocs.length === 0 && (
-                     <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
-                       <Paperclip className="h-10 w-10 opacity-30" />
-                       <p className="text-sm">Aún no hay evidencias ni documentos registrados en este proceso.</p>
-                     </div>
-                   )
+                 ))}
+                 {docSections.length === 0 && processDocs.length === 0 && (
+                   <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+                     <Paperclip className="h-10 w-10 opacity-30" />
+                     <p className="text-sm">Aún no hay evidencias ni documentos registrados en este proceso.</p>
+                   </div>
                  )}
                </TabsContent>
 

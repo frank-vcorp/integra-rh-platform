@@ -97,3 +97,85 @@ if (!admin.apps.length) {
 export const auth = admin.auth();
 export const db = admin.firestore(); // Exportamos firestore por si lo necesitamos en el futuro
 export const storage = admin.storage(); // Exportamos storage por si lo necesitamos en el futuro
+
+/**
+ * IMPL-20260408-06
+ * Respaldo: PROYECTO.md
+ * Refrescador de URLs de Firebase Storage para documentos y evidencias legacy.
+ */
+
+type StorageLocation = {
+  bucketName: string;
+  objectPath: string;
+};
+
+/**
+ * Extrae el object path de una URL de Firebase/GCS Storage.
+ * Retorna null si la URL no corresponde a storage de GCS/Firebase.
+ */
+function extractStorageLocation(url: string): StorageLocation | null {
+  try {
+    // Formato 1: https://storage.googleapis.com/<bucket>/<path>?...
+    const gcMatch = url.match(/https:\/\/storage\.googleapis\.com\/([^/]+)\/([^?]+)/);
+    if (gcMatch) {
+      return { bucketName: gcMatch[1], objectPath: gcMatch[2] };
+    }
+
+    // Formato 2: https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<encodedPath>?...
+    const fbMatch = url.match(/https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/([^/]+)\/o\/([^?]+)/);
+    if (fbMatch) {
+      return { bucketName: fbMatch[1], objectPath: decodeURIComponent(fbMatch[2]) };
+    }
+  } catch { /* URL malformada */ }
+  return null;
+}
+
+function isSameProjectBucket(currentBucketName: string, candidateBucketName: string): boolean {
+  if (currentBucketName === candidateBucketName) return true;
+  return currentBucketName.split(".")[0] === candidateBucketName.split(".")[0];
+}
+
+/**
+ * Refresca una URL de Firebase Storage generando una signed URL de lectura (15 min).
+ * - Prioriza fileKey para regenerar directamente desde el bucket activo.
+ * - Si solo hay URL legacy, intenta extraer el object path del patrón GCS/Firebase.
+ * - Si no puede regenerar (CDN externo, error de credenciales), conserva la URL original.
+ * @intervention IMPL-20260408-06
+ */
+export async function refreshStorageUrl(
+  url: string | null | undefined,
+  fileKey?: string | null,
+): Promise<string> {
+  if (!url && !fileKey) return url ?? '';
+  try {
+    const bucket = storage.bucket();
+    const storageLocation = !fileKey && url ? extractStorageLocation(url) : null;
+    if (storageLocation && !isSameProjectBucket(bucket.name, storageLocation.bucketName)) {
+      return url ?? '';
+    }
+
+    const objectPath = fileKey ?? storageLocation?.objectPath ?? null;
+    if (!objectPath) return url ?? '';
+
+    const [signedUrl] = await bucket.file(objectPath).getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000,
+    });
+    return signedUrl;
+  } catch (err) {
+    console.warn('[refreshStorageUrl] No se pudo regenerar URL, usando original:', (err as Error).message);
+    return url ?? '';
+  }
+}
+
+/**
+ * Refresca un arreglo de URLs de storage (filtra falsy, retorna strings).
+ * @intervention IMPL-20260408-06
+ */
+export async function refreshStorageUrls(urls: (string | null | undefined)[]): Promise<string[]> {
+  return Promise.all(
+    urls
+      .filter((u): u is string => Boolean(u))
+      .map((u) => refreshStorageUrl(u)),
+  );
+}

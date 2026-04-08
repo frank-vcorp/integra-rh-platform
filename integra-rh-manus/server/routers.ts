@@ -7,6 +7,7 @@ import * as db from "./db";
 import { TRPCError } from "@trpc/server";
 import * as psicometricas from "./integrations/psicometricas";
 import * as sendgrid from "./integrations/sendgrid";
+import { refreshStorageUrl, refreshStorageUrls } from "./firebase";
 
 // ============================================================================
 // HELPER: Admin-only procedure
@@ -29,6 +30,42 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 const clientProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
+
+/**
+ * IMPL-20260408-06
+ * Respaldo: PROYECTO.md
+ * Refresca las URLs embebidas de Storage en el payload del proceso antes de entregarlo al frontend.
+ */
+async function refreshProcessEmbeddedUrls(p: any): Promise<void> {
+  if (!p) return;
+  const inv = p.investigacionLegal;
+  if (inv) {
+    if (inv.archivoAdjuntoUrl) inv.archivoAdjuntoUrl = await refreshStorageUrl(inv.archivoAdjuntoUrl);
+    if (inv.evidenciaImgUrl) inv.evidenciaImgUrl = await refreshStorageUrl(inv.evidenciaImgUrl);
+    if (Array.isArray(inv.evidenciasGraficas) && inv.evidenciasGraficas.length > 0)
+      inv.evidenciasGraficas = await refreshStorageUrls(inv.evidenciasGraficas);
+  }
+  const sem = p.semanasDetalle;
+  if (sem && Array.isArray(sem.evidenciasGraficas) && sem.evidenciasGraficas.length > 0)
+    sem.evidenciasGraficas = await refreshStorageUrls(sem.evidenciasGraficas);
+
+  const ant = p.antecedentesPenales;
+  if (ant && Array.isArray(ant.evidenciasGraficas) && ant.evidenciasGraficas.length > 0)
+    ant.evidenciasGraficas = await refreshStorageUrls(ant.evidenciasGraficas);
+
+  const buro = p.buroCredito;
+  if (buro) {
+    if (buro.pdfUrl) buro.pdfUrl = await refreshStorageUrl(buro.pdfUrl);
+    if (Array.isArray(buro.archivosAdicionales) && buro.archivosAdicionales.length > 0)
+      buro.archivosAdicionales = await refreshStorageUrls(buro.archivosAdicionales);
+  }
+  const vis = p.visitaDetalle;
+  if (vis) {
+    if (vis.enlaceReporteUrl) vis.enlaceReporteUrl = await refreshStorageUrl(vis.enlaceReporteUrl);
+    if (Array.isArray(vis.evidenciasGraficas) && vis.evidenciasGraficas.length > 0)
+      vis.evidenciasGraficas = await refreshStorageUrls(vis.evidenciasGraficas);
+  }
+}
 
 // ============================================================================
 // ROUTERS
@@ -353,11 +390,14 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
         const process = await db.getProcessById(input.id);
-        
+
         if (ctx.user.role === 'client' && process?.clienteId !== ctx.user.clientId) {
           throw new TRPCError({ code: 'FORBIDDEN' });
         }
-        
+
+        if (!process) return process;
+        // IMPL-20260408-06: refrescar URLs embebidas en campos del proceso
+        await refreshProcessEmbeddedUrls(process);
         return process;
       }),
 
@@ -620,7 +660,14 @@ export const appRouter = router({
             throw new TRPCError({ code: 'FORBIDDEN' });
           }
         }
-        return db.getDocumentsByProcess(input.procesoId);
+        const docs = await db.getDocumentsByProcess(input.procesoId);
+        // IMPL-20260408-06: refrescar URLs usando fileKey cuando esté disponible
+        return Promise.all(
+          docs.map(async (doc) => ({
+            ...doc,
+            url: await refreshStorageUrl(doc.url, doc.fileKey),
+          })),
+        );
       }),
 
     create: adminProcedure
