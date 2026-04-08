@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { VisitCapturePanel } from "@/components/VisitCapturePanel";
-import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck, Sparkles, CheckCircle2, Clock, AlertTriangle, Download, ExternalLink } from "lucide-react";
+import { ArrowLeft, FileText, User, Briefcase, Calendar, Award, Shield, Landmark, Home, UserCheck, Sparkles, CheckCircle2, Clock, AlertTriangle, Download, ExternalLink, Paperclip, ImageIcon } from "lucide-react";
 import { useParams, Link } from "wouter";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { Loader2 } from "lucide-react";
@@ -21,6 +21,20 @@ import { useState } from "react";
  * @intervention ARCH-20260320-01
  * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
  */
+
+/** Detecta si una URL apunta a una imagen por extensión. @intervention IMPL-20260408-01 */
+function isImageUrl(url: string): boolean {
+  return /\.(jpe?g|png|gif|webp|svg)(\?.*)?$/i.test(url);
+}
+
+/** Formatea bytes a unidad legible. @intervention IMPL-20260408-01 */
+function formatBytes(bytes?: number | null): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
 export default function ClienteProcesoDetalle() {
   const params = useParams();
   const procesoId = parseInt(params.id || "0");
@@ -43,6 +57,11 @@ export default function ClienteProcesoDetalle() {
       }
     },
   });
+  // IMPL-20260408-01: documentos del expediente en solo lectura
+  const { data: processDocs = [] } = trpc.documents.getByProcess.useQuery(
+    { procesoId },
+    { enabled: Number.isFinite(procesoId) && procesoId > 0 }
+  );
   // Obtener puesto desde la lista
   const { data: allPosts = [] } = trpc.posts.list.useQuery();
   const post = allPosts.find((p: { id: number }) => p.id === process?.puestoId);
@@ -210,6 +229,23 @@ export default function ClienteProcesoDetalle() {
       })
     : null;
 
+  // IMPL-20260408-01: recolectar evidencias embebidas en los campos del proceso
+  type EvidenceItem = { label: string; url: string };
+  const embeddedEvidences: EvidenceItem[] = [];
+  const invLegal = (process as any)?.investigacionLegal;
+  if (invLegal?.archivoAdjuntoUrl) embeddedEvidences.push({ label: 'Archivo Adjunto Legal', url: invLegal.archivoAdjuntoUrl });
+  (invLegal?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia Gráfica Legal ${i + 1}`, url }); });
+  const semanas = (process as any)?.semanasDetalle;
+  (semanas?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia IMSS/Semanas ${i + 1}`, url }); });
+  const antPenales = (process as any)?.antecedentesPenales;
+  (antPenales?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia Antecedentes Penales ${i + 1}`, url }); });
+  const buro = (process as any)?.buroCredito;
+  if (buro?.pdfUrl) embeddedEvidences.push({ label: 'PDF Buró de Crédito', url: buro.pdfUrl });
+  (buro?.archivosAdicionales || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Archivo Adicional Buró ${i + 1}`, url }); });
+  const visitDet = (process as any)?.visitaDetalle;
+  if (visitDet?.enlaceReporteUrl) embeddedEvidences.push({ label: 'Enlace Reporte Visita', url: visitDet.enlaceReporteUrl });
+  (visitDet?.evidenciasGraficas || []).forEach((url: string, i: number) => { if (url) embeddedEvidences.push({ label: `Evidencia Gráfica Visita ${i + 1}`, url }); });
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       {/* Header Compacto */}
@@ -353,12 +389,15 @@ export default function ClienteProcesoDetalle() {
           <div className="lg:col-span-8 space-y-6">
             
             <Tabs defaultValue="resultados" className="w-full">
-               <TabsList className="w-full h-12 p-1 bg-white border shadow-sm rounded-lg grid grid-cols-2 mb-6">
+               <TabsList className="w-full h-12 p-1 bg-white border shadow-sm rounded-lg grid grid-cols-3 mb-6">
                  <TabsTrigger value="resultados" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                   <CheckCircle2 className="h-4 w-4 mr-2" /> Resultados de Investigación
+                   <CheckCircle2 className="h-4 w-4 mr-2" /> Resultados
+                 </TabsTrigger>
+                 <TabsTrigger value="documentos" className="data-[state=active]:bg-slate-50 data-[state=active]:text-slate-700">
+                   <Paperclip className="h-4 w-4 mr-2" /> Documentos
                  </TabsTrigger>
                  <TabsTrigger value="inteligencia" disabled={!puedeVerIa} className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 disabled:opacity-50">
-                   <Sparkles className="h-4 w-4 mr-2" /> Inteligencia Artificial
+                   <Sparkles className="h-4 w-4 mr-2" /> Inteligencia IA
                  </TabsTrigger>
                </TabsList>
 
@@ -498,6 +537,94 @@ export default function ClienteProcesoDetalle() {
                       );
                    })}
                  </div>
+               </TabsContent>
+
+               {/* TAB: DOCUMENTOS — IMPL-20260408-01 */}
+               <TabsContent value="documentos" className="space-y-6">
+                 {/* Documentos del expediente (BD) */}
+                 <Card className="shadow-sm">
+                   <CardHeader className="bg-gray-50/50 border-b pb-3">
+                     <div className="flex items-center justify-between">
+                       <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                         <Paperclip className="h-5 w-5 text-gray-500" /> Documentos del Expediente
+                       </CardTitle>
+                       {processDocs.length > 0 && (
+                         <Badge variant="secondary">{processDocs.length}</Badge>
+                       )}
+                     </div>
+                   </CardHeader>
+                   <CardContent className="pt-4">
+                     {processDocs.length === 0 ? (
+                       <p className="text-sm text-gray-400 text-center py-6">No hay documentos adjuntos al expediente en este momento.</p>
+                     ) : (
+                       <ul className="divide-y divide-gray-100">
+                         {processDocs.map((doc) => (
+                           <li key={doc.id} className="flex items-center justify-between py-3 gap-3">
+                             <div className="flex items-center gap-3 min-w-0">
+                               <FileText className="h-5 w-5 shrink-0 text-blue-400" />
+                               <div className="min-w-0">
+                                 <p className="text-sm font-medium text-gray-900 truncate">{doc.nombreArchivo}</p>
+                                 <p className="text-xs text-gray-400">
+                                   {doc.tipoDocumento}{doc.tamanio ? ` · ${formatBytes(doc.tamanio)}` : ''}
+                                   {doc.uploadedBy ? ` · ${doc.uploadedBy}` : ''}
+                                 </p>
+                               </div>
+                             </div>
+                             <a href={doc.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                               <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-blue-600">
+                                 <Download className="h-4 w-4" />
+                               </Button>
+                             </a>
+                           </li>
+                         ))}
+                       </ul>
+                     )}
+                   </CardContent>
+                 </Card>
+
+                 {/* Evidencias embebidas en los campos del proceso */}
+                 {embeddedEvidences.length > 0 ? (
+                   <Card className="shadow-sm">
+                     <CardHeader className="bg-gray-50/50 border-b pb-3">
+                       <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                         <ImageIcon className="h-5 w-5 text-gray-500" /> Evidencias e Imágenes
+                       </CardTitle>
+                     </CardHeader>
+                     <CardContent className="pt-4">
+                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                         {embeddedEvidences.map((ev, idx) =>
+                           isImageUrl(ev.url) ? (
+                             <a key={idx} href={ev.url} target="_blank" rel="noopener noreferrer"
+                               className="group block rounded-md overflow-hidden border bg-gray-50 hover:border-blue-300 transition-colors">
+                               <img
+                                 src={ev.url}
+                                 alt={ev.label}
+                                 className="w-full h-28 object-cover"
+                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                               />
+                               <div className="px-2 py-1.5">
+                                 <p className="text-xs text-gray-600 truncate group-hover:text-blue-600">{ev.label}</p>
+                               </div>
+                             </a>
+                           ) : (
+                             <a key={idx} href={ev.url} target="_blank" rel="noopener noreferrer"
+                               className="flex items-start gap-2 p-3 rounded-md border bg-gray-50 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                               <Paperclip className="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
+                               <p className="text-xs text-gray-700 truncate">{ev.label}</p>
+                             </a>
+                           )
+                         )}
+                       </div>
+                     </CardContent>
+                   </Card>
+                 ) : (
+                   processDocs.length === 0 && (
+                     <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+                       <Paperclip className="h-10 w-10 opacity-30" />
+                       <p className="text-sm">Aún no hay evidencias ni documentos registrados en este proceso.</p>
+                     </div>
+                   )
+                 )}
                </TabsContent>
 
                {/* TAB: INTELIGENCIA ARTIFICIAL */}

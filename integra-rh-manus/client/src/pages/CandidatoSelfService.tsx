@@ -1,3 +1,9 @@
+/**
+ * Ajustes del historial laboral en self service para no autollenar ni exponer tiempo trabajado.
+ * @intervention ARCH-20260408-01
+ * @respaldo context/micro-sprints/MS-2026-04-08.md
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import { useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -411,7 +417,7 @@ export default function CandidatoSelfService() {
           fechaInicio: h.fechaInicio || "",
           fechaFin: h.fechaFin || "",
           tiempoTrabajado:
-            h.tiempoTrabajado || h.tiempoTrabajadoEmpresa || "",
+            h.tiempoTrabajado || "",
           esActual: !h.fechaFin,
         })),
       );
@@ -1715,17 +1721,6 @@ export default function CandidatoSelfService() {
                       >
                         Este es mi empleo actual
                       </Label>
-                    </div>
-                    <div>
-                      <Label>Tiempo trabajado (ej. 2 años 3 meses)</Label>
-                      <Input
-                        value={job.tiempoTrabajado || ""}
-                        onChange={(e) =>
-                          handleJobChange(index, {
-                            tiempoTrabajado: e.target.value,
-                          })
-                        }
-                      />
                     </div>
                   </div>
                 ))}

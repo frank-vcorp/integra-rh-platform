@@ -111,6 +111,14 @@ Estado del Proyecto: Integra-RH v2
 
 **Estado Actual (28/01/2026)**
 
+- **Micro-Sprint Sinergia RH (08 abr 2026):** implementación local completada para los ajustes acordados post-reunión:
+  - Historial laboral interno: self-service sin tiempo trabajado visible y tarjeta interna priorizando motivo de salida.
+  - Portal cliente: trayectoria laboral usando periodo/tiempo verificados por RH.
+  - Portal cliente: documentos y evidencias visibles en modo solo lectura.
+  - Procesos: corrección del flujo de cambio de calificación final con motivo de edición.
+  - Estado: validación en producción pendiente antes de cierre definitivo.
+  - Checkpoint: `context/checkpoints/CHK_2026-04-08_2145_ARCH-20260408-05.md`.
+
 - **Investigación Laboral - Borrador local (28 ene 2026):**
   - Se implementó persistencia local (localStorage) para el modal de Investigación Laboral en CandidatoDetalle, por candidato y empleo (`candidateId` + `workHistoryId`).
   - Al reabrir el modal se restauran los campos desde el borrador; al guardar exitosamente se limpia el borrador correspondiente en localStorage.

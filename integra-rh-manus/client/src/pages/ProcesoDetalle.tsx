@@ -1035,7 +1035,10 @@ export default function ProcesoDetalle() {
                 </div>
                 {(() => {
                   const esCalifAsignada = !!process.calificacionFinal && process.calificacionFinal !== "pendiente";
-                  const califCambio = calificacion !== "pendiente" && calificacion !== process.calificacionFinal;
+                  // IMPL-20260408-04: comparar contra el valor persistido real, no contra la cadena literal
+                  // "pendiente". Así se detecta el cambio incluso cuando el nuevo valor ES pendiente.
+                  const persistedCalif = process.calificacionFinal || "pendiente";
+                  const califCambio = calificacion !== persistedCalif;
                   if (!canEditProcess || !califCambio) return null;
                   if (esCalifAsignada) {
                     return (
@@ -1055,7 +1058,7 @@ export default function ProcesoDetalle() {
                       onClick={() => updateCalif.mutate({
                         id: processId,
                         calificacionFinal: calificacion as any,
-                        comentarioCalificacion: calificacion !== "pendiente" ? comentarioCalificacion : undefined,
+                        comentarioCalificacion: comentarioCalificacion || undefined,
                       })}
                     >
                       Guardar Calif.
@@ -2344,7 +2347,16 @@ export default function ProcesoDetalle() {
       </Dialog>
 
       {/* Dialog de motivo de edición de calificación — IMPL-20260320-07 */}
-      <Dialog open={showMotivoDialog} onOpenChange={(open) => { if (!open) setShowMotivoDialog(false); }}>
+      <Dialog open={showMotivoDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowMotivoDialog(false);
+          // IMPL-20260408-04: revertir draft al cancelar — evita que el select quede
+          // mostrando un valor no guardado con el botón Guardar aún visible.
+          setCalificacion(process.calificacionFinal || "pendiente");
+          setEditandoCalif(false);
+          setMotivoEdicion("");
+        }
+      }}>
         <DialogContent className="max-w-md" aria-describedby="motivo-calif-desc">
           <DialogHeader>
             <DialogTitle>Motivo de edición de calificación</DialogTitle>
@@ -2363,7 +2375,12 @@ export default function ProcesoDetalle() {
             />
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowMotivoDialog(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => {
+              setShowMotivoDialog(false);
+              setCalificacion(process.calificacionFinal || "pendiente");
+              setEditandoCalif(false);
+              setMotivoEdicion("");
+            }}>Cancelar</Button>
             <Button
               disabled={!motivoEdicion.trim() || updateCalif.isPending}
               onClick={() => {

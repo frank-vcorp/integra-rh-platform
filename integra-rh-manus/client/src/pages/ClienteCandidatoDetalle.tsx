@@ -33,6 +33,41 @@ const getInvestigacionClass = (estatus?: string) =>
 const formatDate = (value?: string | null) => (value ? formatearFecha(value) : "-");
 
 /**
+ * IMPL-20260408-01 | Resuelve el periodo verificado para el portal cliente.
+ * Precedencia: 1) periodos[] de investigacionDetalle (periodoEmpresa + [puesto]),
+ * 2) antiguedadTexto, 3) fechaIngreso-fechaSalida, 4) fechaInicio/fechaFin declarado.
+ */
+function resolverPeriodoVerificado(job: any, fmt: (v?: string | null) => string): string {
+  const periodos = (job.investigacionDetalle as any)?.periodo?.periodos;
+  if (Array.isArray(periodos) && periodos.length > 0) {
+    return periodos
+      .map((p: any) => p.puesto ? `${p.periodoEmpresa} [${p.puesto}]` : (p.periodoEmpresa ?? ""))
+      .filter(Boolean)
+      .join(" + ");
+  }
+  const texto = (job.investigacionDetalle as any)?.periodo?.antiguedadTexto;
+  if (texto) return texto;
+  const fi = (job.investigacionDetalle as any)?.periodo?.fechaIngreso;
+  const fs = (job.investigacionDetalle as any)?.periodo?.fechaSalida;
+  if (fi) return `${fi} - ${fs ?? "Actual"}`;
+  return `${fmt(job.fechaInicio)} — ${job.fechaFin ? fmt(job.fechaFin) : "Actual"}`;
+}
+
+/**
+ * IMPL-20260408-01 | Resuelve el tiempo trabajado verificado para el portal cliente.
+ * Precedencia: 1) tiempoTrabajadoEmpresa, 2) antiguedadTexto de periodo, 3) tiempoTrabajado, 4) cálculo.
+ */
+function resolverTiempoVerificado(job: any, calcFn: (fi?: string, ff?: string) => string): string {
+  return (
+    job.tiempoTrabajadoEmpresa ||
+    (job.investigacionDetalle as any)?.periodo?.antiguedadTexto ||
+    job.tiempoTrabajado ||
+    calcFn(job.fechaInicio ?? undefined, job.fechaFin ?? undefined) ||
+    "S/D"
+  );
+}
+
+/**
  * Vista de detalle de candidato para clientes
  * Reestructurada con diseño Grid + Tabs para mejor organización
  */
@@ -308,14 +343,15 @@ export default function ClienteCandidatoDetalle() {
                                 </Badge>
                               </div>
 
+                              {/* IMPL-20260408-01: muestra periodo/tiempo verificados por RH, con fallback al dato declarado */}
                               <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  {formatDate(job.fechaInicio)} — {job.fechaFin ? formatDate(job.fechaFin) : "Actual"}
+                                  {resolverPeriodoVerificado(job, formatDate)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
-                                  {job.tiempoTrabajado || calcularTiempoTrabajado(job.fechaInicio, job.fechaFin) || "S/D"}
+                                  {resolverTiempoVerificado(job, calcularTiempoTrabajado)}
                                 </span>
                               </div>
 

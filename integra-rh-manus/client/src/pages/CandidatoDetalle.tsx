@@ -268,6 +268,35 @@ export default function CandidatoDetalle() {
     const dateB = b.fechaInicio || "";
     return dateB.localeCompare(dateA);
   });
+
+  /**
+   * Prioriza el motivo de salida como referencia operativa rápida en historial laboral.
+   * @intervention ARCH-20260408-01
+   * @respaldo context/micro-sprints/MS-2026-04-08.md
+   */
+  const getWorkHistoryQuickSummary = (item: (typeof workHistory)[number]) => {
+    const motivoSalida =
+      item.causalSalidaRH ||
+      item.causalSalidaJefeInmediato ||
+      (item.investigacionDetalle as any)?.incidencias?.motivoSeparacionEmpresa ||
+      (item.investigacionDetalle as any)?.incidencias?.motivoSeparacionCandidato;
+
+    if (motivoSalida) {
+      return {
+        label: "Motivo de salida",
+        value: motivoSalida,
+      };
+    }
+
+    return {
+      label: "Tiempo trabajado",
+      value:
+        item.tiempoTrabajadoEmpresa ||
+        item.tiempoTrabajado ||
+        calcularTiempoTrabajado(item.fechaInicio ?? undefined, item.fechaFin ?? undefined) ||
+        "-",
+    };
+  };
   
   const { data: comments = [] } = trpc.candidateComments.getByCandidate.useQuery({ candidatoId: candidateId });
   const { data: documents = [] } = trpc.documents.getByCandidate.useQuery({ candidatoId: candidateId });
@@ -1673,13 +1702,15 @@ export default function CandidatoDetalle() {
                         {item.fechaInicio ? formatearFecha(item.fechaInicio) : "-"} -{" "}
                         {item.fechaFin ? formatearFecha(item.fechaFin) : "Actual"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Tiempo trabajado:{" "}
-                        {item.tiempoTrabajadoEmpresa ||
-                          item.tiempoTrabajado ||
-                          calcularTiempoTrabajado(item.fechaInicio ?? undefined, item.fechaFin ?? undefined) ||
-                          "-"}
-                      </p>
+                      {(() => {
+                        const summary = getWorkHistoryQuickSummary(item);
+                        return (
+                          <p className="text-xs text-muted-foreground">
+                            {summary.label}:{" "}
+                            {summary.value}
+                          </p>
+                        );
+                      })()}
                       <p className="text-[11px] text-slate-500 mt-1">
                         Capturado por{" "}
                         <span className="font-semibold">
