@@ -19,6 +19,7 @@ import { useState } from "react";
  * Vista de detalle de proceso para clientes
  * Reestructurada con diseño Grid + Tabs (Estilo Dashboard)
  * @intervention ARCH-20260320-01
+ * @intervention ARCH-20260408-08
  * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
  */
 
@@ -281,6 +282,19 @@ export default function ClienteProcesoDetalle() {
   (_visitDet?.evidenciasGraficas || []).forEach((u: string, i: number) => { if (u) _visitDetItems.push({ label: `Evidencia Visita ${i + 1}`, url: u, kind: 'image' }); });
   if (_visitDetItems.length > 0)
     docSections.push({ key: 'visita', label: 'Visita Domiciliaria', icon: <Home className="h-4 w-4 text-emerald-500" />, items: _visitDetItems });
+
+  const groupedDocumentTypes = new Set([
+    'EVIDENCIA_LEGAL',
+    'SEMANAS_COTIZADAS',
+    'SEMANAS_IMSS',
+    'ANTECEDENTES_PENALES',
+    'BURO_CREDITO',
+    'BURO_CREDITO_ADICIONAL',
+  ]);
+
+  const ungroupedProcessDocs = processDocs.filter(
+    (doc) => !groupedDocumentTypes.has(doc.tipoDocumento),
+  );
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -577,24 +591,19 @@ export default function ClienteProcesoDetalle() {
 
                {/* TAB: DOCUMENTOS — IMPL-20260408-01 */}
                <TabsContent value="documentos" className="space-y-6">
-                 {/* Documentos del expediente (BD) */}
-                 <Card className="shadow-sm">
-                   <CardHeader className="bg-gray-50/50 border-b pb-3">
-                     <div className="flex items-center justify-between">
-                       <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                         <Paperclip className="h-5 w-5 text-gray-500" /> Documentos del Expediente
-                       </CardTitle>
-                       {processDocs.length > 0 && (
-                         <Badge variant="secondary">{processDocs.length}</Badge>
-                       )}
-                     </div>
-                   </CardHeader>
-                   <CardContent className="pt-4">
-                     {processDocs.length === 0 ? (
-                       <p className="text-sm text-gray-400 text-center py-6">No hay documentos adjuntos al expediente en este momento.</p>
-                     ) : (
+                 {ungroupedProcessDocs.length > 0 && (
+                   <Card className="shadow-sm">
+                     <CardHeader className="bg-gray-50/50 border-b pb-3">
+                       <div className="flex items-center justify-between">
+                         <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                           <Paperclip className="h-5 w-5 text-gray-500" /> Otros documentos del expediente
+                         </CardTitle>
+                         <Badge variant="secondary">{ungroupedProcessDocs.length}</Badge>
+                       </div>
+                     </CardHeader>
+                     <CardContent className="pt-4">
                        <ul className="divide-y divide-gray-100">
-                         {processDocs.map((doc) => (
+                         {ungroupedProcessDocs.map((doc) => (
                            <li key={doc.id} className="flex items-center justify-between py-3 gap-3">
                              <div className="flex items-center gap-3 min-w-0">
                                <FileText className="h-5 w-5 shrink-0 text-blue-400" />
@@ -614,9 +623,9 @@ export default function ClienteProcesoDetalle() {
                            </li>
                          ))}
                        </ul>
-                     )}
-                   </CardContent>
-                 </Card>
+                     </CardContent>
+                   </Card>
+                 )}
 
                  {/* Secciones documentales por fuente — IMPL-20260408-06 */}
                  {docSections.map((section) => (
@@ -666,7 +675,7 @@ export default function ClienteProcesoDetalle() {
                      </CardContent>
                    </Card>
                  ))}
-                 {docSections.length === 0 && processDocs.length === 0 && (
+                 {docSections.length === 0 && ungroupedProcessDocs.length === 0 && (
                    <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
                      <Paperclip className="h-10 w-10 opacity-30" />
                      <p className="text-sm">Aún no hay evidencias ni documentos registrados en este proceso.</p>
