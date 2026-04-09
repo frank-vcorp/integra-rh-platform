@@ -145,6 +145,23 @@ export default function ProcesoDetalle() {
     { candidatoId: process?.candidatoId || 0 },
     { enabled: !!process?.candidatoId }
   );
+  /**
+   * Mantiene el historial laboral interno con el empleo vigente o más reciente primero.
+   * @intervention ARCH-20260408-02
+   * @respaldo PROYECTO.md
+   */
+  const sortedWorkHistory = useMemo(
+    () =>
+      [...workHistory].sort((left: any, right: any) => {
+        if (!left.fechaFin && right.fechaFin) return -1;
+        if (left.fechaFin && !right.fechaFin) return 1;
+
+        const leftDate = left.fechaInicio || "";
+        const rightDate = right.fechaInicio || "";
+        return rightDate.localeCompare(leftDate);
+      }),
+    [workHistory]
+  );
   const { isClientAuth } = useClientAuth();
   const utils = trpc.useUtils();
   const updateStatus = trpc.processes.updateStatus.useMutation({
@@ -544,6 +561,20 @@ export default function ProcesoDetalle() {
       label: "Periodo",
       value: `${fechaInicio} - ${fechaFin}`,
     };
+  };
+
+  /**
+   * Prioriza el puesto validado por investigación para la tarjeta compacta del proceso.
+   * @intervention ARCH-20260408-02
+   * @respaldo PROYECTO.md
+   */
+  const getInternalWorkHistoryRole = (item: any) => {
+    return (
+      item.investigacionDetalle?.puesto?.puestoFinal ||
+      item.investigacionDetalle?.puesto?.puestoInicial ||
+      item.puesto ||
+      "Puesto no disponible"
+    );
   };
     const dashboardUrl = existingToken
       ? `${window.location.origin}/cliente/${existingToken}`
@@ -1201,19 +1232,25 @@ export default function ProcesoDetalle() {
                         </Link>
                     </div>
 
-                    {workHistory && workHistory.length > 0 ? (
+                    {sortedWorkHistory.length > 0 ? (
                         <ScrollArea className="h-[150px] w-full rounded-md border p-2 bg-gray-50/50">
                         <div className="space-y-3">
-                            {workHistory.map((wh: any) => (
+                        {sortedWorkHistory.map((wh: any) => (
                             <div key={wh.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
                                 {(() => {
                                   const summary = getInternalWorkHistorySummary(wh);
+                            const role = getInternalWorkHistoryRole(wh);
                                   return (
                                     <>
                                 <div className="flex justify-between items-start mb-1">
-                                <span className="font-medium text-xs text-gray-900 line-clamp-1" title={wh.empresa}>
-                                    {wh.empresa}
-                                </span>
+                          <div className="min-w-0 pr-2">
+                          <span className="font-medium text-xs text-gray-900 line-clamp-1 block" title={wh.empresa}>
+                            {wh.empresa}
+                          </span>
+                          <span className="text-[10px] text-gray-500 line-clamp-1 block" title={role}>
+                            {role}
+                          </span>
+                          </div>
                                 <Badge variant="outline" className="text-[10px] px-1 h-4">
                                     {(wh.resultadoVerificacion || 'PENDIENTE').substring(0, 10)}
                                 </Badge>
