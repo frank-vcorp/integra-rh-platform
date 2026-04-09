@@ -39,6 +39,7 @@ const ALL_SECTION_META: Record<string, SectionMeta> = {
   visita_domiciliaria: { title: "Visita domiciliaria", anchor: "sec-visita" },
   captura_visita: { title: "Formulario del encuestador", anchor: "sec-captura" },
   observaciones_conclusion: { title: "Observaciones y conclusión", anchor: "sec-conclusiones" },
+  documentos_adicionales: { title: "Documentos adicionales", anchor: "sec-docs-adicionales" },
 };
 
 // ── Helpers internos ──────────────────────────────────────────────────────────
@@ -190,6 +191,112 @@ function infoCard(label: string, value: string, accentColor = "#1e3a5f"): string
 
 // ── Construcción de secciones ─────────────────────────────────────────────────
 
+/**
+ * Extrae la URL de captura del mapa del encuestador priorizando la key canónica.
+ * Variantes legacy se conservan como fallback para registros históricos.
+ * @intervention IMPL-20260408-01 | ARCH-20260408-12
+ */
+function extractMapUrl(ubicacion: Record<string, any>): string | null {
+  const variants = [
+    "mapaCapturaUrl",   // canónico (IMPL-20260323-02)
+    "mapaCaptura",      // legado
+    "mapScreenshotUrl", // legado
+    "mapScreenshot",    // legado
+    "capturaMapaUrl",   // legado
+    "capturaMapa",      // legado
+  ];
+  for (const key of variants) {
+    const val = ubicacion[key];
+    if (typeof val === "string" && val.startsWith("http")) return val;
+  }
+  return null;
+}
+
+/**
+ * Construye URL de Google Maps priorizando coordenadas GPS sobre dirección de texto.
+ * @intervention IMPL-20260408-01 | ARCH-20260408-12
+ */
+function buildMapsUrl(
+  gps?: { lat?: number; lon?: number } | null,
+  address?: string | null,
+): string | null {
+  if (gps?.lat != null && gps?.lon != null) {
+    return `https://www.google.com/maps?q=${gps.lat},${gps.lon}`;
+  }
+  if (address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`;
+  }
+  return null;
+}
+
+// ── Clasificación editorial de documentos ──────────────────────────────────
+// @intervention IMPL-20260408-02 | ARCH-20260408-13
+
+type DocCategory = "legal" | "semanas" | "buro" | "general" | "adicional";
+
+/**
+ * Clasifica un documento de la tabla por su tipo para ubicarlo en la sección
+ * editorial correcta en lugar de la tabla global de Documentos.
+ */
+function classifyDoc(tipoDocumento: string): DocCategory {
+  const t = String(tipoDocumento || "")
+    .toUpperCase()
+    .replace(/[ÁÉÍÓÚ]/g, (c) => ({Á:"A",É:"E",Í:"I",Ó:"O",Ú:"U"}[c] ?? c));
+  if (/ANTECEDENTES|PENALES|INV[A-Z]*LEGAL|JURIDIC/.test(t)) return "legal";
+  if (/SEMANAS|IMSS|COTIZADA/.test(t)) return "semanas";
+  if (/BURO|CREDITO/.test(t)) return "buro";
+  // Identificadores básicos del candidato → generales del expediente
+  if (/^(CV|CURRICULUM|INE|IFE|CREDENCIAL|CURP|RFC|NSS|CONSENTIMIENTO|ACTA|COMPROBANTE|DOMICILIO|CARTILLA|PASAPORTE|LICENCIA|TITULO|CERTIFICADO|IDENTIFICACION|CARTA|PSICOMETRICO|DICTAMEN|FOTO|REFERENCIA)/.test(t)) return "general";
+  return "adicional";
+}
+
+/**
+ * Renderiza una mini-tabla de documentos con URLs clicables.
+ * Usada dentro de secciones temáticas para mostrar sus adjuntos.
+ */
+function renderDocumentLinksBlock(docs: any[]): string {
+  if (docs.length === 0) return "";
+  const rows = docs
+    .map((d: any) => {
+      const hasUrl = typeof d.url === "string" && d.url.startsWith("http");
+      const nombre = esc(d.nombreArchivo || d.tipoDocumento || "—");
+      const tipo = esc(d.tipoDocumento || "—");
+      return `
+    <tr>
+      <td>${tipo}</td>
+      <td>${hasUrl ? `<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer" style="color:#0369a1;font-weight:600">${nombre} ↗</a>` : nombre}</td>
+    </tr>`;
+    })
+    .join("");
+  return `
+  <table class="data-table" style="margin-top:8px">
+    <thead><tr><th>Tipo</th><th>Archivo</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/**
+ * Renderiza imágenes en formato spread editorial (media página).
+ * Usada para las evidencias de legal, semanas y el encuestador.
+ * @intervention IMPL-20260408-02 | ARCH-20260408-13
+ */
+function renderEvidenceSpread(urls: string[], baseLabel = "Evidencia"): string {
+  const valid = urls.filter((u) => typeof u === "string" && u.startsWith("http"));
+  if (valid.length === 0) return "";
+  return valid
+    .map(
+      (url, idx) => `
+  <div class="evidence-spread">
+    <img src="${esc(url)}" alt="${esc(`${baseLabel} ${idx + 1}`)}" class="evidence-spread-img"
+      onerror="this.closest('.evidence-spread').style.display='none'" />
+    <div class="evidence-caption">${esc(`${baseLabel} ${idx + 1}`)}</div>
+  </div>`,
+    )
+    .join("");
+}
+
+// ── Construcción de secciones ─────────────────────────────────────────────────
+
 function buildGeneralesCandidato(snapshot: Record<string, any>): string {
   const candidate = snapshot.candidate || {};
   const post = snapshot.post || {};
@@ -229,29 +336,36 @@ function buildGeneralesCandidato(snapshot: Record<string, any>): string {
   ` : ""}`;
 }
 
+/**
+ * Sección Documentos: muestra únicamente documentos generales/transversales
+ * del expediente. Los temáticos (legal, semanas, buró) viven en su sección.
+ * @intervention IMPL-20260408-02 | ARCH-20260408-13
+ */
 function buildDocumentos(snapshot: Record<string, any>): string {
-  const docs: any[] = Array.isArray(snapshot.documents) ? snapshot.documents : [];
-  if (docs.length === 0) {
+  const allDocs: any[] = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const generalDocs = allDocs.filter((d) => classifyDoc(d.tipoDocumento) === "general");
+  const tematicos = allDocs.filter((d) => {
+    const cat = classifyDoc(d.tipoDocumento);
+    return cat === "legal" || cat === "semanas" || cat === "buro";
+  });
+
+  let body = "";
+
+  if (generalDocs.length === 0 && tematicos.length === 0) {
     return '<p class="empty-note">No se adjuntaron documentos en este armado.</p>';
   }
-  const rows = docs
-    .map(
-      (doc: any) => `
-    <tr>
-      <td>${esc(doc.tipoDocumento || "—")}</td>
-      <td>${esc(doc.nombreArchivo || "—")}</td>
-    </tr>`,
-    )
-    .join("");
-  return `
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Tipo</th><th>Archivo</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+
+  if (generalDocs.length > 0) {
+    body += renderDocumentLinksBlock(generalDocs);
+  } else {
+    body += '<p class="empty-note">Sin documentos generales adjuntos. Los adjuntos temáticos aparecen en su sección correspondiente.</p>';
+  }
+
+  if (tematicos.length > 0) {
+    body += `<div class="info-banner" style="margin-top:12px">ℹ Los adjuntos de investigación legal, semanas cotizadas y buró de crédito (${tematicos.length}) se muestran dentro de su sección correspondiente en este reporte.</div>`;
+  }
+
+  return body;
 }
 
 function buildInvestigacionLaboral(snapshot: Record<string, any>): string {
@@ -292,13 +406,27 @@ function buildInvestigacionLaboral(snapshot: Record<string, any>): string {
         const col = resultadoItem.toLowerCase().includes("no") ? "#dc2626" : "#16a34a";
         resultBadge = badgeChip(resultadoItem, col);
       }
+      // Causal de baja: dato principal. Periodo: secundario.
+      // @intervention IMPL-20260408-02 | ARCH-20260408-13
+      const causalBaja =
+        item.causalSalidaRH ||
+        item.causalSalidaJefeInmediato ||
+        (item.investigacionDetalle as any)?.incidencias?.motivoSeparacionEmpresa ||
+        (item.investigacionDetalle as any)?.incidencias?.motivoSeparacionCandidato ||
+        null;
+      const puestoFinal =
+        (item.investigacionDetalle as any)?.puesto?.puestoFinal ||
+        (item.investigacionDetalle as any)?.puesto?.puestoInicial ||
+        item.puesto ||
+        "";
       body += `
       <div class="work-item">
         <div class="work-item-header">
           <strong>${esc(item.empresa || "—")}</strong>
-          <span class="work-puesto">${esc(item.puesto || "")}</span>
+          <span class="work-puesto">${esc(puestoFinal)}</span>
           ${resultBadge}
         </div>
+        ${causalBaja ? `<div class="work-causal"><span class="work-causal-label">Causal de baja:</span> ${esc(causalBaja)}</div>` : ""}
         ${periodo ? `<div class="work-periodo">${esc(periodo)}</div>` : ""}
         ${item.comentarioInvestigacion ? `<div class="work-comment">${esc(item.comentarioInvestigacion)}</div>` : ""}
       </div>`;
@@ -309,10 +437,16 @@ function buildInvestigacionLaboral(snapshot: Record<string, any>): string {
   return body;
 }
 
+/**
+ * Investigación legal + antecedentes penales con adjuntos integrados.
+ * @intervention IMPL-20260408-02 | ARCH-20260408-13
+ */
 function buildInvestigacionLegal(snapshot: Record<string, any>): string {
   const process = snapshot.process || {};
   const inv = process.investigacionLegal || {};
   const penales = process.antecedentesPenales || {};
+  const allDocs: any[] = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const legalDocs = allDocs.filter((d) => classifyDoc(d.tipoDocumento) === "legal");
 
   let body = "";
 
@@ -325,6 +459,37 @@ function buildInvestigacionLegal(snapshot: Record<string, any>): string {
   body += field("Observaciones IMSS", inv.observacionesImss || null);
   body += field("Comentarios adicionales", penales.comentarios || null);
 
+  // Adjuntos y evidencias gráficas dentro del apartado
+  const legalImgs: string[] = [
+    ...(Array.isArray(inv.evidenciasGraficas) ? inv.evidenciasGraficas : []),
+    ...(inv.evidenciaImgUrl ? [inv.evidenciaImgUrl] : []),
+  ].filter((u): u is string => typeof u === "string" && u.startsWith("http"));
+
+  const penalesImgs: string[] = Array.isArray(penales.evidenciasGraficas)
+    ? penales.evidenciasGraficas.filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http"))
+    : [];
+
+  if (inv.archivoAdjuntoUrl) {
+    body += `<div style="margin:10px 0">
+      <a href="${esc(inv.archivoAdjuntoUrl)}" target="_blank" rel="noopener noreferrer" class="maps-link">Ver documento adjunto de investigación legal ↗</a>
+    </div>`;
+  }
+
+  if (legalImgs.length > 0) {
+    body += `<div class="subsection-title">Evidencias de investigación legal (${legalImgs.length})</div>`;
+    body += renderEvidenceSpread(legalImgs, "Evidencia legal");
+  }
+
+  if (penalesImgs.length > 0) {
+    body += `<div class="subsection-title">Evidencias de antecedentes penales (${penalesImgs.length})</div>`;
+    body += renderEvidenceSpread(penalesImgs, "Evidencia penales");
+  }
+
+  if (legalDocs.length > 0) {
+    body += `<div class="subsection-title">Documentos adjuntos (${legalDocs.length})</div>`;
+    body += renderDocumentLinksBlock(legalDocs);
+  }
+
   if (!body.trim()) {
     body = '<p class="empty-note">Sin hallazgos legales registrados.</p>';
   }
@@ -332,11 +497,17 @@ function buildInvestigacionLegal(snapshot: Record<string, any>): string {
   return body;
 }
 
+/**
+ * Semanas cotizadas con evidencias gráficas integradas.
+ * @intervention IMPL-20260408-02 | ARCH-20260408-13
+ */
 function buildSemanasWotizadas(snapshot: Record<string, any>): string {
   const process = snapshot.process || {};
   const candidate = snapshot.candidate || {};
   const dictamen = candidate.dictamenLaboral || {};
   const semanas = process.semanasDetalle || {};
+  const allDocs: any[] = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const semanasDocs = allDocs.filter((d) => classifyDoc(d.tipoDocumento) === "semanas");
 
   let body = "";
 
@@ -350,9 +521,19 @@ function buildSemanasWotizadas(snapshot: Record<string, any>): string {
 
   body += field("Comentario de cotejo", semanas.comentario || null);
 
-  const numEvidencias = Array.isArray(semanas.evidenciasGraficas) ? semanas.evidenciasGraficas.length : 0;
-  if (numEvidencias > 0) {
-    body += field("Evidencias adjuntas", `${numEvidencias} archivo(s) en el expediente operativo`);
+  // Evidencias gráficas integradas en el apartado
+  const semanasImgs: string[] = Array.isArray(semanas.evidenciasGraficas)
+    ? semanas.evidenciasGraficas.filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http"))
+    : [];
+
+  if (semanasImgs.length > 0) {
+    body += `<div class="subsection-title">Evidencias de semanas cotizadas (${semanasImgs.length})</div>`;
+    body += renderEvidenceSpread(semanasImgs, "Evidencia IMSS");
+  }
+
+  if (semanasDocs.length > 0) {
+    body += `<div class="subsection-title">Documentos adjuntos (${semanasDocs.length})</div>`;
+    body += renderDocumentLinksBlock(semanasDocs);
   }
 
   if (!body.trim()) {
@@ -362,9 +543,15 @@ function buildSemanasWotizadas(snapshot: Record<string, any>): string {
   return body;
 }
 
+/**
+ * Buró de crédito con PDF principal + archivos adicionales integrados.
+ * @intervention IMPL-20260408-02 | ARCH-20260408-13
+ */
 function buildBuroCredito(snapshot: Record<string, any>): string {
   const process = snapshot.process || {};
   const buro = process.buroCredito || {};
+  const allDocs: any[] = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const buroDocs = allDocs.filter((d) => classifyDoc(d.tipoDocumento) === "buro");
 
   if (!buro || Object.keys(buro).length === 0) {
     return '<p class="empty-note">Sin reporte de buró de crédito registrado.</p>';
@@ -391,24 +578,62 @@ function buildBuroCredito(snapshot: Record<string, any>): string {
 
   body += fieldPair("Estatus", buro.estatus || null, "Score crediticio", buro.score || null);
 
-  const adicionales = Array.isArray(buro.archivosAdicionales) ? buro.archivosAdicionales.length : 0;
-  if (adicionales > 0) {
-    body += field("Archivos adicionales", `${adicionales} archivo(s) en el expediente operativo`);
+  // PDF principal del buró
+  if (typeof buro.pdfUrl === "string" && buro.pdfUrl.startsWith("http")) {
+    body += `<div style="margin:12px 0">
+      <a href="${esc(buro.pdfUrl)}" target="_blank" rel="noopener noreferrer" class="maps-link">Ver reporte de Buró de Crédito (PDF) ↗</a>
+    </div>`;
+  }
+
+  // Archivos adicionales del buró
+  const archAdic: string[] = Array.isArray(buro.archivosAdicionales)
+    ? buro.archivosAdicionales.filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http"))
+    : [];
+
+  if (archAdic.length > 0) {
+    body += `<div class="subsection-title">Archivos adicionales (${archAdic.length})</div>`;
+    // Imprimir como lista de imágenes si son imágenes, o como enlaces
+    const imgExts = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i;
+    const imgs = archAdic.filter((u) => imgExts.test(u));
+    const links = archAdic.filter((u) => !imgExts.test(u));
+    if (imgs.length > 0) body += renderEvidenceSpread(imgs, "Archivo buró");
+    if (links.length > 0) {
+      body += links
+        .map(
+          (url, idx) =>
+            `<div style="margin:4px 0"><a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="maps-link">Archivo adicional ${idx + 1} ↗</a></div>`,
+        )
+        .join("");
+    }
+  }
+
+  // Documentos del expediente clasificados como buró
+  if (buroDocs.length > 0) {
+    body += `<div class="subsection-title">Documentos adjuntos (${buroDocs.length})</div>`;
+    body += renderDocumentLinksBlock(buroDocs);
   }
 
   return body;
 }
 
+/**
+ * Renderiza visita domiciliaria con bloque hero editorial:
+ * mapa grande clicable → link Google Maps → fachada principal.
+ * @intervention IMPL-20260408-01 | ARCH-20260408-12
+ */
 function buildVisitaDomiciliaria(snapshot: Record<string, any>): string {
   const process = snapshot.process || {};
   const visitStatus = process.visitStatus || {};
+  const vd: Record<string, any> = process.visitaDetalle || {};
+  const ub: Record<string, any> = vd.ubicacion || {};
+  const fotos: Record<string, any> = vd.fotos || {};
 
   let body = "";
 
   const fechaVisita = visitStatus.scheduledDateTime
     ? formatDateTime(visitStatus.scheduledDateTime)
     : "—";
-  const direccion = visitStatus.direccion || process.visitaDetalle?.ubicacion?.domicilio || null;
+  const direccion = visitStatus.direccion || ub.domicilio || null;
 
   body += `
   <div class="metrics-row">
@@ -418,6 +643,68 @@ function buildVisitaDomiciliaria(snapshot: Record<string, any>): string {
 
   body += field("Dirección visitada", direccion);
   body += field("Observaciones logísticas", visitStatus.observaciones || null);
+
+  // ── Bloque hero de ubicación: mapa grande + link Google Maps + fachada ─
+  const mapaUrl = extractMapUrl(ub);
+  const gps = ub.gps ?? null;
+  const mapsUrl = buildMapsUrl(gps, direccion);
+  const gpsText =
+    gps?.lat != null && gps?.lon != null
+      ? `${Number(gps.lat).toFixed(6)}, ${Number(gps.lon).toFixed(6)}`
+      : null;
+
+  // Fachada: preferentemente fachadaCalle, fallback fachadaPatio
+  const fachadaUrl =
+    typeof fotos.fachadaCalle === "string" && fotos.fachadaCalle.startsWith("http")
+      ? fotos.fachadaCalle
+      : typeof fotos.fachadaPatio === "string" && fotos.fachadaPatio.startsWith("http")
+      ? fotos.fachadaPatio
+      : null;
+  const fachadaLabel =
+    typeof fotos.fachadaCalle === "string" && fotos.fachadaCalle.startsWith("http")
+      ? "Fachada principal (calle)"
+      : "Fachada del domicilio";
+
+  if (mapaUrl || mapsUrl || fachadaUrl) {
+    body += '<div class="location-hero">';
+
+    if (mapaUrl) {
+      body += '<div class="hero-map-wrap">';
+      if (mapsUrl) {
+        body += `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="hero-map-link">`;
+      }
+      body += `<img src="${esc(mapaUrl)}" alt="Mapa del domicilio visitado" class="hero-map-img" onerror="this.closest('.hero-map-wrap').style.display='none'" />`;
+      if (mapsUrl) {
+        body += `<div class="hero-map-overlay">Ver en Google Maps ↗</div>`;
+        body += `</a>`;
+      }
+      body += '</div>';
+    } else if (mapsUrl) {
+      // Sin captura de mapa pero sí coordenadas: mostrar sólo link
+      body += `<div class="hero-geo-line">`;
+      if (gpsText) body += `<span class="hero-gps">${esc(gpsText)}</span> · `;
+      body += `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="maps-link">Ver domicilio en Google Maps ↗</a>`;
+      body += `</div>`;
+    }
+
+    // Línea de apoyo con GPS y dirección
+    if (mapaUrl && (gpsText || mapsUrl)) {
+      body += `<div class="hero-geo-line">`;
+      if (gpsText) body += `<span class="hero-gps">${esc(gpsText)}</span>`;
+      if (gpsText && mapsUrl) body += ` · `;
+      if (mapsUrl) body += `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="maps-link">Abrir en Google Maps ↗</a>`;
+      body += `</div>`;
+    }
+
+    if (fachadaUrl) {
+      body += `<div class="hero-fachada-wrap">
+        <img src="${esc(fachadaUrl)}" alt="${esc(fachadaLabel)}" class="hero-fachada-img" onerror="this.closest('.hero-fachada-wrap').style.display='none'" />
+        <div class="hero-fachada-caption">${esc(fachadaLabel)}</div>
+      </div>`;
+    }
+
+    body += '</div>';
+  }
 
   return body;
 }
@@ -452,8 +739,10 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
   const ac: Record<string, any> = vd.academica || {};
   if (Object.keys(ac).length > 0) {
     body += '<div class="subsection-title">Información académica</div>';
-    body += fieldPair("Último grado", ac.ultimoGrado, "Institución", ac.institucion);
-    body += fieldPair("Periodo", ac.periodo, "Documento obtenido", ac.documentoObtenido);
+    // Normalización modern/legacy: gradoEstudios (moderno) || ultimoGrado (legado)
+    body += fieldPair("Último grado", ac.gradoEstudios ?? ac.ultimoGrado, "Institución", ac.institucion);
+    // Normalización modern/legacy: documento (moderno) || documentoObtenido (legado)
+    body += fieldPair("Periodo", ac.periodo, "Documento obtenido", ac.documento ?? ac.documentoObtenido);
     if (ac.estudiaActualmente !== undefined) body += field("Estudia actualmente", ac.estudiaActualmente ? "Sí" : "No");
     if (ac.equiposMaquinas) body += field("Equipos/Maquinaria", ac.equiposMaquinas);
     if (ac.programas) body += field("Programas", ac.programas);
@@ -489,7 +778,10 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
 
   // ── Familiares ─────────────────────────────────────────────────────────
   const fams: any[] = Array.isArray(vd.familiares) ? vd.familiares : [];
-  const otrasPersonas: any[] = Array.isArray(vd.otrasPersonasDomicilio) ? vd.otrasPersonasDomicilio : [];
+  // Normalización modern/legacy: otrasPersonas (moderno) || otrasPersonasDomicilio (legado)
+  const otrasPersonas: any[] = Array.isArray(vd.otrasPersonas)
+    ? vd.otrasPersonas
+    : (Array.isArray(vd.otrasPersonasDomicilio) ? vd.otrasPersonasDomicilio : []);
   if (fams.length > 0 || otrasPersonas.length > 0) {
     body += '<div class="subsection-title">Familiares y personas en el domicilio</div>';
     if (fams.length > 0) {
@@ -548,7 +840,8 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
   }
 
   // ── §10 Dinámica de vivienda ───────────────────────────────────────────
-  const dv: Record<string, any> = vd.dinamicaVivienda || {};
+  // Normalización modern/legacy: vivienda (moderno) || dinamicaVivienda (legado)
+  const dv: Record<string, any> = vd.vivienda || vd.dinamicaVivienda || {};
   if (Object.keys(dv).length > 0) {
     body += '<div class="subsection-title">Dinámica de vivienda</div>';
     if (dv.personasDiscapacidad !== undefined) {
@@ -569,7 +862,10 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
   }
 
   // ── Patrimonio e ingresos ──────────────────────────────────────────────
-  const ingresos: any[] = Array.isArray(vd.ingresosArray) ? vd.ingresosArray : [];
+  // Normalización modern/legacy: ingresos (moderno) || ingresosArray (legado)
+  const ingresos: any[] = Array.isArray(vd.ingresos)
+    ? vd.ingresos
+    : (Array.isArray(vd.ingresosArray) ? vd.ingresosArray : []);
   const egresos: Record<string, any> = vd.egresos || {};
   if (ingresos.length > 0 || Object.keys(egresos).length > 0) {
     body += '<div class="subsection-title">Referencias económicas (ingresos y egresos)</div>';
@@ -577,9 +873,12 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
       let totalIng = 0;
       body += `<table class="data-table"><thead><tr><th>Nombre</th><th>Parentesco</th><th>Ingreso</th><th>Aportación</th></tr></thead><tbody>`;
       for (const ing of ingresos) {
-        const monto = ing.ingreso ? formatCurrency(ing.ingreso) : "—";
-        const aporte = ing.aportacionTotal ? formatCurrency(ing.aportacionTotal) : "—";
-        totalIng += Number(ing.aportacionTotal ?? ing.ingreso ?? 0);
+        // Normalización modern/legacy: sueldo/otrosIngresos (moderno) || ingreso/aportacionTotal (legado)
+        const sueldoAmt = ing.sueldo ?? ing.ingreso;
+        const otrosAmt = ing.otrosIngresos ?? ing.aportacionTotal;
+        const monto = sueldoAmt ? formatCurrency(sueldoAmt) : "—";
+        const aporte = otrosAmt ? formatCurrency(otrosAmt) : "—";
+        totalIng += Number(otrosAmt ?? sueldoAmt ?? 0);
         body += `<tr><td>${esc(ing.nombre || "—")}</td><td>${esc(ing.parentesco || "—")}</td><td>${esc(monto)}</td><td>${esc(aporte)}</td></tr>`;
       }
       body += "</tbody></table>";
@@ -726,14 +1025,14 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
     body += `<div class="narrative-block">${esc(texto)}</div>`;
   }
 
-  // ── Evidencias gráficas — solo URLs (HTML no incrusta imágenes externas seguras) ─
+  // ── Evidencias gráficas (spreads editoriales) ─────────────────────────
+  // Nota: fachadaCalle y fachadaPatio se muestran en el hero de visita_domiciliaria.
+  // Aquí solo se incluyen las fotos complementarias del interior y evidencias graficas.
   const fotos: Record<string, string> = vd.fotos || {};
   const fotoEntries: Array<[string, string]> = [
     ["Comedor", fotos.comedor],
     ["Cocina", fotos.cocina],
     ["Sala", fotos.sala],
-    ["Fachada - patio", fotos.fachadaPatio],
-    ["Fachada - calle", fotos.fachadaCalle],
   ].filter((e): e is [string, string] => typeof e[1] === "string" && e[1].startsWith("http"));
 
   const evidGraf: string[] = Array.isArray(vd.evidenciasGraficas)
@@ -743,25 +1042,43 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
   const allImgs = [...fotoEntries, ...grafEntries];
 
   if (allImgs.length > 0) {
-    body += `<div class="subsection-title">Evidencias gráficas (${allImgs.length} imagen${allImgs.length !== 1 ? "es" : ""})</div>`;
-    body += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">`;
+    body += `<div class="subsection-title">Evidencias gráficas del encuestador (${allImgs.length} imagen${allImgs.length !== 1 ? "es" : ""})</div>`;
+    // Spreads editoriales de media página — cada imagen ocupa el ancho completo
+    // @intervention IMPL-20260408-02 | ARCH-20260408-13
     for (const [label, url] of allImgs) {
-      body += `<div style="text-align:center">
-        <img src="${esc(url)}" alt="${esc(label)}"
-          style="max-width:100%;max-height:220px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0"
-          onerror="this.style.display='none'" />
-        <div style="font-size:11px;color:#64748b;margin-top:4px;font-weight:600">${esc(label)}</div>
+      body += `<div class="evidence-spread">
+        <img src="${esc(url)}" alt="${esc(label)}" class="evidence-spread-img"
+          onerror="this.closest('.evidence-spread').style.display='none'" />
+        <div class="evidence-caption">${esc(label)}</div>
       </div>`;
     }
-    body += "</div>";
   } else {
-    body += field("Evidencias gráficas", "Sin imágenes adjuntas");
+    body += field("Evidencias gráficas", "Sin imágenes complementarias adjuntas");
   }
 
   if (!body.trim()) {
     body = '<p class="empty-note">Sin información detallada capturada por el encuestador.</p>';
   }
 
+  return body;
+}
+
+/**
+ * Bloque final de documentos adicionales (no clasificados en ninguna sección temática).
+ * Se agrega al final del reporte incluso si el usuario no seleccionó esta sección.
+ * @intervention IMPL-20260408-02 | ARCH-20260408-13
+ */
+function buildDocumentosAdicionales(snapshot: Record<string, any>): string {
+  const allDocs: any[] = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const adicionales = allDocs.filter((d) => classifyDoc(d.tipoDocumento) === "adicional");
+
+  if (adicionales.length === 0) return "";
+
+  let body = `
+  <div class="info-banner">
+    Los siguientes ${adicionales.length} documento(s) no corresponden a ninguna sección temática específica del estudio y se listan aquí como referencia del expediente.
+  </div>`;
+  body += renderDocumentLinksBlock(adicionales);
   return body;
 }
 
@@ -1210,6 +1527,25 @@ const DOCUMENT_CSS = `
     flex-wrap: wrap;
   }
   .work-puesto { font-size: 12px; color: #64748b; }
+  /* Causal de baja: dato prioritario, encima del periodo */
+  .work-causal {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e3a5f;
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+    padding: 4px 10px;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 4px;
+  }
+  .work-causal-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #3b82f6;
+    margin-right: 6px;
+  }
   .work-periodo { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
   .work-comment { font-size: 12px; color: #475569; margin-top: 4px; }
 
@@ -1270,6 +1606,108 @@ const DOCUMENT_CSS = `
   .footer-brand { font-weight: 700; color: #475569; }
   .footer-confidential { color: #dc2626; font-weight: 600; font-size: 10px; letter-spacing: 1px; }
 
+  /* ── Hero bloque de ubicación ──────────────────────────────────────────── */
+  .location-hero { margin: 16px 0; }
+
+  .hero-map-wrap {
+    position: relative;
+    display: block;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 6px;
+    text-decoration: none;
+  }
+  .hero-map-link { display: block; text-decoration: none; color: inherit; }
+  .hero-map-img {
+    width: 100%;
+    max-height: 520px;
+    min-height: 180px;
+    object-fit: cover;
+    display: block;
+  }
+  .hero-map-overlay {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(30,58,95,0.85);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  .hero-geo-line {
+    font-size: 12px;
+    color: #475569;
+    margin: 4px 0 10px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+  .hero-gps { font-family: monospace; color: #0369a1; }
+  .hero-fachada-wrap { margin-top: 10px; }
+  .hero-fachada-img {
+    width: 100%;
+    max-height: 440px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    display: block;
+  }
+  .hero-fachada-caption {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 5px;
+    text-align: center;
+    padding: 3px 0;
+  }
+  .maps-link {
+    color: #0369a1;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .maps-link:hover { text-decoration: underline; }
+
+  /* ── Spreads editoriales de evidencias gráficas ─────────────────────── */
+  .evidence-spread { width: 100%; margin: 12px 0; break-inside: avoid; }
+  .evidence-spread-img {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    display: block;
+  }
+  .evidence-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 12px 0;
+  }
+  .evidence-grid-item { break-inside: avoid; }
+  .evidence-grid-item img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    display: block;
+  }
+  .evidence-caption {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    margin-top: 4px;
+    padding: 3px 6px;
+    background: #f8fafc;
+    border-radius: 0 0 5px 5px;
+    text-align: center;
+  }
+
   /* Print styles */
   @media print {
     body { background: #fff; }
@@ -1290,6 +1728,10 @@ const DOCUMENT_CSS = `
     .field-pair { grid-template-columns: 1fr; }
     .metrics-row { flex-direction: column; }
     .doc-footer { flex-direction: column; gap: 4px; padding: 16px; text-align: center; }
+    .hero-map-img { max-height: 220px; }
+    .hero-fachada-img { max-height: 240px; }
+    .evidence-spread-img { max-height: 260px; }
+    .evidence-grid-2 { grid-template-columns: 1fr; }
   }
 `;
 
@@ -1348,7 +1790,7 @@ export async function renderArmadoHtml(
   }
 
   const coverHtml = `
-  <div class="cover">
+  <div class="cover" id="cover">
     ${logoTag}
     <div class="cover-badge">Reporte de estudio · Confidencial</div>
     <div class="cover-title">Estudio de candidato</div>
@@ -1392,6 +1834,7 @@ export async function renderArmadoHtml(
     "visita_domiciliaria",
     "captura_visita",
     "observaciones_conclusion",
+    // documentos_adicionales se renderiza siempre al final, fuera del loop de secciones seleccionadas
   ];
 
   const selectedOrdered = sectionOrder.filter((s) => sections.includes(s));
@@ -1461,6 +1904,18 @@ export async function renderArmadoHtml(
     observaciones_conclusion: () => buildObservacionesConclusion(snapshot),
   };
 
+  // Bloque de documentos adicionales: siempre al final si existen docs no clasificados
+  const docsAdicionalesBody = buildDocumentosAdicionales(snapshot);
+  const docsAdicionalesMeta = ALL_SECTION_META["documentos_adicionales"]!;
+  const docsAdicionalesHtml = docsAdicionalesBody
+    ? sectionBlock(
+        docsAdicionalesMeta.anchor,
+        "∓",
+        docsAdicionalesMeta.title,
+        docsAdicionalesBody,
+      )
+    : "";
+
   const sectionsHtml = selectedOrdered
     .map((key) => {
       const meta = ALL_SECTION_META[key];
@@ -1475,6 +1930,9 @@ export async function renderArmadoHtml(
       );
     })
     .join("\n");
+
+  // Agregar documentos adicionales al final (fuera de secciones seleccionadas)
+  const fullSectionsHtml = sectionsHtml + (docsAdicionalesHtml ? "\n" + docsAdicionalesHtml : "");
 
   // ── HTML final ────────────────────────────────────────────────────────────────
 
@@ -1492,7 +1950,7 @@ export async function renderArmadoHtml(
   <main class="doc-body" id="body-start">
     ${tocHtml}
     ${execHtml}
-    ${sectionsHtml}
+    ${fullSectionsHtml}
   </main>
   <footer class="doc-footer">
     <div>
