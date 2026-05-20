@@ -179,9 +179,40 @@ export async function updateUser(id: number, data: Partial<InsertUser>) {
   await db.update(users).set(data).where(eq(users.id, id));
 }
 
+/**
+ * Elimina un usuario solo si no tiene dependencias activas.
+ * Lanza error prefijado "DEPENDENCY:" si existen candidatos o procesos asignados.
+ * @intervention ARCH-20260520-08-R2
+ * @respaldo PROYECTO.md
+ */
 export async function deleteUser(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // Verificar candidatos con este analista asignado (campo notNull: siempre hay un analista)
+  const candDeps = await db
+    .select({ id: candidates.id })
+    .from(candidates)
+    .where(eq(candidates.analistaAsignadoId, id))
+    .limit(1);
+  if (candDeps.length > 0) {
+    throw new Error(
+      "DEPENDENCY:Este usuario tiene candidatos asignados. Reasigna el analista antes de eliminar."
+    );
+  }
+
+  // Verificar procesos con este analista asignado
+  const procDeps = await db
+    .select({ id: processes.id })
+    .from(processes)
+    .where(eq(processes.analistaAsignadoId, id))
+    .limit(1);
+  if (procDeps.length > 0) {
+    throw new Error(
+      "DEPENDENCY:Este usuario tiene procesos asignados. Reasigna el analista antes de eliminar."
+    );
+  }
+
   await db.delete(users).where(eq(users.id, id));
 }
 
@@ -671,43 +702,66 @@ export async function createCandidateComment(data: InsertCandidateComment) {
 // PROCESOS
 // ============================================================================
 
+/**
+ * @intervention ARCH-20260324-01
+ * @respaldo context/SPECs/SPEC-estabilizacion-listado-procesos.md
+ */
+const processListSelection = {
+  id: processes.id,
+  candidatoId: processes.candidatoId,
+  clienteId: processes.clienteId,
+  puestoId: processes.puestoId,
+  clientSiteId: processes.clientSiteId,
+  especialistaAtraccionId: processes.especialistaAtraccionId,
+  especialistaAtraccionNombre: processes.especialistaAtraccionNombre,
+  analistaAsignadoId: processes.analistaAsignadoId,
+  clave: processes.clave,
+  tipoProducto: processes.tipoProducto,
+  consecutivo: processes.consecutivo,
+  fechaRecepcion: processes.fechaRecepcion,
+  fechaCierre: processes.fechaCierre,
+  fechaEnvio: processes.fechaEnvio,
+  quienEnvio: processes.quienEnvio,
+  medioDeRecepcion: processes.medioDeRecepcion,
+  estatusProceso: processes.estatusProceso,
+  calificacionFinal: processes.calificacionFinal,
+  comentarioCalificacion: processes.comentarioCalificacion,
+  estatusVisual: processes.estatusVisual,
+  archivoDictamenUrl: processes.archivoDictamenUrl,
+  archivoDictamenPath: processes.archivoDictamenPath,
+  shareableId: processes.shareableId,
+  arrivalDateTime: processes.arrivalDateTime,
+  visitStatus: processes.visitStatus,
+  createdAt: processes.createdAt,
+  updatedAt: processes.updatedAt,
+  siteName: clientSites.nombrePlaza,
+  responsableName: users.name,
+  clientName: clients.nombreEmpresa,
+};
+
 export async function getAllProcesses() {
   const db = await getDb();
   if (!db) return [];
-  const results = await db
-    .select()
+  return db
+    .select(processListSelection)
     .from(processes)
     .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
     .leftJoin(users, eq(processes.analistaAsignadoId, users.id))
     .leftJoin(clients, eq(processes.clienteId, clients.id))
     .orderBy(desc(processes.fechaRecepcion));
-  
-  return results.map((row: any) => ({
-    ...row.processes,
-    siteName: row.clientSites?.nombrePlaza || null,
-    responsableName: row.users?.name || null,
-    clientName: row.clients?.nombreEmpresa || null,
-  }));
 }
 
 export async function getProcessesByClient(clienteId: number) {
   const db = await getDb();
   if (!db) return [];
-  const results = await db
-    .select()
+  return db
+    .select(processListSelection)
     .from(processes)
     .where(eq(processes.clienteId, clienteId))
     .leftJoin(clientSites, eq(processes.clientSiteId, clientSites.id))
     .leftJoin(users, eq(processes.analistaAsignadoId, users.id))
     .leftJoin(clients, eq(processes.clienteId, clients.id))
     .orderBy(desc(processes.fechaRecepcion));
-  
-  return results.map((row: any) => ({
-    ...row.processes,
-    siteName: row.clientSites?.nombrePlaza || null,
-    responsableName: row.users?.name || null,
-    clientName: row.clients?.nombreEmpresa || null,
-  }));
 }
 
 export async function getProcessesByCandidate(candidatoId: number) {

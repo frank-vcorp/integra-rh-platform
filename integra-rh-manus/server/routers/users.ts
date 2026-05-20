@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure, adminProcedure, requirePermission } from "../_core/trpc";
 import { getAllUsers, createUser, updateUser, deleteUser } from "../db";
 import { auth as adminAuth } from "../firebase";
@@ -58,7 +59,19 @@ export const usersRouter = router({
     .use(requirePermission("usuarios", "delete"))
     .input(z.object({ id: z.number().int() }))
     .mutation(async ({ input }) => {
-      await deleteUser(input.id);
+      // @intervention ARCH-20260520-08-R2
+      try {
+        await deleteUser(input.id);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.startsWith("DEPENDENCY:")) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: msg.slice("DEPENDENCY:".length),
+          });
+        }
+        throw err;
+      }
       return { ok: true } as const;
     }),
 
