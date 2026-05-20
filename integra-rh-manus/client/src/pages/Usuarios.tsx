@@ -38,6 +38,10 @@ import { Link } from "wouter";
 import { useHasPermission } from "@/_core/hooks/usePermission";
 
 export default function Usuarios() {
+  /**
+   * FIX-20260520-01
+   * @see /home/frank/proyectos/integra-rh/context/interconsultas/DICTAMEN_FIX-20260520-01.md
+   */
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [selectedClient, setSelectedClient] = useState<string>("");
@@ -48,7 +52,7 @@ export default function Usuarios() {
   const { data: roles = [] } = trpc.roles.list.useQuery(undefined as any, {
     initialData: [] as any,
   } as any);
-  const { data: userRolesForEditing = [] } = trpc.roles.getUserRoles.useQuery(
+  const { data: userRolesForEditing, isSuccess: hasUserRolesForEditing } = trpc.roles.getUserRoles.useQuery(
     { userId: editingUser?.id ?? 0 } as any,
     { enabled: !!editingUser?.id }
   );
@@ -104,12 +108,20 @@ export default function Usuarios() {
   });
 
   useEffect(() => {
-    if (editingUser && Array.isArray(userRolesForEditing)) {
-      setSelectedRoleIds(
-        (userRolesForEditing as any[]).map((ur) => ur.roleId as number)
-      );
+    if (!editingUser || !hasUserRolesForEditing || !Array.isArray(userRolesForEditing)) {
+      return;
     }
-  }, [editingUser, userRolesForEditing]);
+
+    const nextRoleIds = (userRolesForEditing as any[]).map(
+      (userRole) => userRole.roleId as number
+    );
+
+    setSelectedRoleIds((currentRoleIds) => {
+      const hasSameLength = currentRoleIds.length === nextRoleIds.length;
+      const hasSameValues = hasSameLength && currentRoleIds.every((roleId, index) => roleId === nextRoleIds[index]);
+      return hasSameValues ? currentRoleIds : nextRoleIds;
+    });
+  }, [editingUser, hasUserRolesForEditing, userRolesForEditing]);
 
   
 
