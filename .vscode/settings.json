@@ -16,5 +16,6 @@
         "statusBar.debuggingForeground": "#F0FEF4",
         "statusBar.noFolderBackground": "#043513",
         "statusBar.noFolderForeground": "#F0FEF4"
-    }
+    },
+    "workbench.browser.enableChatTools": true
 }

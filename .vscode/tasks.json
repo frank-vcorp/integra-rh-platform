@@ -1,11 +1,27 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Bridge: Generar Gemini Prompt",
-      "type": "shell",
-      "command": "npm --prefix contexto/bridge run bridge",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Bridge: Generar Gemini Prompt",
+			"type": "shell",
+			"command": "npm --prefix contexto/bridge run bridge",
+			"problemMatcher": []
+		},
+		{
+			"label": "Manus dev server",
+			"type": "shell",
+			"command": "unset FIREBASE_TOKEN && pnpm --dir /home/frank/proyectos/integra-rh/integra-rh-manus dev",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Manus dev server clean",
+			"type": "shell",
+			"command": "unset FIREBASE_TOKEN && pnpm --dir /home/frank/proyectos/integra-rh/integra-rh-manus dev",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
 }

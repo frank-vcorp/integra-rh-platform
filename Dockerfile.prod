@@ -45,12 +45,34 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar archivos necesarios desde la etapa de construcción
+# Instalar Chromium del sistema + dependencias gráficas necesarias para headless PDF
+# @intervention IMPL-20260408-03 | Chromium Alpine para HTML-first PDF renderer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Ruta del Chromium del sistema para playwright-core (no descarga binario propio)
+ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+# Instalar pnpm para reproducir el lockfile exacto en producción
+# @intervention IMPL-20260408-14
+RUN npm install -g pnpm
+
+# Copiar artefactos de build y manifiestos de dependencias
 COPY --from=builder /app/integra-rh-manus/dist ./dist
 COPY --from=builder /app/integra-rh-manus/package.json ./
+COPY --from=builder /app/integra-rh-manus/pnpm-lock.yaml ./
+COPY --from=builder /app/integra-rh-manus/patches ./patches
 
-# Instalar solo dependencias de producción
-RUN npm install --omit=dev --legacy-peer-deps
+# Instalar solo dependencias de producción con versiones exactas del lockfile
+# Garantiza que playwright-core se instale correctamente para el renderer HTML-first
+RUN pnpm install --prod --frozen-lockfile
 
 ENV NODE_ENV=production
 ENV PORT=8080
