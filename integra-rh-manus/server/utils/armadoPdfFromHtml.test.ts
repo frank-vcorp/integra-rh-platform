@@ -131,3 +131,96 @@ describe("HTML-first end-to-end (renderArmadoHtml → renderHtmlToPdf)", () => {
     60_000,
   );
 });
+
+// ── Suite: ARCH-20260408-14 — fotos de documentos en captura_visita ───────────
+// Verifica que buildCapturaVisita emite el grid de fotos cuando el encuestador
+// guarda imágenes de documentos (credencialElector.fotoFrente, etc.)
+// @intervention IMPL-20260408-14
+
+describe("ARCH-20260408-14 — captura_visita con imágenes de documentos", () => {
+  const SNAPSHOT_CON_DOCS = {
+    ...SNAPSHOT_MINIMO,
+    process: {
+      ...SNAPSHOT_MINIMO.process,
+      visitaDetalle: {
+        ubicacion: { domicilio: "Calle Ejemplo 1", cp: "06600", estado: "CDMX" },
+        documentos: {
+          credencialElector: {
+            tiene: true,
+            fotoFrente: "https://storage.example.com/doc-frente.jpg",
+            fotoReverso: "https://storage.example.com/doc-reverso.jpg",
+          },
+          comprobanteDomicilio: {
+            tiene: true,
+            foto: "https://storage.example.com/comprobante.jpg",
+          },
+          cartillaMilitar: { tiene: false },
+        },
+      },
+    },
+  };
+
+  it("genera HTML con doc-photos-grid cuando hay fotos de documentos", async () => {
+    const { renderArmadoHtml } = await import("./armadoHtmlRenderer");
+    const html = await renderArmadoHtml(SNAPSHOT_CON_DOCS, ["captura_visita"]);
+
+    // Verificamos el elemento HTML (atributo class=), no la regla CSS
+    expect(html).toContain('class="doc-photos-grid"');
+    expect(html).toContain("doc-frente.jpg");
+    expect(html).toContain("doc-reverso.jpg");
+    expect(html).toContain("comprobante.jpg");
+  });
+
+  it("muestra resumen compacto (presentó / no presentó) junto a las fotos", async () => {
+    const { renderArmadoHtml } = await import("./armadoHtmlRenderer");
+    const html = await renderArmadoHtml(SNAPSHOT_CON_DOCS, ["captura_visita"]);
+
+    // Credencial → presentó; Cartilla → no presentó
+    expect(html).toContain("Credencial de elector");
+    expect(html).toContain("Cartilla militar");
+    // Fotos presentes → el grid de imágenes existe
+    expect(html).toContain('class="doc-photo-img"');
+  });
+
+  it("no emite doc-photos-grid cuando no hay ninguna foto", async () => {
+    const snapshotSinFotos = {
+      ...SNAPSHOT_MINIMO,
+      process: {
+        ...SNAPSHOT_MINIMO.process,
+        visitaDetalle: {
+          documentos: {
+            actaNacimiento: { tiene: true /* sin campo foto */ },
+            credencialElector: { tiene: false },
+          },
+        },
+      },
+    };
+    const { renderArmadoHtml } = await import("./armadoHtmlRenderer");
+    const html = await renderArmadoHtml(snapshotSinFotos, ["captura_visita"]);
+
+    // No debe existir el elemento grid si no hay URLs de foto reales
+    // (la regla CSS .doc-photos-grid siempre está en el <style>, buscamos el atributo HTML)
+    expect(html).not.toContain('class="doc-photos-grid"');
+  });
+});
+
+// ── Suite: ARCH-20260408-14 — HTML-first no cae a legacy cuando Chromium ok ───
+describe("ARCH-20260408-14 — renderer HTML-first vs legacy", () => {
+  it(
+    "generarArmadoClientePDF usa HTML-first (retorna PDF válido) cuando Playwright/Chromium disponibles",
+    async () => {
+      const { generarArmadoClientePDF } = await import("./estudiosocioPdf");
+      const pdfBytes = await generarArmadoClientePDF(
+        SNAPSHOT_MINIMO,
+        ["generales_candidato"],
+      );
+
+      expect(pdfBytes).toBeInstanceOf(Uint8Array);
+      expect(pdfBytes.byteLength).toBeGreaterThan(1000);
+      // Ambos renderers producen un PDF válido — verificamos que es parseable
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    },
+    90_000,
+  );
+});

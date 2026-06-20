@@ -16,7 +16,28 @@
  * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+/**
+ * Escanea el cache de ms-playwright buscando cualquier revisión de Chromium instalada.
+ * Retorna el path del ejecutable si lo encuentra, o null.
+ */
+function findChromiumInPlaywrightCache(): string | null {
+  try {
+    const baseDir = join(process.env.HOME ?? "", ".cache", "ms-playwright");
+    if (!existsSync(baseDir)) return null;
+    const entries = readdirSync(baseDir);
+    for (const entry of entries) {
+      if (!entry.startsWith("chromium-")) continue;
+      const candidate = join(baseDir, entry, "chrome-linux", "chrome");
+      if (existsSync(candidate)) return candidate;
+    }
+  } catch {
+    // Ignorado — el fallback maneja esto
+  }
+  return null;
+}
 
 /** Tiempo máximo de espera para Playwright (ms). */
 const PLAYWRIGHT_TIMEOUT_MS = 45_000;
@@ -32,9 +53,10 @@ export async function renderHtmlToPdf(html: string): Promise<Uint8Array | null> 
   // Import dinámico: no lanza en producción si playwright-core no está instalado.
   let playwrightChromium: { launch: Function; executablePath: () => string } | undefined;
   try {
-    // Importamos desde @playwright/test que es devDep declarada.
-    // En producción sin devDeps, este import fallará graciosamente → null → fallback.
-    const pw = await import("@playwright/test");
+    // playwright-core es dependency de producción (no devDep).
+    // Usamos import dinámico para no romper entornos donde el módulo no esté instalado.
+    // @intervention IMPL-20260408-03
+    const pw = await import("playwright-core");
     playwrightChromium = pw.chromium as unknown as {
       launch: Function;
       executablePath: () => string;
@@ -46,18 +68,29 @@ export async function renderHtmlToPdf(html: string): Promise<Uint8Array | null> 
 
   if (!playwrightChromium) return null;
 
-  // Verificar binario de Chromium en disco antes de intentar launch.
-  let executablePath: string;
-  try {
-    executablePath = playwrightChromium.executablePath();
-  } catch {
-    console.warn("[armadoPdfFromHtml] No se pudo obtener executablePath de Chromium — usando fallback.");
-    return null;
+  // Resolver el ejecutable de Chromium:
+  // 1) Env var CHROMIUM_EXECUTABLE_PATH (producción Docker — Chromium del sistema)
+  // 2) PLAYWRIGHT_EXECUTABLE_PATH (override manual)
+  // 3) Rutas conocidas del sistema (Alpine /usr/bin/chromium-browser, Debian /usr/bin/chromium)
+  // 4) playwright-core.executablePath() (cache ms-playwright en dev/CI)
+  let executablePath: string | null =
+    process.env.CHROMIUM_EXECUTABLE_PATH ??
+    process.env.PLAYWRIGHT_EXECUTABLE_PATH ??
+    (() => {
+      if (existsSync("/usr/bin/chromium-browser")) return "/usr/bin/chromium-browser";
+      if (existsSync("/usr/bin/chromium")) return "/usr/bin/chromium";
+      return null;
+    })();
+
+  if (!executablePath) {
+    // Último recurso: escanear cache de ms-playwright (funciona en dev/CI con browsers instalados)
+    // Escaneo dinámico de revisiones para evitar hardcodear número de revisión.
+    executablePath = findChromiumInPlaywrightCache();
   }
 
-  if (!existsSync(executablePath)) {
+  if (!executablePath || !existsSync(executablePath)) {
     console.warn(
-      `[armadoPdfFromHtml] Binario de Chromium no encontrado en "${executablePath}" — usando fallback.`,
+      `[armadoPdfFromHtml] Binario de Chromium no encontrado${executablePath ? ` en "${executablePath}"` : ""} — usando fallback.`,
     );
     return null;
   }
@@ -77,6 +110,12 @@ export async function renderHtmlToPdf(html: string): Promise<Uint8Array | null> 
     });
 
     const page = await (browser as any).newPage();
+
+    /**
+     * @intervention ARCH-20260408-01
+     * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+     */
+    await page.emulateMedia({ media: "screen" });
 
     await page.setContent(html, {
       waitUntil: "networkidle",
@@ -111,16 +150,17 @@ export async function renderHtmlToPdf(html: string): Promise<Uint8Array | null> 
  */
 export function isChromiumAvailable(): boolean {
   try {
-    // require síncrono no aplica en ESM; usamos una cache lazy via import.meta
-    // En ESM no podemos usar require(), así que confiamos en el existsSync sobre las
-    // rutas conocidas de Playwright. Esto cubre el caso común de desarrollo y CI.
-    const knownPaths = [
-      // Linux (ms-playwright cache)
-      `${process.env.HOME}/.cache/ms-playwright/chromium-1194/chrome-linux/chrome`,
-      // Fallback genérico por si se actualizó la versión
-      `${process.env.PLAYWRIGHT_BROWSERS_PATH ?? ""}/chromium-1194/chrome-linux/chrome`,
-    ];
-    return knownPaths.some((p) => p && existsSync(p));
+    // Env var de producción Docker (Chromium del sistema Alpine)
+    const envPath = process.env.CHROMIUM_EXECUTABLE_PATH ?? process.env.PLAYWRIGHT_EXECUTABLE_PATH;
+    if (envPath && existsSync(envPath)) return true;
+
+    // Rutas conocidas del sistema
+    if (existsSync("/usr/bin/chromium-browser")) return true;
+    if (existsSync("/usr/bin/chromium")) return true;
+
+    // Fallback: escanear cache de ms-playwright (cualquier revisión instalada)
+    if (findChromiumInPlaywrightCache()) return true;
+    return false;
   } catch {
     return false;
   }

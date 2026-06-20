@@ -140,7 +140,11 @@ function ShareStudyPdfWhatsappButton({
 export default function ProcesoDetalle() {
   const params = useParams();
   const processId = parseInt(params.id || "0");
-  const { data: process, isLoading } = trpc.processes.getById.useQuery({ id: processId });
+  const {
+    data: process,
+    isLoading,
+    refetch: refetchProcess,
+  } = trpc.processes.getById.useQuery({ id: processId });
   const { data: workHistory = [] } = trpc.workHistory.getByCandidate.useQuery(
     { candidatoId: process?.candidatoId || 0 },
     { enabled: !!process?.candidatoId }
@@ -169,10 +173,21 @@ export default function ProcesoDetalle() {
       utils.processes.getById.invalidate({ id: processId });
     }
   });
+  /**
+   * @intervention ARCH-20260409-02
+   * @respaldo PROYECTO.md
+   */
   const updateCalif = trpc.processes.updateCalificacion.useMutation({
-    onSuccess: () => {
-      utils.processes.getById.invalidate({ id: processId });
-      utils.processes.getScoreAudit.invalidate({ id: processId });
+    onSuccess: async () => {
+      await Promise.all([
+        utils.processes.getById.invalidate({ id: processId }),
+        utils.processes.getScoreAudit.invalidate({ id: processId }),
+        refetchProcess(),
+      ]);
+      toast.success("Calificación actualizada");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo actualizar la calificación");
     },
   });
   const genDictamen = trpc.processes.generarDictamen.useMutation({
@@ -528,15 +543,6 @@ export default function ProcesoDetalle() {
   );
 
   /**
-   * @intervention ARCH-20260321-06
-   * @respaldo PROYECTO.md
-   */
-  const handleShareClientDashboardAccess = async () => {
-    if (!process?.clienteId) return;
-
-    const existingToken = (activeTokens as any[])[0]?.token;
-
-  /**
    * Prioriza el motivo de salida como referencia operativa rápida en la tarjeta interna del proceso.
    * @intervention ARCH-20260408-09
    * @respaldo PROYECTO.md
@@ -576,6 +582,15 @@ export default function ProcesoDetalle() {
       "Puesto no disponible"
     );
   };
+
+  /**
+   * @intervention ARCH-20260321-06
+   * @respaldo PROYECTO.md
+   */
+  const handleShareClientDashboardAccess = async () => {
+    if (!process?.clienteId) return;
+
+    const existingToken = (activeTokens as any[])[0]?.token;
     const dashboardUrl = existingToken
       ? `${window.location.origin}/cliente/${existingToken}`
       : (

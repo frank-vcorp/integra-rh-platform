@@ -750,27 +750,65 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
   }
 
   // ── Cotejo de documentos ───────────────────────────────────────────────
+  // Muestra resumen compacto de estado y las fotos reales capturadas por el encuestador.
+  // @intervention IMPL-20260408-03 | ARCH-20260408-14
   const docs: Record<string, any> = vd.documentos || {};
   if (Object.keys(docs).length > 0) {
     body += '<div class="subsection-title">Cotejo de documentos</div>';
-    const docItems: Array<[string, any]> = [
-      ["Acta de nacimiento", docs.actaNacimiento?.tiene],
-      ["Credencial de elector", docs.credencialElector?.tiene],
-      ["Comprobante de domicilio", docs.comprobanteDomicilio?.tiene],
-      ["Cartilla militar", docs.cartillaMilitar?.tiene],
-      ["Pasaporte", docs.pasaporte?.tiene],
-      ["Cartas de recomendación", docs.cartasRecomendacion?.tiene],
-      ["Licencia de conducir", docs.licenciaConducir?.tiene],
-      ["Certificado/Título", docs.certificadoTitulo?.tiene],
+
+    // Definición de tipos de documentos y sus campos de foto
+    const docDefs: Array<{ key: string; label: string; photoFields: string[] }> = [
+      { key: "actaNacimiento",      label: "Acta de nacimiento",       photoFields: ["foto"] },
+      { key: "credencialElector",   label: "Credencial de elector",    photoFields: ["fotoFrente", "fotoReverso"] },
+      { key: "comprobanteDomicilio",label: "Comprobante de domicilio", photoFields: ["foto"] },
+      { key: "cartillaMilitar",     label: "Cartilla militar",         photoFields: ["foto"] },
+      { key: "pasaporte",           label: "Pasaporte",                photoFields: ["fotoFrente", "fotoReverso", "foto"] },
+      { key: "cartasRecomendacion", label: "Cartas de recomendación",  photoFields: ["foto"] },
+      { key: "licenciaConducir",    label: "Licencia de conducir",     photoFields: ["fotoFrente", "fotoReverso"] },
+      { key: "certificadoTitulo",   label: "Certificado / Título",     photoFields: ["foto"] },
+      { key: "afore",               label: "AFORE",                    photoFields: ["foto"] },
+      { key: "creditoInfonavit",    label: "Crédito Infonavit",        photoFields: ["foto"] },
     ];
-    const hasAny = docItems.some(([, v]) => v !== undefined);
-    if (hasAny) {
-      body += '<div class="field-pair">';
-      for (const [label, val] of docItems) {
-        if (val === undefined) continue;
-        const mark = val ? "✓" : "✗";
-        const color = val ? "#16a34a" : "#dc2626";
-        body += `<div class="field-row"><span class="field-label">${esc(label)}</span><span class="field-value" style="color:${color};font-weight:600">${mark} ${val ? "Presentó" : "No presentó"}</span></div>`;
+
+    // Resumen compacto de estado (presentó / no presentó)
+    const docStatuses = docDefs
+      .filter((d) => docs[d.key] && docs[d.key].tiene !== undefined)
+      .map((d) => ({ label: d.label, tiene: docs[d.key].tiene as boolean }));
+
+    if (docStatuses.length > 0) {
+      const presented = docStatuses.filter((d) => d.tiene).map((d) => d.label);
+      const notPresented = docStatuses.filter((d) => !d.tiene).map((d) => d.label);
+      if (presented.length > 0) {
+        body += `<div class="field-row"><span class="field-label">✓ Presentó</span><span class="field-value" style="color:#16a34a;font-weight:600">${esc(presented.join(", "))}</span></div>`;
+      }
+      if (notPresented.length > 0) {
+        body += `<div class="field-row"><span class="field-label">✗ No presentó</span><span class="field-value" style="color:#dc2626;font-weight:600">${esc(notPresented.join(", "))}</span></div>`;
+      }
+    }
+
+    // Galería de fotos de documentos
+    const docPhotos: Array<{ label: string; url: string }> = [];
+    for (const def of docDefs) {
+      const docData = docs[def.key];
+      if (!docData) continue;
+      for (const field_ of def.photoFields) {
+        const url = docData[field_];
+        if (typeof url === "string" && url.startsWith("http")) {
+          const suffix = field_.replace("foto", "").replace("Frente", " — frente").replace("Reverso", " — reverso");
+          docPhotos.push({ label: `${def.label}${suffix}`, url });
+        }
+      }
+    }
+
+    if (docPhotos.length > 0) {
+      body += `<div class="subsection-title" style="margin-top:12px;font-size:12px">Imágenes de documentos (${docPhotos.length})</div>`;
+      body += '<div class="doc-photos-grid">';
+      for (const { label, url } of docPhotos) {
+        body += `<div class="doc-photo-item">
+          <img src="${esc(url)}" alt="${esc(label)}" class="doc-photo-img"
+            onerror="this.closest('.doc-photo-item').style.display='none'" />
+          <div class="doc-photo-caption">${esc(label)}</div>
+        </div>`;
       }
       body += "</div>";
     }
@@ -897,7 +935,7 @@ function buildCapturaVisita(snapshot: Record<string, any>): string {
         ["Otros gastos", egresos.otrosGastos],
       ];
       if (egresos.servicios && typeof egresos.servicios === "object") {
-        const totalServicios = Object.values(egresos.servicios as Record<string, unknown>).reduce((a, v) => a + (Number(v) || 0), 0);
+        const totalServicios = Object.values(egresos.servicios as Record<string, unknown>).reduce<number>((a, v) => a + (Number(v) || 0), 0);
         if (totalServicios > 0) egMap.unshift(["Servicios (agua/luz/gas/tel)", totalServicios]);
       }
       let totalEg = 0;
@@ -1120,6 +1158,10 @@ function buildObservacionesConclusion(snapshot: Record<string, any>): string {
 
 // ── CSS del documento ─────────────────────────────────────────────────────────
 
+/**
+ * @intervention ARCH-20260408-01
+ * @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+ */
 const DOCUMENT_CSS = `
   *, *::before, *::after { box-sizing: border-box; }
   html { font-size: 14px; }
@@ -1356,8 +1398,8 @@ const DOCUMENT_CSS = `
   /* Secciones */
   .doc-section {
     margin-bottom: 36px;
-    break-inside: avoid-page;
-    page-break-inside: avoid;
+    break-inside: auto;
+    page-break-inside: auto;
   }
   .section-header {
     display: flex;
@@ -1708,14 +1750,47 @@ const DOCUMENT_CSS = `
     text-align: center;
   }
 
+  /* ── Galería de fotos de documentos del encuestador ─────────────────── */
+  /* @intervention IMPL-20260408-03 | ARCH-20260408-14 */
+  .doc-photos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 10px 0 16px;
+  }
+  .doc-photo-item { break-inside: avoid; }
+  .doc-photo-img {
+    width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: block;
+  }
+  .doc-photo-caption {
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    text-align: center;
+    margin-top: 3px;
+    padding: 2px 4px;
+  }
+
   /* Print styles */
   @media print {
     body { background: #fff; }
     .page-wrapper { box-shadow: none; max-width: 100%; }
     .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .doc-section { page-break-inside: avoid; }
-    .cover { page-break-after: always; }
-    .toc { page-break-after: always; }
+    .cover,
+    .toc,
+    .doc-section,
+    .section-body {
+      break-inside: auto;
+      page-break-inside: auto;
+      break-after: auto;
+      page-break-after: auto;
+    }
     @page { margin: 1.5cm; }
   }
 

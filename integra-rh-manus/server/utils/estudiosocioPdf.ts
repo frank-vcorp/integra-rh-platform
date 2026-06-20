@@ -1068,6 +1068,26 @@ export async function generarArmadoClientePDF(
   snapshot: Record<string, any>,
   sections: string[],
 ): Promise<Uint8Array> {
+  // ── Fase 2: HTML-first (Playwright/Chromium) — IMPL-20260408-01 ──────────
+  // Intenta generar el PDF desde la composición HTML editorial canónica.
+  // Si Playwright no está disponible o falla, cae al renderer pdf-lib legacy.
+  try {
+    const { renderArmadoHtml } = await import("./armadoHtmlRenderer.js");
+    const { renderHtmlToPdf } = await import("./armadoPdfFromHtml.js");
+    const html = await renderArmadoHtml(snapshot, sections);
+    const pdfBytes = await renderHtmlToPdf(html);
+    if (pdfBytes) {
+      console.info("[generarArmadoClientePDF] PDF generado via HTML-first/Playwright.");
+      return pdfBytes;
+    }
+  } catch (err) {
+    console.warn(
+      "[generarArmadoClientePDF] HTML-first no disponible, usando fallback pdf-lib:",
+      (err as Error).message ?? String(err),
+    );
+  }
+
+  // ── Fallback: renderer pdf-lib legacy ─────────────────────────────────
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
