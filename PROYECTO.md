@@ -340,6 +340,19 @@ Estado del Proyecto: Integra-RH v2
 
 - Checkpoint nuevo (28 ene 2026): `CHK_2026-01-28_INVESTIGACION-LOCALSTORAGE.md`.
 
+### FIX - ISSUES ACTIVOS
+
+- `[~]` **FIX-20260619-01: Puesto no se refleja en `/candidatos` cuando se crea desde `/flujo-completo`**
+  - **Estado:** Planificado — pendiente implementación SOFIA
+  - **Owner:** SOFIA (implementación) — Frank (revisión + QA manual)
+  - **ID:** ARCH-20260619-01
+  - **SPEC:** `context/SPECs/SPEC-flujo-completo-puesto-candidato.md`
+  - **Causa raíz:** `ClienteFormularioIntegrado.tsx` (ruta `/flujo-completo`) crea el puesto pero **no llama** `candidates.update` para asignar `puestoId` al candidato. Los otros 2 flujos (`/flujo-rapido`, `/flujo-puesto`) sí lo hacen y funcionan correctamente.
+  - **Fix:** Replicar patrón de FIX-20260219-03/04 en `ClienteFormularioIntegrado.tsx` — agregar `updateCandidateMutation` y dispararlo desde `createPostMutation.onSuccess`.
+  - **Archivos a modificar:** `integra-rh-manus/client/src/pages/ClienteFormularioIntegrado.tsx` (único)
+  - **Validaciones SOFIA:** `pnpm tsc --noEmit` + `pnpm lint` + `pnpm build` + `qodo self-review`
+  - **QA manual:** Verificar columna "Puesto" en `/candidatos` después de correr flujo completo en producción.
+
 ### FIX - ISSUES ACTIVOS (Febrero 2026)
 - `[/]` **FIX-20260217: Plazas faltantes en Procesos — Migración MySQL**
   - **Estado:** 95% COMPLETADO — **BLOQUEADO por Railway IP restrictions**

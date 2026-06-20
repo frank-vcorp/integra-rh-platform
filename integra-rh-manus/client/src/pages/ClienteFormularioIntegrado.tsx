@@ -135,10 +135,36 @@ export default function ClienteFormularioIntegrado() {
     onSuccess: (data) => {
       setPuestoId(data.id);
       toast.success("Puesto creado exitosamente");
-      setStep(4);
+
+      // ARCH-20260619-01 / FIX-20260619-01: Actualizar candidato con el puestoId recién creado
+      if (candidatoId) {
+        updateCandidateMutation.mutate({
+          id: candidatoId,
+          data: { puestoId: data.id },
+        });
+      } else {
+        toast.error("Error: No se tiene ID del candidato");
+      }
     },
     onError: (error) => {
       toast.error("Error al crear puesto: " + error.message);
+    },
+  });
+
+  // ARCH-20260619-01 / FIX-20260619-01: Mutation para vincular puestoId al candidato
+  const updateCandidateMutation = trpc.candidates.update.useMutation({
+    onSuccess: (result) => {
+      // FIX-20260619-01: Solo avanzar a step 4 si candidato fue actualizado con puestoId
+      if (result.candidate?.puestoId) {
+        utils.candidates.list.invalidate();
+        toast.success("Puesto asignado al candidato");
+        setStep(4);
+      } else {
+        toast.error("Error: No se asignó el puesto al candidato");
+      }
+    },
+    onError: (error) => {
+      toast.error("Error al asignar puesto al candidato: " + error.message);
     },
   });
 
@@ -498,7 +524,7 @@ export default function ClienteFormularioIntegrado() {
                 <Button type="button" variant="outline" onClick={() => setStep(2)}>
                   Regresar
                 </Button>
-                <Button type="submit" disabled={createPostMutation.isPending}>
+                <Button type="submit" disabled={createPostMutation.isPending || updateCandidateMutation.isPending}>
                   Continuar a Proceso
                   <ChevronRight className="h-4 w-4 ml-2" />
                 </Button>
