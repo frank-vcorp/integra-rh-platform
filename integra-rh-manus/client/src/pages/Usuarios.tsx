@@ -70,6 +70,9 @@ export default function Usuarios() {
 
   const createMutation = trpc.users.create.useMutation({
     onSuccess: async (res: any) => {
+      // @intervention FIX-20260619-01
+      // `create` ahora devuelve { id, resetLink?, emailed?, firebaseUid? }.
+      // Cuando hay email, el server ya hizo upsert local + Firebase + magic link.
       if (res?.id && selectedRoleIds.length > 0) {
         await setUserRolesMutation.mutateAsync({
           userId: res.id,
@@ -81,7 +84,28 @@ export default function Usuarios() {
       setSelectedClient("");
       setSelectedRole("client");
       setSelectedRoleIds([]);
-      toast.success("Usuario creado exitosamente");
+
+      if (res?.emailed) {
+        toast.success("Invitación enviada por correo");
+      } else if (res?.resetLink) {
+        // SendGrid no respondió 2xx (sin key, fallback o error): el server ya
+        // generó el enlace; lo copiamos y ofrecemos WhatsApp.
+        try { navigator.clipboard?.writeText(res.resetLink); } catch {}
+        toast.success("Enlace de invitación generado (copiado al portapapeles)");
+        const share = confirm("¿Quieres compartir el acceso por WhatsApp ahora?");
+        if (share) {
+          const phone = prompt("Número (incluye LADA, ej. +52XXXXXXXXXX):", "");
+          if (phone) {
+            const digits = phone.replace(/[^0-9+]/g, "");
+            const msg = `Hola, te comparto tu acceso a INTEGRA RH. Usa este enlace para definir tu contraseña y entrar: ${res.resetLink}`;
+            const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(digits)}&text=${encodeURIComponent(msg)}`;
+            try { window.open(url, "_blank"); } catch {}
+          }
+        }
+      } else {
+        // Sin email: persistencia local únicamente.
+        toast.success("Usuario creado exitosamente");
+      }
     },
     onError: (error) => {
       toast.error("Error al crear usuario: " + error.message);

@@ -151,6 +151,22 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+/**
+ * Busca un usuario por email (case-insensitive vía collation de MySQL).
+ * Usado por el flujo de invitación para hacer upsert idempotente.
+ * @intervention FIX-20260619-01
+ */
+export async function findUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];
