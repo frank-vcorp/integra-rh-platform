@@ -19,6 +19,9 @@ Estado del Proyecto: Integra-RH v2
 
 ---
 
+### Hotfixes de Produccion
+- `[>]` HOTFIX-20260520-02: Corregir 500 en `users.delete` y `processes.list` — SPEC: `context/SPECs/SPEC-ARCH-20260520-08-hotfix-users-delete-processes-list.md`
+
 ### PVM - Infraestructura
 - `[X]` PVM-INF-01: Aprovisionar MySQL/TiDB (dev/stg/prod)
 
@@ -87,6 +90,7 @@ Estado del Proyecto: Integra-RH v2
  - `[✓]` PVM-DEV-01: Scripts y .env — SPEC: `context/SPEC-PVM-DEV-01.md`
    - *Actualizado `.env.example` (VITE_FIREBASE_*, VITE_APP_*, PSICOMETRICAS_*, SENDGRID_API_KEY) y `.env` local; unificada `VITE_API_URL=/api/trpc`.*
  - `[ ]` PVM-REL-01: Deploy stg (API + Web) — SPEC: `context/SPEC-PVM-REL-01.md`
+ - `[ ]` PVM-REL-02: Alinear pipeline de push para incluir Firebase Functions heredadas — SPEC: `context/SPECs/SPEC-ARCH-20260520-06-deploy-functions-pipeline.md`
 
 ### UI-REF: Refinamiento de UI/UX
  - `[✓]` UI-REF-01: Implementar Sistema de Diseño (shadcn/ui + Tremor) — SPEC: `context/SPEC-UI-REF-01.md`
@@ -171,23 +175,23 @@ Estado del Proyecto: Integra-RH v2
 - **Firebase Hosting Automático en Pipeline (RESUELTO - CRÍTICO):**
   - Problema: `git push master` → CloudRun auto-actualizado ✅ pero Firebase Hosting requería `firebase deploy` manual ❌
   - Solución: Implementado Service Account (`firebase-deployer@integra-rh.iam.gserviceaccount.com`) con rol `firebase.admin`.
-  - Integración: FIREBASE_SA_KEY guardado en Secret Manager v1; Cloud Build ahora ejecuta `firebase deploy --only hosting,functions` como paso final automático.
+  - Integración: FIREBASE_SA_KEY guardado en Secret Manager v1; existe drift entre esta nota histórica y la configuración real actual de [cloudbuild.yaml](cloudbuild.yaml), que hoy despliega solo Hosting. La alineación real quedó registrada como tarea `PVM-REL-02`.
   - Commits: `3167496` (Firebase step basic) + `4e27607` (integración Service Account secret) + `112870c` (fix DATABASE_URL injection).
   - Validaciones: 
     - Build eddb961a-900b ejecutó todos 5 pasos, api-00142-lm6 creada
     - Build cc7972f4 con fix DATABASE_URL completó SUCCESS, api-00143-dfq creada con SECRET inyectado
-  - Resultado: Pipeline completamente automático — `git push master` → API + Frontend + Functions en vivo en ~4.5 minutos.
+  - Resultado histórico: se documentó como pipeline completamente automático, pero el estado real vigente debe validarse contra [cloudbuild.yaml](cloudbuild.yaml) y la tarea `PVM-REL-02` antes de asumir deploy de Functions por push.
 
 - **Pipeline Completo (5 pasos automatizados):**
   1. Docker pull (caché optimizado)
   2. Docker build (compilación Vite + Node.js)
   3. Docker push (Artifact Registry)
   4. CloudRun deploy (api-XXX-XXX con DATABASE_URL inyectado desde Secret Manager)
-  5. Firebase deploy (Hosting + Cloud Functions automático)
+  5. Firebase deploy (Hosting automático; Functions pendientes de realineación en `PVM-REL-02`)
 
 - **Beneficios:**
   - Automatización 100%: DEVs solo hacen `git push`
-  - Sincronización garantizada entre API, Frontend y Functions
+  - Sincronización garantizada entre API y Frontend; Functions heredadas siguen sujetas a la realineación definida en `PVM-REL-02`
   - Seguridad: sin credenciales en Git (Secret Manager + Service Accounts)
   - Velocidad: ~4.5 min deploy completo end-to-end
   
