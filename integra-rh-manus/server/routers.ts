@@ -663,7 +663,7 @@ export const appRouter = router({
         const docs = await db.getDocumentsByProcess(input.procesoId);
         // IMPL-20260408-06: refrescar URLs usando fileKey cuando esté disponible
         return Promise.all(
-          docs.map(async (doc) => ({
+          docs.map(async (doc: Awaited<ReturnType<typeof db.getDocumentsByProcess>>[number]) => ({
             ...doc,
             url: await refreshStorageUrl(doc.url, doc.fileKey),
           })),

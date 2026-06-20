@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, uniqueIndex } from "drizzle-orm/mysql-core";
+import { index, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar, boolean } from "drizzle-orm/mysql-core";
 
 /**
  * ARCH-20260321-01 | Respaldo: PROYECTO.md
@@ -792,7 +792,13 @@ export const processes = mysqlTable("processes", {
   }>(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  /**
+   * @intervention ARCH-20260324-02
+   * @respaldo context/SPECs/SPEC-indice-fecha-recepcion-procesos.md
+   */
+  processesFechaRecepcionIndex: index("idx_processes_fechaRecepcion").on(table.fechaRecepcion),
+}));
 
 export type Process = typeof processes.$inferSelect;
 export type InsertProcess = typeof processes.$inferInsert;
@@ -815,6 +821,7 @@ export const processReportVersions = mysqlTable("processReportVersions", {
   snapshot: json("snapshot").$type<Record<string, unknown>>().notNull(),
   pdfFileName: varchar("pdfFileName", { length: 255 }),
   pdfStoragePath: varchar("pdfStoragePath", { length: 500 }),
+  htmlStoragePath: varchar("htmlStoragePath", { length: 500 }),
   createdByUserId: int("createdByUserId"),
   createdByName: varchar("createdByName", { length: 255 }),
   publishedByUserId: int("publishedByUserId"),

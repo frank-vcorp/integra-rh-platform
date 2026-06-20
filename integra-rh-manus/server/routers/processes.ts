@@ -8,10 +8,10 @@ import { invokeLLM } from "../_core/llm";
 import { ENV } from "../_core/env";
 import { randomUUID } from "node:crypto";
 import { generarArmadoClientePDF } from "../utils/estudiosocioPdf";
-/** @intervention IMPL-20260313-02 | IMPL-20260320-15 | ARCH-20260321-03 */
-// HTML-first renderer excluido del RC (ARCH-20260321-03). Flujo: solo pdf-lib legado.
+/** @intervention IMPL-20260313-02 | IMPL-20260320-15 | IMPL-20260408-01 */
+// HTML-first habilitado en RC via IMPL-20260408-01 (hotfix Armados v2).
 /** IMPL-20260320-15: blindado operaciones de Storage (getPublishedReportAccess, getReportVersionAccess, createLegacyReportDraft, generarDictamen) */
-import { surveyorTokens, auditLogs, users } from "../../drizzle/schema";
+import { surveyorTokens, auditLogs, users, processReportVersions } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 /**
@@ -854,10 +854,10 @@ export const processesRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de datos no disponible" });
       }
 
-      // ── Renderer pdf-lib (RC estable, ARCH-20260321-03) ─────────────────
-      // HTML-first experimental excluido del RC. Renderer único: pdf-lib legado.
+      // ── Fase 1: PDF (generarArmadoClientePDF intenta HTML-first/Playwright y cae a pdf-lib) ──
+      // @intervention IMPL-20260408-01
       const pdfBytes = await generarArmadoClientePDF(input.snapshot, input.sections as string[]);
-      const rendererUsed = "pdf_lib_legacy" as const;
+      const rendererUsed = "html_first_with_pdf_lib_fallback" as const;
 
       const timestamp = Date.now();
       const storagePath = `estudios/${input.id}/armado-draft-${timestamp}.pdf`;
@@ -869,7 +869,7 @@ export const processesRouter = router({
       } catch (storageErr) {
         const msg = (storageErr as Error).message ?? '';
         const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
-        console.error('[ProcessesRouter] Storage error (createLegacyReportDraft):', msg);
+        console.error('[ProcessesRouter] Storage error (createLegacyReportDraft) PDF:', msg);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: isAuthError
@@ -878,12 +878,37 @@ export const processesRouter = router({
         });
       }
 
+      // ── Fase 2: HTML editorial (renderArmadoHtml — IMPL-20260408-01) ─────────
+      // Genera el HTML standalone desde el mismo snapshot y lo persiste en Storage.
+      // Permite preview interno sin re-renderizar en cada consulta.
+      let htmlStoragePath: string | null = null;
+      try {
+        const { renderArmadoHtml } = await import("../utils/armadoHtmlRenderer.js");
+        const htmlContent = await renderArmadoHtml(
+          input.snapshot,
+          input.sections as string[],
+          { versionNumber: undefined },
+        );
+        const htmlPath = `estudios/${input.id}/armado-draft-${timestamp}.html`;
+        const htmlFile = bucket.file(htmlPath);
+        await htmlFile.save(Buffer.from(htmlContent, 'utf-8'), {
+          contentType: 'text/html; charset=utf-8',
+          resumable: false,
+        });
+        htmlStoragePath = htmlPath;
+        console.info('[ProcessesRouter] HTML de armado guardado en Storage:', htmlPath);
+      } catch (htmlErr) {
+        // El HTML es best-effort: si falla, getReportVersionHtml regenerará on-demand
+        console.warn('[ProcessesRouter] No se pudo guardar HTML en Storage (regeneración on-demand disponible):', (htmlErr as Error).message ?? String(htmlErr));
+      }
+
       const created = await db.createProcessReportVersion({
         procesoId: input.id,
         sections: input.sections as unknown as string[],
         snapshot: input.snapshot,
         pdfFileName: `armado-${proc.clave}.pdf`,
         pdfStoragePath: storagePath,
+        htmlStoragePath: htmlStoragePath ?? undefined,
         reportScope: "armado_manual",
         status: "draft",
         createdByUserId: Number(ctx.user!.id) || null,
@@ -900,6 +925,7 @@ export const processesRouter = router({
           sections: input.sections,
           reportScope: "armado_manual",
           storagePath,
+          htmlStoragePath,
           rendererUsed,
         },
       });
@@ -908,6 +934,7 @@ export const processesRouter = router({
         id: created.id,
         versionNumber: created.versionNumber,
         storagePath,
+        htmlStoragePath,
         rendererUsed,
       } as const;
     }),
@@ -935,6 +962,71 @@ export const processesRouter = router({
         });
       }
 
+      // ── Regenerar PDF + HTML con el renderer *actual* antes de publicar ──
+      // Garantiza que el PDF publicado sea visualmente consistente con el HTML editorial.
+      // @intervention IMPL-20260408-03
+      const bucket = firebaseStorage.bucket();
+      const timestamp = Date.now();
+      const snapshot = version.snapshot as Record<string, any>;
+      const sections = version.sections as string[];
+
+      let freshPdfStoragePath = version.pdfStoragePath;
+      let freshHtmlStoragePath = version.htmlStoragePath ?? null;
+
+      try {
+        const { renderArmadoHtml } = await import("../utils/armadoHtmlRenderer.js");
+        const { renderHtmlToPdf } = await import("../utils/armadoPdfFromHtml.js");
+
+        // Regenerar HTML
+        const htmlContent = await renderArmadoHtml(snapshot, sections, { versionNumber: version.versionNumber });
+        const newHtmlPath = `estudios/${version.procesoId}/armado-v${version.versionNumber}-published-${timestamp}.html`;
+        await bucket.file(newHtmlPath).save(Buffer.from(htmlContent, "utf-8"), {
+          contentType: "text/html; charset=utf-8",
+          resumable: false,
+        });
+        freshHtmlStoragePath = newHtmlPath;
+        console.info("[publishReportVersion] HTML regenerado:", newHtmlPath);
+
+        // Regenerar PDF desde el HTML (HTML-first)
+        const pdfBytes = await renderHtmlToPdf(htmlContent);
+        if (pdfBytes) {
+          const newPdfPath = `estudios/${version.procesoId}/armado-v${version.versionNumber}-published-${timestamp}.pdf`;
+          await bucket.file(newPdfPath).save(Buffer.from(pdfBytes), {
+            contentType: "application/pdf",
+            resumable: false,
+          });
+          freshPdfStoragePath = newPdfPath;
+          console.info("[publishReportVersion] PDF regenerado via HTML-first:", newPdfPath);
+        } else {
+          // Fallback pdf-lib: regenerar con renderer legacy
+          const pdfFallbackBytes = await generarArmadoClientePDF(snapshot, sections);
+          const newPdfPath = `estudios/${version.procesoId}/armado-v${version.versionNumber}-published-${timestamp}.pdf`;
+          await bucket.file(newPdfPath).save(Buffer.from(pdfFallbackBytes), {
+            contentType: "application/pdf",
+            resumable: false,
+          });
+          freshPdfStoragePath = newPdfPath;
+          console.info("[publishReportVersion] PDF regenerado via fallback pdf-lib:", newPdfPath);
+        }
+      } catch (regenErr) {
+        // Si la regeneración falla totalmente, continuar con el PDF existente (no bloquear publicación)
+        console.warn("[publishReportVersion] Regeneración de PDF/HTML falló — publicando con assets existentes:", (regenErr as Error).message ?? String(regenErr));
+      }
+
+      // Actualizar pdfStoragePath y htmlStoragePath con los artefactos frescos
+      if (freshPdfStoragePath !== version.pdfStoragePath || freshHtmlStoragePath !== version.htmlStoragePath) {
+        const drizzleDb = await db.getDb();
+        if (drizzleDb) {
+          await drizzleDb
+            .update(processReportVersions)
+            .set({
+              pdfStoragePath: freshPdfStoragePath,
+              ...(freshHtmlStoragePath ? { htmlStoragePath: freshHtmlStoragePath } : {}),
+            })
+            .where(eq(processReportVersions.id, input.versionId));
+        }
+      }
+
       const published = await db.publishProcessReportVersion(input.versionId, {
         userId: Number(ctx.user!.id) || null,
         name: ctx.user!.name || ctx.user!.email || "Sistema interno",
@@ -948,6 +1040,8 @@ export const processesRouter = router({
           procesoId: version.procesoId,
           versionNumber: version.versionNumber,
           publishedAt: published.publishedAt,
+          pdfRegenerated: freshPdfStoragePath !== version.pdfStoragePath,
+          htmlRegenerated: freshHtmlStoragePath !== version.htmlStoragePath,
         },
       });
 
@@ -1042,11 +1136,48 @@ export const processesRouter = router({
         });
       }
 
-      // HTML renderer excluido del RC estable (ARCH-20260321-03).
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "Preview HTML no disponible en esta versión.",
-      });
+      // ── HTML-first: leer HTML persistido o regenerar on-demand ─────────────
+      // @intervention IMPL-20260408-01
+      // @respaldo context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md
+      if (version.htmlStoragePath) {
+        // HTML previamente guardado en Storage — descargar y retornar
+        const bucket = firebaseStorage.bucket();
+        const htmlFile = bucket.file(version.htmlStoragePath);
+        let htmlContent: string;
+        try {
+          const [buffer] = await htmlFile.download();
+          htmlContent = buffer.toString('utf-8');
+        } catch (dlErr) {
+          const msg = (dlErr as Error).message ?? '';
+          const isAuthError = msg.includes('invalid_grant') || msg.includes('invalid_rapt') || msg.includes('UNAUTHENTICATED');
+          console.error('[ProcessesRouter] Storage error (getReportVersionHtml download):', msg);
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: isAuthError
+              ? 'Error de autenticación con Firebase Storage al descargar HTML de armado.'
+              : `Error al descargar HTML de armado: ${msg}`,
+          });
+        }
+        return { html: htmlContent, versionId: input.versionId, source: 'storage' } as const;
+      }
+
+      // Fallback: regenerar desde snapshot + sections inmutables de la versión
+      // (usado para versiones draft anteriores al hotfix IMPL-20260408-01)
+      try {
+        const { renderArmadoHtml } = await import("../utils/armadoHtmlRenderer.js");
+        const html = await renderArmadoHtml(
+          version.snapshot as Record<string, any>,
+          version.sections as string[],
+          { versionNumber: version.versionNumber },
+        );
+        return { html, versionId: input.versionId, source: 'regenerated' } as const;
+      } catch (renderErr) {
+        console.error('[ProcessesRouter] Error regenerando HTML de armado:', (renderErr as Error).message);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Error al generar el preview HTML del armado.',
+        });
+      }
     }),
 
   generarDictamen: protectedProcedure
