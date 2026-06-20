@@ -105,6 +105,7 @@ export default function CandidatoFormularioIntegrado() {
             )
           );
           await utils.clientSites.listByClient.invalidate({ clientId: data.id });
+          await utils.clientSites.listAll.invalidate(); // FIX-20260619-02
         } catch (e: any) {
           toast.error(
             "Cliente creado, pero no se pudieron crear todas las plazas: " +
@@ -133,6 +134,7 @@ export default function CandidatoFormularioIntegrado() {
         await utils.clientSites.listByClient.invalidate({
           clientId: parseInt(selectedClient),
         });
+        await utils.clientSites.listAll.invalidate(); // FIX-20260619-02
       }
       setSelectedSite(String(data.id));
       setCreateSiteDialogOpen(false);

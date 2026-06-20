@@ -342,6 +342,17 @@ Estado del Proyecto: Integra-RH v2
 
 ### FIX - ISSUES ACTIVOS
 
+- `[~]` **FIX-20260619-02: Plaza recién creada no aparece en `/candidatos` hasta recargar (cache stale)**
+  - **Estado:** Planificado — pendiente implementación SOFIA
+  - **Owner:** SOFIA (implementación) — Frank (revisión + QA manual)
+  - **ID:** ARCH-20260619-02
+  - **SPEC:** `context/SPECs/SPEC-candidatos-cache-plaza-stale.md`
+  - **Causa raíz:** `clientSites.listAll` (consumido por `Candidatos.tsx`) tiene `staleTime: 10 min` y nunca se invalida al crear plaza inline. Solo se invalida `listByClient`, que está disabled para admins en `/candidatos`. Resultado: `clientSiteMap` queda stale y la columna Plaza muestra "-".
+  - **Fix:** En los 4 archivos donde se crea plaza inline (`ClienteFormularioIntegrado`, `Clientes`, `ClienteWizard`, `CandidatoFormularioIntegrado`), agregar `await utils.clientSites.listAll.invalidate()` después del `listByClient.invalidate` existente.
+  - **Archivos a modificar (4):** los mencionados arriba (1-2 líneas aditivas por archivo).
+  - **Importante:** NO debe regresarse FIX-20260217-05 (no invalidar `clientSites` cuando se crea candidato SIN plaza nueva).
+  - **Validaciones SOFIA:** `pnpm tsc --noEmit` + `pnpm build` + `qodo self-review` + grep de verificación.
+
 - `[~]` **FIX-20260619-01: Puesto no se refleja en `/candidatos` cuando se crea desde `/flujo-completo`**
   - **Estado:** Planificado — pendiente implementación SOFIA
   - **Owner:** SOFIA (implementación) — Frank (revisión + QA manual)

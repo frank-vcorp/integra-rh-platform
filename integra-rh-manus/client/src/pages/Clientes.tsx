@@ -193,6 +193,7 @@ export default function Clientes() {
     onSuccess: () => {
       if (sitesClient?.id) {
         utils.clientSites.listByClient.invalidate({ clientId: sitesClient.id });
+        utils.clientSites.listAll.invalidate(); // FIX-20260619-02
       }
       setNewSiteName("");
       setNewSiteCity("");

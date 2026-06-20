@@ -111,6 +111,7 @@ function Step1DatosBase({ onSuccess }: Step1Props) {
             )
           );
           await utils.clientSites.listByClient.invalidate({ clientId: data.id });
+          await utils.clientSites.listAll.invalidate(); // FIX-20260619-02
         } catch {
           toast.error(
             "Cliente creado, pero no se pudieron registrar todas las plazas iniciales."
@@ -212,6 +213,7 @@ function Step2Plazas({ clientId, onNext }: Step2Props) {
   const createSiteMutation = trpc.clientSites.create.useMutation({
     onSuccess: () => {
       utils.clientSites.listByClient.invalidate({ clientId });
+      utils.clientSites.listAll.invalidate(); // FIX-20260619-02
       setSiteName("");
       setSiteCity("");
       setSiteState("");

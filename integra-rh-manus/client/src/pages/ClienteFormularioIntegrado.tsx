@@ -109,6 +109,8 @@ export default function ClienteFormularioIntegrado() {
     onSuccess: async (data) => {
       if (clienteId) {
         await utils.clientSites.listByClient.invalidate({ clientId: clienteId });
+        // FIX-20260619-02: Invalidar también listAll para que /candidatos muestre la plaza nueva sin recargar
+        await utils.clientSites.listAll.invalidate();
       }
       setSelectedSite(String(data.id));
       setCreateSiteDialogOpen(false);
