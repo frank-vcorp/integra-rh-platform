@@ -314,7 +314,7 @@ function buildGeneralesCandidato(snapshot: Record<string, any>): string {
     .filter(Boolean)
     .join(", ");
 
-  return `
+  let body = `
   <div class="metrics-row">
     ${infoCard("Candidato", candidate.nombreCompleto || "—", "#1e3a5f")}
     ${infoCard("Puesto solicitado", post.nombreDelPuesto || post.nombre || "—", "#0369a1")}
@@ -334,6 +334,37 @@ function buildGeneralesCandidato(snapshot: Record<string, any>): string {
     ${field("Instagram", generales.instagram)}
     ${field("LinkedIn", generales.linkedin)}
   ` : ""}`;
+
+  /**
+   * FIX-20260622-01 | FIX-ARMADOS-COVERAGE-01
+   * Bloques nuevos: situación familiar + antecedentes financieros declarativos
+   * + plaza/CEDI. Se imprimen solo si el subset de claves no está vacío.
+   * @respaldo context/SPECs/SPEC-FIX-20260622-01-cobertura-armados.md §4.2.1
+   */
+  const sitFam = perfil.situacionFamiliar || {};
+  if (sitFam && typeof sitFam === "object" && Object.keys(sitFam).length > 0) {
+    body += '<div class="subsection-title">Situación familiar</div>';
+    body += field("Estado civil", sitFam.estadoCivil);
+    body += field("Hijos", sitFam.hijos);
+    body += field("Vive con", sitFam.viveCon);
+    body += field("Personas a cargo", sitFam.personasACargo);
+  }
+
+  const finAnt = perfil.financieroAntecedentes || {};
+  if (finAnt && typeof finAnt === "object" && Object.keys(finAnt).length > 0) {
+    body += '<div class="subsection-title">Antecedentes financieros declarativos</div>';
+    body += field("Ingresos mensuales declarados", finAnt.ingresosMensuales);
+    body += field("Deudas vigentes", finAnt.deudasVigentes);
+    body += field("Tarjetas de crédito", finAnt.tarjetasCredito);
+    body += field("Observaciones", finAnt.observaciones);
+  }
+
+  const siteName = (snapshot.process || {}).siteName;
+  if (siteName) {
+    body += field("Plaza / CEDI", siteName);
+  }
+
+  return body;
 }
 
 /**
@@ -419,6 +450,25 @@ function buildInvestigacionLaboral(snapshot: Record<string, any>): string {
         (item.investigacionDetalle as any)?.puesto?.puestoInicial ||
         item.puesto ||
         "";
+      // FIX-20260622-01 | FIX-ARMADOS-COVERAGE-01
+      // Datos adicionales por empleo: tiempo trabajado, contacto de referencia
+      // y desempeño. Cada bloque es opcional e independiente.
+      // @respaldo context/SPECs/SPEC-FIX-20260622-01-cobertura-armados.md §4.2.2
+      let workExtras = "";
+      if (item.tiempoTrabajadoEmpresa || item.tiempoTrabajado) {
+        workExtras += `<div class="work-tiempo"><span class="work-tiempo-label">Tiempo trabajado:</span> ${esc(item.tiempoTrabajadoEmpresa || item.tiempoTrabajado)}</div>`;
+      }
+      if (item.contactoReferencia || item.telefonoReferencia || item.correoReferencia) {
+        workExtras += `<div class="work-ref-contacto">`;
+        if (item.contactoReferencia) workExtras += `<span><strong>Contacto:</strong> ${esc(item.contactoReferencia)}</span>`;
+        if (item.telefonoReferencia) workExtras += `<span><strong>Tel:</strong> ${esc(item.telefonoReferencia)}</span>`;
+        if (item.correoReferencia) workExtras += `<span><strong>Correo:</strong> ${esc(item.correoReferencia)}</span>`;
+        workExtras += `</div>`;
+      }
+      if (item.desempenoScore !== undefined && item.desempenoScore !== null && item.desempenoScore !== "") {
+        workExtras += `<div class="work-desempeno"><span class="work-desempeno-label">Desempeño:</span> ${esc(String(item.desempenoScore))}/5</div>`;
+      }
+
       body += `
       <div class="work-item">
         <div class="work-item-header">
@@ -429,6 +479,7 @@ function buildInvestigacionLaboral(snapshot: Record<string, any>): string {
         ${causalBaja ? `<div class="work-causal"><span class="work-causal-label">Causal de baja:</span> ${esc(causalBaja)}</div>` : ""}
         ${periodo ? `<div class="work-periodo">${esc(periodo)}</div>` : ""}
         ${item.comentarioInvestigacion ? `<div class="work-comment">${esc(item.comentarioInvestigacion)}</div>` : ""}
+        ${workExtras}
       </div>`;
     }
     body += "</div>";
@@ -520,6 +571,20 @@ function buildSemanasWotizadas(snapshot: Record<string, any>): string {
   }
 
   body += field("Comentario de cotejo", semanas.comentario || null);
+
+  /**
+   * FIX-20260622-01 | FIX-ARMADOS-COVERAGE-01
+   * Número de semanas cotizadas. Cascada: process.semanasDetalle →
+   * candidate.dictamenLaboral. Solo se imprime si hay valor no-nulo.
+   * @respaldo context/SPECs/SPEC-FIX-20260622-01-cobertura-armados.md §4.2.3
+   */
+  const semanasNum =
+    (process.semanasDetalle as any)?.semanasCotizadas ??
+    (candidate.dictamenLaboral as any)?.semanasCotizadas ??
+    null;
+  if (semanasNum !== null && semanasNum !== undefined && semanasNum !== "") {
+    body += `<div class="info-banner"><strong>Semanas cotizadas:</strong> ${esc(String(semanasNum))}</div>`;
+  }
 
   // Evidencias gráficas integradas en el apartado
   const semanasImgs: string[] = Array.isArray(semanas.evidenciasGraficas)
@@ -1121,18 +1186,49 @@ function buildDocumentosAdicionales(snapshot: Record<string, any>): string {
 }
 
 function buildObservacionesConclusion(snapshot: Record<string, any>): string {
+  /**
+   * FIX-20260622-01 | FIX-ARMADOS-COVERAGE-01
+   * Reescritura completa: dictamen final con banner de color + comentario de la
+   * analista + fecha de cierre + resumen ejecutivo IA + recomendaciones IA +
+   * estado del dictamen laboral. Mantiene compatibilidad con datos existentes.
+   * @respaldo context/SPECs/SPEC-FIX-20260622-01-cobertura-armados.md §4.2.4
+   */
   const process = snapshot.process || {};
-  const cal = process.calificacionFinal || null;
+  const candidate = snapshot.candidate || {};
+  const dictamen = candidate.dictamenLaboral || {};
   const inv = process.investigacionLaboral || {};
   const iaDictamen = inv.iaDictamenCliente || {};
+  const cal = process.calificacionFinal || null;
+  const comentarioCal = process.comentarioCalificacion || null;
+  const fechaCierre = process.fechaCierre || null;
 
   let body = "";
 
+  // ── Dictamen final con banner de color
+  if (cal && cal !== "pendiente") {
+    const calColors = calificacionColors(cal);
+    const calLabel = CALIFICACION_LABELS[cal] || cal;
+    body += `
+    <div class="cal-banner" style="background:${calColors.bg};border-color:${calColors.border};border-left:6px solid ${calColors.accent}">
+      <div class="cal-label">DICTAMEN FINAL</div>
+      <div class="cal-value" style="color:${calColors.text}">${esc(calLabel)}</div>
+      ${fechaCierre ? `<div class="cal-meta">Fecha de cierre: ${formatDate(fechaCierre)}</div>` : ""}
+    </div>`;
+  }
+
+  // ── Comentario de calificación (de la analista)
+  if (comentarioCal) {
+    body += '<div class="subsection-title">Comentario de calificación</div>';
+    body += `<div class="narrative-block">${esc(comentarioCal)}</div>`;
+  }
+
+  // ── Resumen ejecutivo IA (compatibilidad con implementación previa)
   if (iaDictamen.resumenEjecutivoCliente) {
-    body += '<div class="subsection-title">Resumen ejecutivo</div>';
+    body += '<div class="subsection-title">Resumen ejecutivo del estudio</div>';
     body += `<div class="narrative-block">${esc(iaDictamen.resumenEjecutivoCliente)}</div>`;
   }
 
+  // ── Recomendaciones IA (compatibilidad con implementación previa)
   const recomendaciones: string[] = Array.isArray(iaDictamen.recomendacionesCliente)
     ? iaDictamen.recomendacionesCliente
     : [];
@@ -1145,6 +1241,13 @@ function buildObservacionesConclusion(snapshot: Record<string, any>): string {
     body += "</ul>";
   }
 
+  // ── Estado del dictamen laboral
+  if (dictamen.completado) {
+    body += '<div class="subsection-title">Estado del dictamen laboral</div>';
+    body += field("Completado", dictamen.completadoAt ? formatDate(dictamen.completadoAt) : "Sí");
+  }
+
+  // ── Sin contenido
   if (!body.trim()) {
     if (cal === "pendiente" || !cal) {
       body = '<p class="empty-note">Calificación final pendiente de asignar.</p>';

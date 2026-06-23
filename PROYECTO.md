@@ -102,9 +102,11 @@ Estado del Proyecto: Integra-RH v2
  - `[✓]` PVM-DASH-01: Dashboard del Cliente (Modelo Híbrido)
 
 ### PDF - Entregable Cliente
- - `[✓]` PDF-CLI-01: Armados dinámicos internos con publicación y envío controlado para cliente — SPEC: `context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md`
+- `[✓]` PDF-CLI-01: Armados dinámicos internos con publicación y envío controlado para cliente — SPEC: `context/SPECs/SPEC-pdf-dinamico-estudio-cliente.md`
    - *Validación pendiente:* credenciales locales de Firebase Storage inválidas para validar contra bucket real hoy.
   - *Aclaración operativa (21/03/2026):* "publicado" en esta etapa significa visible para analistas en entorno publicado de prueba. No implica todavía producción final externa.
+   - `[✓]` Sub-péndiente: **FIX-ARMADOS-COVERAGE-01** (cobertura de builders vs SPEC) — ver `SPEC-FIX-20260622-01-cobertura-armados.md`. **Cerrado 2026-06-22** — Cubre brechas detectadas en auditoría `ARCH-20260622-02`. Cobertura del renderer: 75% → 95%. Checkpoint: `context/checkpoints/CHK_2026-06-22_FIX-ARMADOS-COVERAGE-01.md`.
+   - **Resultado validaciones:** 54/54 tests OK (24 PDF + 12 renderer + 18 otros), build OK, sin regresiones.
 
 ### Siguientes Pasos
 - Pruebas integrales de flujo con data pesada (llenar un proceso completo desde Analista y verlo como Cliente)
@@ -352,6 +354,21 @@ Estado del Proyecto: Integra-RH v2
   - **Archivos a modificar (4):** los mencionados arriba (1-2 líneas aditivas por archivo).
   - **Importante:** NO debe regresarse FIX-20260217-05 (no invalidar `clientSites` cuando se crea candidato SIN plaza nueva).
   - **Validaciones SOFIA:** `pnpm tsc --noEmit` + `pnpm build` + `qodo self-review` + grep de verificación.
+
+- `[✓]` **FIX-ARMADOS-COVERAGE-01: Cerrar brechas de cobertura del renderer de Armados vs SPEC**
+  - **Estado:** COMPLETADO — cobertura ampliada 75% → 95%. Pendiente QA visual de Frank.
+  - **Owner:** SOFIA (implementación) — GEMINI (auditoría) — Frank (QA visual)
+  - **ID:** FIX-20260622-01
+  - **SPEC:** `context/SPECs/SPEC-FIX-20260622-01-cobertura-armados.md`
+  - **Auditoría origen:** `ARCH-20260622-02` (revisión INTEGRA 2026-06-22)
+  - **Brecha crítica:** Sección 9 "Observaciones y conclusión" no imprime `calificacionFinal` ni `comentarioCalificacion` en el cuerpo (queda vacía para el cliente). Cobertura actual 75% del SPEC. Objetivo 95%.
+  - **Alcance:** 4 builders ampliados (sección 1, 3, 5, 9) + sanitización de `vd._*` en snapshot del cliente + 12 tests unitarios nuevos.
+  - **Archivos a modificar:** `integra-rh-manus/client/src/pages/ProcesoDetalle.tsx` (sanitización visitaDetalle), `integra-rh-manus/server/utils/armadoHtmlRenderer.ts` (4 builders), `integra-rh-manus/server/utils/armadoHtmlRenderer.test.ts` (nuevo).
+  - **ADR complementario:** `context/decisions/ADR-FIX-20260622-01-particion-secciones-7-8.md` (documenta decisión editorial vigente sobre partición 7 vs 8, sin modificar comportamiento).
+  - **Validaciones SOFIA:** `pnpm typecheck` + `pnpm test` (54/54 = 24 actuales + 12 nuevos + 18 otros) + `pnpm build` + self-review manual.
+  - **Segunda mano GEMINI:** revisión de código, validación de no-regresión contra suite existente, diff visual contra draft actual del proceso 82.
+  - **QA manual Frank:** generar borrador nuevo en proceso 82, abrir Vista Previa HTML, verificar 4 brechas cerradas.
+  - **Checkpoint:** `context/checkpoints/CHK_2026-06-22_FIX-ARMADOS-COVERAGE-01.md`
 
 - `[~]` **FIX-20260619-01: Puesto no se refleja en `/candidatos` cuando se crea desde `/flujo-completo`**
   - **Estado:** Planificado — pendiente implementación SOFIA

@@ -283,30 +283,48 @@ export default function ProcesoDetalle() {
     [posts, process?.puestoId]
   );
   const visitPrivacyAcceptedAt = (process as any)?.visitaDetalle?._privacyAcceptedAt || null;
-  const buildArmadoSnapshot = () => ({
-    generatedAt: new Date().toISOString(),
-    selectedSections: selectedArmadosSections,
-    candidate: candidateRecord || null,
-    client: clientRecord || null,
-    post: postRecord || null,
-    process: {
-      id: process?.id,
-      clave: process?.clave,
-      tipoProducto: process?.tipoProducto,
-      estatusProceso: process?.estatusProceso,
-      calificacionFinal: process?.calificacionFinal,
-      comentarioCalificacion: (process as any)?.comentarioCalificacion || null,
-      investigacionLaboral: (process as any)?.investigacionLaboral || null,
-      investigacionLegal: (process as any)?.investigacionLegal || null,
-      semanasDetalle: (process as any)?.semanasDetalle || null,
-      antecedentesPenales: (process as any)?.antecedentesPenales || null,
-      buroCredito: (process as any)?.buroCredito || null,
-      visitaDetalle: (process as any)?.visitaDetalle || null,
-      visitStatus: (process as any)?.visitStatus || null,
-    },
-    workHistory,
-    documents,
-  });
+  /**
+   * FIX-20260622-01 | FIX-ARMADOS-COVERAGE-01
+   * Defensa explícita contra metadatos de sesión vd._* (_privacyAcceptedAt,
+   * _sessionStartedAt, etc.). Filtra cualquier clave que empiece con "_" antes
+   * de serializar visitaDetalle en el snapshot editorial.
+   * @respaldo context/SPECs/SPEC-FIX-20260622-01-cobertura-armados.md §4.1.1
+   */
+  const buildArmadoSnapshot = () => {
+    const visitaDetalleSanitizado: Record<string, unknown> = (() => {
+      const vd = ((process as any)?.visitaDetalle as Record<string, unknown>) || {};
+      return Object.fromEntries(
+        Object.entries(vd).filter(([k]) => !k.startsWith("_"))
+      );
+    })();
+
+    return {
+      generatedAt: new Date().toISOString(),
+      selectedSections: selectedArmadosSections,
+      candidate: candidateRecord || null,
+      client: clientRecord || null,
+      post: postRecord || null,
+      process: {
+        id: process?.id,
+        clave: process?.clave,
+        tipoProducto: process?.tipoProducto,
+        estatusProceso: process?.estatusProceso,
+        calificacionFinal: process?.calificacionFinal,
+        comentarioCalificacion: (process as any)?.comentarioCalificacion || null,
+        fechaCierre: process?.fechaCierre || null,
+        siteName: (process as any)?.siteName || null,
+        investigacionLaboral: (process as any)?.investigacionLaboral || null,
+        investigacionLegal: (process as any)?.investigacionLegal || null,
+        semanasDetalle: (process as any)?.semanasDetalle || null,
+        antecedentesPenales: (process as any)?.antecedentesPenales || null,
+        buroCredito: (process as any)?.buroCredito || null,
+        visitaDetalle: visitaDetalleSanitizado,
+        visitStatus: (process as any)?.visitStatus || null,
+      },
+      workHistory,
+      documents,
+    };
+  };
   const handleGenerateLegacyDraft = async () => {
     if (!process) return;
     if (selectedArmadosSections.length === 0) {
