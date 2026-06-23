@@ -139,12 +139,19 @@ function isSameProjectBucket(currentBucketName: string, candidateBucketName: str
  * Refresca una URL de Firebase Storage generando una signed URL de lectura (15 min).
  * - Prioriza fileKey para regenerar directamente desde el bucket activo.
  * - Si solo hay URL legacy, intenta extraer el object path del patrón GCS/Firebase.
- * - Si no puede regenerar (CDN externo, error de credenciales), conserva la URL original.
+ * - Si no puede regenerar (CDN externo, error de credenciales, fileKey corrupto),
+ *   conserva la URL original y emite un log estructurado con `code`, `msg`,
+ *   `context`, `fileKey` y `urlPrefix` para diagnóstico post-mortem.
+ *
  * @intervention IMPL-20260408-06
+ * @intervention IMPL-ARCH-20260622-01 — agrega `context` y warn estructurado
+ * @respaldo context/SPECs/SPEC-ARCH-20260622-01-fix-storage-upload-no-such-key.md §3.3
+ * @respaldo context/decisions/ADR-ARCH-20260622-01-fix-storage-upload-no-such-key.md §4.3
  */
 export async function refreshStorageUrl(
   url: string | null | undefined,
   fileKey?: string | null,
+  context?: { procesoId?: number; candidatoId?: number; docId?: number },
 ): Promise<string> {
   if (!url && !fileKey) return url ?? '';
   try {
@@ -163,7 +170,22 @@ export async function refreshStorageUrl(
     });
     return signedUrl;
   } catch (err) {
-    console.warn('[refreshStorageUrl] No se pudo regenerar URL, usando original:', (err as Error).message);
+    const msg = (err as Error)?.message ?? '';
+    const code = (err as { code?: unknown })?.code ?? 'UNKNOWN';
+    // IMPL-ARCH-20260622-01: warn estructurado (JSON en una sola línea) para que sea
+    // fácil de grepear en logs y no enmascare el NoSuchKey original.
+    console.warn(
+      '[refreshStorageUrl] FAILED',
+      JSON.stringify({
+        code,
+        msg,
+        context: context ?? {},
+        fileKey,
+        urlPrefix: url?.slice(0, 120),
+      }),
+    );
+    // Devolver la URL original para que la UI al menos intente abrir.
+    // Si el operador ve NoSuchKey, ya quedó log para diagnóstico.
     return url ?? '';
   }
 }

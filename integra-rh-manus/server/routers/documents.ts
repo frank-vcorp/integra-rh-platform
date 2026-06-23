@@ -8,6 +8,7 @@ import { router, protectedProcedure, adminProcedure, requirePermission } from ".
 import { z } from "zod";
 import * as db from "../db";
 import { storage as firebaseStorage, refreshStorageUrl } from "../firebase";
+import { sanitizeStorageKeySegment } from "../utils/storageKeys";
 
 export const documentsRouter = router({
   getByCandidate: protectedProcedure
@@ -33,7 +34,12 @@ export const documentsRouter = router({
       return Promise.all(
         docs.map(async (doc: any) => ({
           ...doc,
-          url: doc.url ? await refreshStorageUrl(doc.url, doc.fileKey) : doc.url,
+          url: doc.url
+            ? await refreshStorageUrl(doc.url, doc.fileKey, {
+                procesoId: input.procesoId,
+                docId: doc.id,
+              })
+            : doc.url,
         }))
       );
     }),
@@ -84,7 +90,11 @@ export const documentsRouter = router({
       const folder = input.procesoId
         ? `processes/${input.procesoId}`
         : `candidates/${input.candidatoId}`;
-      const key = `${folder}/${Date.now()}-${input.fileName}`;
+      // IMPL-ARCH-20260622-01: sanitizar el filename antes de construir el object path
+      // para evitar caracteres prohibidos en GCS (? # [ ] * / \ : ;) y doble encoding.
+      // input.fileName se conserva tal cual en nombreArchivo (DB).
+      const safeFileName = sanitizeStorageKeySegment(input.fileName);
+      const key = `${folder}/${Date.now()}-${safeFileName}`;
       // Usar el bucket por defecto configurado en Firebase Admin para evitar errores de nombre
       const bucket = firebaseStorage.bucket();
       const file = bucket.file(key);
@@ -98,7 +108,8 @@ export const documentsRouter = router({
         });
         const [url] = await file.getSignedUrl({
           action: "read",
-          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          // IMPL-ARCH-20260622-01: expiración alineada con refreshStorageUrl (15 min)
+          expires: new Date(Date.now() + 15 * 60 * 1000),
         });
         signedUrl = url;
       } catch (storageErr) {

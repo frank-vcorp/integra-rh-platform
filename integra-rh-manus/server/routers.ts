@@ -38,10 +38,13 @@ const clientProcedure = protectedProcedure.use(({ ctx, next }) => {
  */
 async function refreshProcessEmbeddedUrls(p: any): Promise<void> {
   if (!p) return;
+  // IMPL-ARCH-20260622-01: pasar contexto de proceso a refreshStorageUrl
+  // para que el warn estructurado incluya el procesoId en caso de NoSuchKey.
+  const ctx = { procesoId: p?.id };
   const inv = p.investigacionLegal;
   if (inv) {
-    if (inv.archivoAdjuntoUrl) inv.archivoAdjuntoUrl = await refreshStorageUrl(inv.archivoAdjuntoUrl);
-    if (inv.evidenciaImgUrl) inv.evidenciaImgUrl = await refreshStorageUrl(inv.evidenciaImgUrl);
+    if (inv.archivoAdjuntoUrl) inv.archivoAdjuntoUrl = await refreshStorageUrl(inv.archivoAdjuntoUrl, undefined, ctx);
+    if (inv.evidenciaImgUrl) inv.evidenciaImgUrl = await refreshStorageUrl(inv.evidenciaImgUrl, undefined, ctx);
     if (Array.isArray(inv.evidenciasGraficas) && inv.evidenciasGraficas.length > 0)
       inv.evidenciasGraficas = await refreshStorageUrls(inv.evidenciasGraficas);
   }
@@ -55,13 +58,13 @@ async function refreshProcessEmbeddedUrls(p: any): Promise<void> {
 
   const buro = p.buroCredito;
   if (buro) {
-    if (buro.pdfUrl) buro.pdfUrl = await refreshStorageUrl(buro.pdfUrl);
+    if (buro.pdfUrl) buro.pdfUrl = await refreshStorageUrl(buro.pdfUrl, undefined, ctx);
     if (Array.isArray(buro.archivosAdicionales) && buro.archivosAdicionales.length > 0)
       buro.archivosAdicionales = await refreshStorageUrls(buro.archivosAdicionales);
   }
   const vis = p.visitaDetalle;
   if (vis) {
-    if (vis.enlaceReporteUrl) vis.enlaceReporteUrl = await refreshStorageUrl(vis.enlaceReporteUrl);
+    if (vis.enlaceReporteUrl) vis.enlaceReporteUrl = await refreshStorageUrl(vis.enlaceReporteUrl, undefined, ctx);
     if (Array.isArray(vis.evidenciasGraficas) && vis.evidenciasGraficas.length > 0)
       vis.evidenciasGraficas = await refreshStorageUrls(vis.evidenciasGraficas);
   }
@@ -662,10 +665,14 @@ export const appRouter = router({
         }
         const docs = await db.getDocumentsByProcess(input.procesoId);
         // IMPL-20260408-06: refrescar URLs usando fileKey cuando esté disponible
+        // IMPL-ARCH-20260622-01: pasar contexto de proceso + doc para diagnóstico en warn
         return Promise.all(
           docs.map(async (doc: Awaited<ReturnType<typeof db.getDocumentsByProcess>>[number]) => ({
             ...doc,
-            url: await refreshStorageUrl(doc.url, doc.fileKey),
+            url: await refreshStorageUrl(doc.url, doc.fileKey, {
+              procesoId: input.procesoId,
+              docId: doc.id,
+            }),
           })),
         );
       }),
